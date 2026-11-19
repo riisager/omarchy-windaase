@@ -300,7 +300,7 @@ The JS test suite automatically verifies key parity, non-empty translations, and
 ./uninstall.sh --restore-stock  # Also restore omarchy.dock, reset bar height, and move bar to top
 ```
 
-`uninstall.sh` automatically backs up `~/.config/hypr/hyprland.lua` and cleanly removes both single-line and multiline `require("hypr.windaase").setup({...})` blocks (validating the result with `luac -p` when available).
+`uninstall.sh` automatically backs up `~/.config/hypr/hyprland.lua` and cleanly removes both single-line and multiline `require("hypr.windaase").setup({...})` blocks (validating the result with `luac -p` when available). If `hyprland.lua` contains a custom `hypr.windaase` expression that cannot be removed safely, `uninstall.sh` leaves both `hyprland.lua` and `~/.config/hypr/windaase*` untouched and exits non-zero so Hyprland stays valid.
 
 ---
 

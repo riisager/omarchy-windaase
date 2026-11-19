@@ -30,7 +30,7 @@ def atomic_write(path, content):
         mode = os.stat(path).st_mode & 0o777
     fd, tmp_path = tempfile.mkstemp(prefix=".windaase-", suffix=".tmp", dir=parent)
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
             handle.write(content)
         if mode is not None:
             os.chmod(tmp_path, mode)
@@ -287,7 +287,10 @@ def tokenize_lua(text):
             while j < n:
                 c = text[j]
                 if c == "\\":
-                    j += 2
+                    if text[j:j + 3] == "\\\r\n":
+                        j += 3
+                    else:
+                        j += 2
                     continue
                 if c == quote:
                     j += 1
@@ -385,6 +388,14 @@ def _scan_balanced_delim(tokens, open_idx):
     raise ValueError("Unbalanced Lua delimiters")
 
 
+def _is_windaase_module_ref(name):
+    return (
+        name in ("hypr.windaase", "hypr/windaase")
+        or name.startswith("hypr.windaase.")
+        or name.startswith("hypr/windaase/")
+    )
+
+
 def _match_require_windaase(tokens, idx):
     """If tokens[idx] is `require` loading 'hypr.windaase', return closing token index."""
     if tokens[idx][0] != "ident" or tokens[idx][1] != "require":
@@ -393,7 +404,7 @@ def _match_require_windaase(tokens, idx):
     if j >= len(tokens):
         return None
     if tokens[j][0] == "string":
-        return j if _unquote_lua_string(tokens[j][1]) == "hypr.windaase" else None
+        return j if _unquote_lua_string(tokens[j][1]) in ("hypr.windaase", "hypr/windaase") else None
     if tokens[j][:2] != ("punct", "("):
         return None
     close_idx = _scan_balanced_delim(tokens, j)
@@ -402,7 +413,7 @@ def _match_require_windaase(tokens, idx):
         return None
     if _next_nontrivia(tokens, first + 1) != close_idx:
         return None
-    return close_idx if _unquote_lua_string(tokens[first][1]) == "hypr.windaase" else None
+    return close_idx if _unquote_lua_string(tokens[first][1]) in ("hypr.windaase", "hypr/windaase") else None
 
 
 def _consume_setup_chain(tokens, end_idx, require_setup=False):
@@ -456,7 +467,7 @@ def _apply_lua_removals(text, tokens, token_spans):
     if not char_spans:
         return text
 
-    banner_re = re.compile(r"^[ \t]*--\s*Omarchy-wind[åa]se\b[^\r\n]*$")
+    banner_re = re.compile(r"^[ \t]*--\s*Omarchy-wind[åa]se\b[^\r\n]*\r?$")
     out = []
     cursor = 0
     for start_c, end_c in char_spans:
@@ -468,7 +479,7 @@ def _apply_lua_removals(text, tokens, token_spans):
         line_end = nl_after if nl_after != -1 else len(text)
         suffix_same_line = text[end_c:line_end]
 
-        if prefix_same_line.strip(" \t") == "" and suffix_same_line.strip(" \t") == "":
+        if prefix_same_line.strip(" \t\r") == "" and suffix_same_line.strip(" \t\r") == "":
             cut_start = line_start
             prev_nl = cut_start - 1
             if prev_nl >= cursor and text[prev_nl] == "\n":
@@ -479,7 +490,8 @@ def _apply_lua_removals(text, tokens, token_spans):
 
             cut_end = line_end + (1 if nl_after != -1 else 0)
             while cut_end < len(text) and text[cut_end] in "\r\n":
-                before_ends_blank = "".join(out[-2:] + [text[cursor:cut_start]]).endswith("\n\n") or cut_start == 0
+                before_tail = ("".join(out[-2:] + [text[cursor:cut_start]])).replace("\r\n", "\n")
+                before_ends_blank = before_tail.endswith("\n\n") or cut_start == 0
                 if not before_ends_blank:
                     break
                 cut_end += 1
@@ -496,7 +508,8 @@ def _apply_lua_removals(text, tokens, token_spans):
     out.append(text[cursor:])
     result = "".join(out)
     stripped = result.rstrip(" \t\r\n")
-    return (stripped + "\n") if stripped else ""
+    eol = "\r\n" if "\r\n" in text else "\n"
+    return (stripped + eol) if stripped else ""
 
 
 def _luac_validates(text):
@@ -578,7 +591,7 @@ def strip_hyprland_loader(text):
     for idx, (kind, raw, _, _) in enumerate(tokens):
         if idx in taken or kind == "comment":
             continue
-        if kind == "string" and _unquote_lua_string(raw) == "hypr.windaase":
+        if kind == "string" and _is_windaase_module_ref(_unquote_lua_string(raw)):
             raise ValueError("Found unsupported hypr.windaase reference; refusing partial edit")
 
     orig_valid = _luac_validates(text)
@@ -592,7 +605,7 @@ def cmd_strip_hyprland_loader(args):
     if len(args) != 1:
         raise ValueError("Expected <path> for strip-hyprland-loader")
     path = args[0]
-    with open(path, "r", encoding="utf-8") as handle:
+    with open(path, "r", encoding="utf-8", newline="") as handle:
         original = handle.read()
     cleaned = strip_hyprland_loader(original)
     if cleaned != original:

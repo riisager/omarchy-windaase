@@ -323,6 +323,168 @@ class ConfigHelperTests(unittest.TestCase):
             'o.workspace_mode({ workspace = "3", mode = "scrolling" })\n',
         )
 
+    def test_strip_hyprland_loader_refuses_submodule_and_handles_crlf(self):
+        lua_path = os.path.join(self.home, "hyprland.lua")
+
+        submod = 'local snap = require("hypr.windaase.snap")\nsnap.apply_snap(nil, "left")\n'
+        with open(lua_path, "w", encoding="utf-8") as handle:
+            handle.write(submod)
+        res = self.run_helper("strip-hyprland-loader", lua_path)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertEqual(self.read_text(lua_path), submod)
+
+        crlf = (
+            'o.bind("SUPER + Return", "Term", { term = "foot" })\r\n\r\n'
+            "-- Omarchy-windåse\r\n"
+            'require("hypr.windaase").setup({\r\n'
+            '  note = "line\\\r\ncontinued",\r\n'
+            "  hover_scroll = true,\r\n"
+            "})\r\n"
+        )
+        with open(lua_path, "wb") as handle:
+            handle.write(crlf.encode("utf-8"))
+        res = self.run_helper("strip-hyprland-loader", lua_path)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        with open(lua_path, "rb") as handle:
+            cleaned = handle.read().decode("utf-8")
+        self._luac_ok(cleaned)
+        self.assertEqual(cleaned, 'o.bind("SUPER + Return", "Term", { term = "foot" })\r\n')
+
+    def _setup_fake_install_state(self, hyprland_content, installed_helper_body=None):
+        stub_dir = self._make_stub_bin()
+        hypr_dir = os.path.join(self.home, ".config", "hypr")
+        plugin_dir = os.path.join(self.home, ".config", "omarchy", "plugins", "riisager.windaase")
+        lua_sub_dir = os.path.join(hypr_dir, "windaase")
+        lua_entry = os.path.join(hypr_dir, "windaase.lua")
+        windaase_json = os.path.join(self.omarchy_dir, "windaase.json")
+        hyprland_lua = os.path.join(hypr_dir, "hyprland.lua")
+        state_home = os.path.join(self.home, ".local", "state")
+
+        os.makedirs(plugin_dir, exist_ok=True)
+        os.makedirs(lua_sub_dir, exist_ok=True)
+        with open(hyprland_lua, "w", encoding="utf-8") as handle:
+            handle.write(hyprland_content)
+        with open(lua_entry, "w", encoding="utf-8") as handle:
+            handle.write("-- module\nreturn {}\n")
+        with open(os.path.join(lua_sub_dir, "snap.lua"), "w", encoding="utf-8") as handle:
+            handle.write("return {}\n")
+        with open(windaase_json, "w", encoding="utf-8") as handle:
+            handle.write('{"hover_scroll":true}\n')
+        if installed_helper_body is not None:
+            with open(os.path.join(plugin_dir, "windaase-config.py"), "w", encoding="utf-8") as handle:
+                handle.write(installed_helper_body)
+
+        env = self.env.copy()
+        env["PATH"] = f"{stub_dir}:{env['PATH']}"
+        env["XDG_STATE_HOME"] = state_home
+        return {
+            "env": env,
+            "hyprland_lua": hyprland_lua,
+            "lua_entry": lua_entry,
+            "lua_sub_dir": lua_sub_dir,
+            "plugin_dir": plugin_dir,
+            "windaase_json": windaase_json,
+        }
+
+    def test_uninstall_sh_prefers_script_dir_helper_over_older_installed_helper(self):
+        original = (
+            'o.bind("SUPER + Return", "Term", { term = "foot" })\n\n'
+            "-- Omarchy-windåse\n"
+            'require("hypr.windaase").setup({\n'
+            "  aero_snap = true,\n"
+            "  gap_out = 8,\n"
+            "})\n"
+        )
+        old_helper = '#!/usr/bin/env python3\nimport sys\nsys.stderr.write("Unknown subcommand\\n")\nsys.exit(1)\n'
+        st = self._setup_fake_install_state(original, installed_helper_body=old_helper)
+
+        res = subprocess.run(["bash", UNINSTALL_SH], env=st["env"], capture_output=True, text=True, check=False)
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+
+        cleaned = self.read_text(st["hyprland_lua"])
+        self._luac_ok(cleaned)
+        self.assertNotIn("hypr.windaase", cleaned)
+        self.assertFalse(os.path.exists(st["lua_entry"]))
+        self.assertFalse(os.path.exists(st["lua_sub_dir"]))
+        self.assertFalse(os.path.exists(st["plugin_dir"]))
+        self.assertFalse(os.path.exists(st["windaase_json"]))
+
+    def test_uninstall_sh_keeps_lua_module_when_older_fallback_helper_fails(self):
+        original = (
+            "-- Omarchy-windåse\n"
+            'require("hypr.windaase").setup({\n'
+            "  aero_snap = true,\n"
+            "})\n"
+        )
+        old_helper = '#!/usr/bin/env python3\nimport sys\nsys.stderr.write("Unknown subcommand\\n")\nsys.exit(1)\n'
+        st = self._setup_fake_install_state(original, installed_helper_body=old_helper)
+
+        toml_path = os.path.join(self.omarchy_dir, "shell.toml")
+        with open(toml_path, "w", encoding="utf-8") as handle:
+            handle.write("[bar]\nsize-horizontal = 40\n")
+
+        isolated_dir = os.path.join(self.home, "alone")
+        os.makedirs(isolated_dir, exist_ok=True)
+        solo_uninstall = os.path.join(isolated_dir, "uninstall.sh")
+        shutil.copy2(UNINSTALL_SH, solo_uninstall)
+
+        res = subprocess.run(
+            ["bash", solo_uninstall, "--restore-stock"],
+            env=st["env"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("left", res.stderr)
+        self.assertEqual(self.read_text(st["hyprland_lua"]), original)
+        self.assertTrue(os.path.exists(st["lua_entry"]))
+        self.assertTrue(os.path.exists(st["lua_sub_dir"]))
+        self.assertTrue(os.path.exists(st["plugin_dir"]))
+        self.assertTrue(os.path.exists(st["windaase_json"]))
+        self.assertEqual(self.read_text(toml_path), "[bar]\nsize-horizontal = 40\n")
+        self.assertEqual(glob.glob(f"{st['hyprland_lua']}.bak-uninstall-*"), [])
+
+    def test_uninstall_sh_keeps_lua_module_when_strip_fails_on_custom_wrapper(self):
+        custom = 'if require("hypr.windaase") then\n  print("x")\nend\n'
+        st = self._setup_fake_install_state(custom)
+
+        res = subprocess.run(["bash", UNINSTALL_SH], env=st["env"], capture_output=True, text=True, check=False)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertEqual(self.read_text(st["hyprland_lua"]), custom)
+        self.assertTrue(os.path.exists(st["lua_entry"]))
+        self.assertTrue(os.path.exists(st["lua_sub_dir"]))
+        self.assertTrue(os.path.exists(st["plugin_dir"]))
+        self.assertEqual(glob.glob(f"{st['hyprland_lua']}.bak-uninstall-*"), [])
+
+    def test_uninstall_sh_keeps_lua_module_when_helper_missing(self):
+        original = 'require("hypr.windaase").setup()\n'
+        st = self._setup_fake_install_state(original, installed_helper_body=None)
+
+        isolated_dir = os.path.join(self.home, "alone-missing")
+        os.makedirs(isolated_dir, exist_ok=True)
+        solo_uninstall = os.path.join(isolated_dir, "uninstall.sh")
+        shutil.copy2(UNINSTALL_SH, solo_uninstall)
+
+        res = subprocess.run(["bash", solo_uninstall], env=st["env"], capture_output=True, text=True, check=False)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertEqual(self.read_text(st["hyprland_lua"]), original)
+        self.assertTrue(os.path.exists(st["lua_entry"]))
+        self.assertTrue(os.path.exists(st["lua_sub_dir"]))
+        self.assertTrue(os.path.exists(st["plugin_dir"]))
+
+    def test_uninstall_sh_handles_commented_out_require_cleanly(self):
+        commented = '-- require("hypr.windaase").setup()\no.bind("SUPER + Q", "Close", "x")\n'
+        st = self._setup_fake_install_state(commented)
+
+        res = subprocess.run(["bash", UNINSTALL_SH], env=st["env"], capture_output=True, text=True, check=False)
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+        self.assertEqual(self.read_text(st["hyprland_lua"]), commented)
+        self.assertEqual(glob.glob(f"{st['hyprland_lua']}.bak-uninstall-*"), [])
+        self.assertFalse(os.path.exists(st["lua_entry"]))
+        self.assertFalse(os.path.exists(st["lua_sub_dir"]))
+        self.assertFalse(os.path.exists(st["plugin_dir"]))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

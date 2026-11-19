@@ -27,28 +27,39 @@ USAGE
   esac
 done
 
-CONFIG_HELPER="${PLUGIN_DEST}/windaase-config.py"
-if [[ ! -f "${CONFIG_HELPER}" && -f "${SCRIPT_DIR}/windaase-config.py" ]]; then
-  CONFIG_HELPER="${SCRIPT_DIR}/windaase-config.py"
+CONFIG_HELPER="${SCRIPT_DIR}/windaase-config.py"
+if [[ ! -f "${CONFIG_HELPER}" ]]; then
+  if [[ -f "${PLUGIN_DEST}/windaase-config.py" ]]; then
+    CONFIG_HELPER="${PLUGIN_DEST}/windaase-config.py"
+  else
+    CONFIG_HELPER=""
+  fi
 fi
 
-if [[ "$RESTORE_STOCK" -eq 1 ]] && [[ -f "${CONFIG_HELPER}" ]]; then
-  python3 "${CONFIG_HELPER}" bar-height-reset || true
-fi
+if [[ -f "${HYPRLAND_LUA}" ]] && grep -qE 'Omarchy-windåse|Omarchy-windaase|hypr[./]windaase' "${HYPRLAND_LUA}"; then
+  if [[ -z "${CONFIG_HELPER}" ]]; then
+    echo "Error: windaase-config.py not found; leaving ${HYPRLAND_LUA} and ${HYPR_DIR}/windaase* intact so Hyprland stays valid. Please remove hypr.windaase manually and re-run uninstall.sh." >&2
+    exit 1
+  fi
 
-if [[ -f "${HYPRLAND_LUA}" ]] && grep -qE 'Omarchy-windåse|Omarchy-windaase|hypr\.windaase' "${HYPRLAND_LUA}"; then
-  BACKUP="${HYPRLAND_LUA}.bak-uninstall-$(date +%Y%m%d-%H%M%S)"
+  BACKUP="${HYPRLAND_LUA}.bak-uninstall-$(date +%Y%m%d-%H%M%S)-$$"
   cp "${HYPRLAND_LUA}" "${BACKUP}"
-  if [[ -f "${CONFIG_HELPER}" ]]; then
-    if python3 "${CONFIG_HELPER}" strip-hyprland-loader "${HYPRLAND_LUA}"; then
-      echo "==> Removed hypr.windaase from ${HYPRLAND_LUA} (backup: ${BACKUP})"
+  if python3 "${CONFIG_HELPER}" strip-hyprland-loader "${HYPRLAND_LUA}"; then
+    if cmp -s "${HYPRLAND_LUA}" "${BACKUP}"; then
+      rm -f "${BACKUP}"
     else
-      cp "${BACKUP}" "${HYPRLAND_LUA}"
-      echo "Warning: could not automatically strip hypr.windaase from ${HYPRLAND_LUA}; restored backup (${BACKUP}). Please remove it manually." >&2
+      echo "==> Removed hypr.windaase from ${HYPRLAND_LUA} (backup: ${BACKUP})"
     fi
   else
-    echo "Warning: windaase-config.py not found; left ${HYPRLAND_LUA} unchanged (backup: ${BACKUP})." >&2
+    cp "${BACKUP}" "${HYPRLAND_LUA}"
+    rm -f "${BACKUP}"
+    echo "Error: could not safely strip hypr.windaase from ${HYPRLAND_LUA}; restored backup and left ${HYPR_DIR}/windaase* intact so Hyprland stays valid. Please remove it manually and re-run uninstall.sh." >&2
+    exit 1
   fi
+fi
+
+if [[ "$RESTORE_STOCK" -eq 1 ]] && [[ -n "${CONFIG_HELPER}" ]]; then
+  python3 "${CONFIG_HELPER}" bar-height-reset || true
 fi
 
 if command -v omarchy >/dev/null 2>&1; then

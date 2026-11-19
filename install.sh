@@ -110,14 +110,14 @@ if [[ "$MODE" == "full" ]]; then
   LAYOUTS_DIR="${STATE_DIR}/workspace-layouts"
   LAYOUTS_BACKUP=""
   if [[ -d "${LAYOUTS_DIR}" ]] && compgen -G "${LAYOUTS_DIR}/*.lua" >/dev/null; then
-    LAYOUTS_BACKUP="${STATE_DIR}/workspace-layouts.bak-$(date +%Y%m%d-%H%M%S)"
+    LAYOUTS_BACKUP="${STATE_DIR}/workspace-layouts.bak-$(date +%Y%m%d-%H%M%S)-$$"
     cp -a "${LAYOUTS_DIR}" "${LAYOUTS_BACKUP}"
     echo "==> Backed up ${LAYOUTS_DIR} to ${LAYOUTS_BACKUP}"
   fi
 
   SHELL_JSON="${HOME}/.config/omarchy/shell.json"
   if [[ -f "${SHELL_JSON}" ]]; then
-    SHELL_JSON_BAK="${SHELL_JSON}.bak-$(date +%Y%m%d-%H%M%S)"
+    SHELL_JSON_BAK="${SHELL_JSON}.bak-$(date +%Y%m%d-%H%M%S)-$$"
     cp "${SHELL_JSON}" "${SHELL_JSON_BAK}"
     echo "==> Backed up ${SHELL_JSON} to ${SHELL_JSON_BAK}"
   fi
