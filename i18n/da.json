@@ -1,0 +1,13 @@
+{
+  "taskbar.minimizedPrefix": "[Minimeret] %1",
+  "taskbar.windowCount": "%1 (%2)",
+  "taskbar.openProfile": "Åbn profil",
+  "taskbar.newWindow": "Nyt vindue",
+  "taskbar.minimize": "Minimer",
+  "taskbar.restore": "Gendan",
+  "taskbar.pin": "Fastgør til proceslinje",
+  "taskbar.unpin": "Frigør fra proceslinje",
+  "taskbar.closeWindow": "Luk vindue",
+  "taskbar.closeAll": "Luk alle",
+  "taskbar.workspaceBadge": "S%1"
+}

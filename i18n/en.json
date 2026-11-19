@@ -1,0 +1,13 @@
+{
+  "taskbar.minimizedPrefix": "[Minimized] %1",
+  "taskbar.windowCount": "%1 (%2)",
+  "taskbar.openProfile": "Open profile",
+  "taskbar.newWindow": "New window",
+  "taskbar.minimize": "Minimize",
+  "taskbar.restore": "Restore",
+  "taskbar.pin": "Pin to taskbar",
+  "taskbar.unpin": "Unpin from taskbar",
+  "taskbar.closeWindow": "Close window",
+  "taskbar.closeAll": "Close all",
+  "taskbar.workspaceBadge": "W%1"
+}
