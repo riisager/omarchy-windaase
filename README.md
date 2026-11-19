@@ -2,9 +2,9 @@
 
 # Omarchy-windåse
 
-**Familiar Windows 11 desktop ergonomics for Omarchy 4.5 — zero bloat, zero core-file edits.**
+**Familiar Windows 11 desktop ergonomics for Omarchy 4.5 - zero bloat, zero core-file edits.**
 
-*("Windåse" is Danish wordplay for Windows — literally "wind-can".)*
+*("Windåse" is Danish wordplay for Windows - literally "wind-can".)*
 
 [![Omarchy 4.5](https://img.shields.io/badge/Omarchy-4.5-111111?style=for-the-badge)](https://omarchy.org)
 [![Hyprland + Quickshell](https://img.shields.io/badge/Hyprland_%2B_Quickshell-Plugin_%2B_Lua-2563eb?style=for-the-badge)](#architecture)
@@ -20,11 +20,11 @@
 
 ## Why Omarchy-windåse?
 
-If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow — yet sometimes just want a floating Windows 11-style taskbar, drag-to-snap zone cards, and clean overlapping windows — **Omarchy-windåse** adds all of it without fighting the distro:
+If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow - yet sometimes just want a floating Windows 11-style taskbar, drag-to-snap zone cards, and clean overlapping windows - **Omarchy-windåse** adds all of it without fighting the distro:
 
-- **One bar, full vertical space** — Pinned and running apps live directly inside the Omarchy bar instead of a separate dock stealing screen height.
-- **Zero fork, zero `/usr/share/omarchy/` edits** — Installed purely in `~/.config/omarchy/` and `~/.config/hypr/`, surviving every Omarchy package update and theme switch cleanly.
-- **Zero bloat & 0% idle CPU** — Native Quickshell QML + event-driven Hyprland Lua. No polling loops when windows are still, no Electron, no extra background daemons.
+- **One bar, full vertical space** - Pinned and running apps live directly inside the Omarchy bar instead of a separate dock stealing screen height.
+- **Zero fork, zero `/usr/share/omarchy/` edits** - Installed purely in `~/.config/omarchy/` and `~/.config/hypr/`, surviving every Omarchy package update and theme switch cleanly.
+- **Zero bloat & 0% idle CPU** - Native Quickshell QML + event-driven Hyprland Lua. No polling loops when windows are still, no Electron, no extra background daemons.
 
 ---
 
@@ -32,8 +32,8 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow — y
 
 ### In-Bar Taskbar & 3×3 Apps Launcher
 - **Pinned + active windows right inside the bar** (`BarWidget.qml`) alongside Omarchy's own 3×3 **Apps** launcher button (`Super + Alt + Space`).
-- **Smart click behavior** — Left-click focuses or toggles minimize on single-window apps, middle-click spawns a new window, and multi-window apps open an upward picker (`WindowPickerCard.qml`) with workspace badges (`W1`, etc.) and per-window close buttons.
-- **Scales cleanly with tall bars** — Pair with a `40 px` bar height (`--bar-height 40` or in the Settings UI) to grow app icons without blowing up system tray icons, and switch Omarchy's clock to a two-line Windows 11 layout (`HH:mm` / `dd-MM-yyyy`).
+- **Smart click behavior** - Left-click focuses or toggles minimize on single-window apps, middle-click spawns a new window, and multi-window apps open an upward picker (`WindowPickerCard.qml`) with workspace badges (`W1`, etc.) and per-window close buttons.
+- **Scales cleanly with tall bars** - Pair with a `40 px` bar height (`--bar-height 40` or in the Settings UI) to grow app icons without blowing up system tray icons, and switch Omarchy's clock to a two-line Windows 11 layout (`HH:mm` / `dd-MM-yyyy`).
 
 ### Visual All-Apps Grid (`AppGrid.qml`)
 - Triggered from the bar's 3×3 Apps button or `Super + Alt + Space`.
@@ -41,11 +41,11 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow — y
 - Full keyboard navigation (`Arrow keys`, `Enter`, `Delete`, `Esc`) plus right-click actions (*Open*, *Pin/Unpin*, *Uninstall*).
 
 ### Per-Window Browser Splitting & Live Chromium Profiles
-- **1-click *Split windows in taskbar* (`AppMenuCard.qml`)** — Right-click any taskbar icon to uncombine its windows into separate taskbar buttons with window-title tooltips (`uncombine`), persisted directly in `shell.json`.
-- **Live browser profiles** — Right-click **Google Chrome**, **Chromium**, or **Brave** to launch any profile directly from its `Local State` metadata with profile avatars and account emails.
+- **1-click *Split windows in taskbar* (`AppMenuCard.qml`)** - Right-click any taskbar icon to uncombine its windows into separate taskbar buttons with window-title tooltips (`uncombine`), persisted directly in `shell.json`.
+- **Live browser profiles** - Right-click **Google Chrome**, **Chromium**, or **Brave** to launch any profile directly from its `Local State` metadata with profile avatars and account emails.
 
 ### Windows 11 Snap Layouts & Aero Snap
-Drag any floating window to the top edge of any monitor — or press **`Super + Z`** — to trigger the native themed **Snap Layouts** overlay (`Service.qml` + `snap_layouts.lua`) with live drop-zone previews and pixel-accurate `hyprbars` inset compensation:
+Drag any floating window to the top edge of any monitor - or press **`Super + Z`** - to trigger the native themed **Snap Layouts** overlay (`Service.qml` + `snap_layouts.lua`) with live drop-zone previews and pixel-accurate `hyprbars` inset compensation:
 
 ```text
 ┌────┬────┐  ┌──────┬──┐  ┌────┬────┐  ┌──┬──┬──┐  ┌────┬────┐  ┌─────────┐
@@ -56,8 +56,8 @@ Drag any floating window to the top edge of any monitor — or press **`Super + 
   50 / 50      65 / 35     50 | 25/25    33/33/33      2 × 2        100%
 ```
 
-- **Multi-monitor aware** — Automatically mirrors onto whichever monitor your cursor enters, respecting each monitor's reserved bar margins and gaps.
-- **Aero Snap** — Drag floating windows to screen corners/edges or step cleanly between halves, quarters, maximize, and minimize via `Super + Arrow` keys (`snap.lua`).
+- **Multi-monitor aware** - Automatically mirrors onto whichever monitor your cursor enters, respecting each monitor's reserved bar margins and gaps.
+- **Aero Snap** - Drag floating windows to screen corners/edges or step cleanly between halves, quarters, maximize, and minimize via `Super + Arrow` keys (`snap.lua`).
 
 ### Native Graphical Settings UI
 Right-click the **3×3 Apps button**, right-click any taskbar icon → *Windåse settings*, or run `omarchy-shell riisager.windaase settings` to open `SettingsCard.qml`:
@@ -66,10 +66,10 @@ Right-click the **3×3 Apps button**, right-click any taskbar icon → *Windåse
 - **Windows (Hyprland):** Live toggles for *Snap Layouts*, *Aero Snap*, *Hover-scroll*, *Soft-maximize*, *Auto-raise*, and *Windows shortcuts*, persisted atomically to `~/.config/omarchy/windaase.json`.
 
 ### Hyprland Floating Ergonomics
-- **Soft-maximize (no `hasfullscreen` click-trap)** — Replaces Hyprland's native `fullscreen = 1` on floating workspaces with an edge-to-edge floating geometry restore/maximize (leaving true `fullscreen = 2` untouched), so clicking overlapping windows on top never locks input behind a maximized layer.
-- **Auto-raise on focus** — Automatically brings the focused floating window to the top of the z-order.
-- **Hover-scroll (`follow_mouse = 2`)** — Enforces scroll-under-cursor on floating workspaces without stealing keyboard focus until you click (`focus.lua`).
-- **In-process Show Desktop (`Super + D`)** — Pure Lua workspace minimize/restore toggle (`show_desktop.lua`) with zero subprocess spawning.
+- **Soft-maximize (no `hasfullscreen` click-trap)** - Replaces Hyprland's native `fullscreen = 1` on floating workspaces with an edge-to-edge floating geometry restore/maximize (leaving true `fullscreen = 2` untouched), so clicking overlapping windows on top never locks input behind a maximized layer.
+- **Auto-raise on focus** - Automatically brings the focused floating window to the top of the z-order.
+- **Hover-scroll (`follow_mouse = 2`)** - Enforces scroll-under-cursor on floating workspaces without stealing keyboard focus until you click (`focus.lua`).
+- **In-process Show Desktop (`Super + D`)** - Pure Lua workspace minimize/restore toggle (`show_desktop.lua`) with zero subprocess spawning.
 
 ### All 50 Omarchy Locales with RTL
 - Ships translation catalogs for **all 50 locales** in `/usr/share/omarchy/default/i18n/locales.json` (`i18n/*.json`), reusing Omarchy's official translations for shared strings and switching live with *Omarchy Setup → Language*.
@@ -79,7 +79,7 @@ Right-click the **3×3 Apps button**, right-click any taskbar icon → *Windåse
 
 ## Quick Start
 
-### Option A — Full Windows 11 Desktop Experience (Recommended)
+### Option A - Full Windows 11 Desktop Experience (Recommended)
 
 Installs the Omarchy shell plugin + `hypr.windaase` Lua module, moves the bar to the bottom, disables `omarchy.dock`, and sets workspaces to `floating` by default:
 
@@ -92,7 +92,7 @@ cd omarchy-windaase
 > Want standard bar height (`26 px`) instead? Drop `--bar-height 40`.  
 > Prefer to keep your existing bar position, dock, and tiling defaults? Run `./install.sh` without `--full`.
 
-### Option B — Shell Plugin Only (via Omarchy CLI)
+### Option B - Shell Plugin Only (via Omarchy CLI)
 
 ```bash
 omarchy plugin add https://github.com/riisager/omarchy-windaase.git --enable
