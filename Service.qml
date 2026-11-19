@@ -149,6 +149,18 @@ Item {
     onLoadFailed: {}
   }
 
+  AppGrid {
+    id: appGrid
+  }
+
+  ShellIpc {
+    target: "riisager.windaase"
+
+    function apps(): void {
+      appGrid.toggle()
+    }
+  }
+
   Variants {
     model: Quickshell.screens
 

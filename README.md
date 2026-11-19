@@ -5,7 +5,8 @@
 
 ## What it does
 
-- **Single-bar Taskbar (`bar-widget`):** Pinned and running apps right inside the Omarchy bar (no separate dock stealing vertical space). Left-click focuses or minimizes, multi-window apps open an upward picker with workspace badges and close buttons, and middle-click opens a new window.
+- **Single-bar Taskbar (`bar-widget`):** Pinned and running apps right inside the Omarchy bar (no separate dock stealing vertical space), complete with Omarchy's 3×3 **Apps** grid launcher button (`Super + Alt + Space`). Left-click focuses or minimizes, multi-window apps open an upward picker with workspace badges and close buttons, and middle-click opens a new window.
+- **All-Apps Visual Grid (`AppGrid.qml`):** Type-to-filter visual grid of installed applications with keyboard navigation (`Arrows`, `Enter`, `Delete`, `Esc`) and right-click context actions (*Open*, *Pin/Unpin*, *Uninstall*).
 - **Per-window browser splitting + live profile menu:** Configure `uncombine` in `shell.json` to show each Chrome/Chromium/Brave window as its own icon with window-title tooltips. Right-click any supported Chromium browser icon to launch any profile from `Local State` with its avatar.
 - **Windows 11 Snap Layouts (`service` + Lua):** Drag a floating window to the top edge of any monitor (or press `Super + Z`) for a live 6-layout grid (`50/50`, `65/35`, `50 | 25/25`, `33/33/33`, `2×2`, `100%`) plus Aero Snap via `Super + Arrows` or screen edges — pixel-accurate with `hyprbars` titlebars.
 - **Soft-maximize & Windows stacking (`hypr.windaase`):** Replaces Hyprland's native `fullscreen = 1` on floating workspaces with edge-to-edge floating maximize (keeping `fullscreen = 2` true fullscreen untouched), eliminating the `hasfullscreen` click-trap underneath overlapping windows, and auto-raises floating windows on focus.
@@ -18,7 +19,7 @@
 ### Option A — Full setup (Shell plugin + Hyprland ergonomics)
 
 ```bash
-git clone <your-repo-url> omarchy-windaase
+git clone https://github.com/riisager/omarchy-windaase.git
 cd omarchy-windaase
 ./install.sh --full
 ```
@@ -28,7 +29,7 @@ Use `./install.sh` (without `--full`) if you want to keep your existing bar posi
 ### Option B — Shell plugin only (via Omarchy CLI)
 
 ```bash
-omarchy plugin add <your-git-url> --enable
+omarchy plugin add https://github.com/riisager/omarchy-windaase.git --enable
 ```
 
 *(Shell-only gives you the Taskbar widget and Snap Layouts overlay host; `hypr.windaase` handles drag-snap, Aero Snap, soft-maximize, auto-raise, hover-scroll, and `Super + D`/`Super + Z`.)*
@@ -37,7 +38,7 @@ omarchy plugin add <your-git-url> --enable
 
 ### Taskbar settings in `~/.config/omarchy/shell.json`
 
-Move `"riisager.windaase"` in `bar.layout` (normally right after `"omarchy.workspaces"`) and optionally list desktop IDs to uncombine:
+Move `"riisager.windaase"` in `bar.layout` (normally right after `"omarchy.workspaces"`), optionally list desktop IDs to `uncombine`, and toggle the 3×3 Apps icon via `showAppsButton` (default `true`):
 
 ```json
 {
@@ -47,7 +48,7 @@ Move `"riisager.windaase"` in `bar.layout` (normally right after `"omarchy.works
       "left": [
         { "id": "omarchy.menu" },
         { "id": "omarchy.workspaces" },
-        { "id": "riisager.windaase", "uncombine": ["google-chrome"] }
+        { "id": "riisager.windaase", "showAppsButton": true, "uncombine": ["google-chrome"] }
       ]
     }
   }
@@ -63,7 +64,7 @@ require("hypr.windaase").setup({
   soft_maximize = true, -- Replace floating fullscreen=1 with soft maximize
   auto_raise = true,    -- Raise floating window to top on focus
   hover_scroll = true,  -- Set input.follow_mouse = 2 on floating workspaces
-  shortcuts = true,     -- Alt + F4, Super + D (Show Desktop), Super + E (Files)
+  shortcuts = true,     -- Alt + F4, Super + D (Show Desktop), Super + E (Files), Super + Alt + Space (Apps)
   gap_out = 8,
   gap_in = 8,
 })
@@ -74,9 +75,10 @@ require("hypr.windaase").setup({
 ```
 omarchy-windaase/
 ├── manifest.json            # Omarchy shell plugin manifest (service + bar-widget)
-├── BarWidget.qml            # In-bar taskbar widget + Chromium profile menu
-├── TaskbarModel.js          # Pure JS window grouping, ordering & profile parser
-├── Service.qml              # Always-mapped click-through Snap Layouts overlay
+├── BarWidget.qml            # In-bar taskbar widget, 3×3 Apps button & Chromium profile menu
+├── TaskbarModel.js          # Pure JS window grouping, ordering, app search & profile parser
+├── Service.qml              # Snap Layouts overlay host + ShellIpc target (riisager.windaase)
+├── AppGrid.qml              # Self-contained visual All-Apps launcher overlay
 ├── layouts.json             # Single source of truth for Snap Layouts geometry
 ├── i18n/{en,da}.json        # Live Omarchy translations
 ├── hypr/

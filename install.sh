@@ -37,6 +37,7 @@ cp "${SCRIPT_DIR}/manifest.json" \
    "${SCRIPT_DIR}/TaskbarModel.js" \
    "${SCRIPT_DIR}/BarWidget.qml" \
    "${SCRIPT_DIR}/Service.qml" \
+   "${SCRIPT_DIR}/AppGrid.qml" \
    "${SCRIPT_DIR}/LICENSE" \
    "${SCRIPT_DIR}/README.md" \
    "${PLUGIN_DEST}/"

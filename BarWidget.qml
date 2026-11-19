@@ -17,6 +17,7 @@ BarWidget {
   readonly property int iconSize: Math.max(Style.space(14), root.slotSize - Style.space(10))
   readonly property real idleOpacity: 0.85
   readonly property var uncombinedApps: root.setting("uncombine", [])
+  readonly property bool showAppsButton: root.setting("showAppsButton", true)
 
   property var defaultPinnedList: []
   property var userPinnedList: null
@@ -375,6 +376,13 @@ BarWidget {
     root.menuKey = ""
   }
 
+  function toggleAppGrid() {
+    var res = Commons.IpcRegistry.call("riisager.windaase", "apps", [])
+    if (!res || !res.ran) {
+      Util.execDetached("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"apps\"}'")
+    }
+  }
+
   function openPicker(key, slot) {
     root.menuKey = ""
     root.pickerKey = key
@@ -402,8 +410,8 @@ BarWidget {
 
   GridLayout {
     id: layoutGrid
-    columns: root.vertical ? 1 : itemRepeater.count + 1
-    rows: root.vertical ? itemRepeater.count + 1 : 1
+    columns: root.vertical ? 1 : itemRepeater.count + 1 + (root.showAppsButton ? 1 : 0)
+    rows: root.vertical ? itemRepeater.count + 1 + (root.showAppsButton ? 1 : 0) : 1
     columnSpacing: root.vertical ? 0 : Style.space(2)
     rowSpacing: root.vertical ? Style.space(2) : 0
 
@@ -418,6 +426,93 @@ BarWidget {
         height: root.vertical ? Math.max(1, Style.spacing.hairline) : Math.round(root.slotSize * 0.55)
         color: root.bar ? root.bar.barForeground : Commons.Color.bar.text
         opacity: 0.22
+      }
+    }
+
+    // 3x3 All Apps launcher icon modeled after Omarchy's built-in dock AppsSlot
+    Item {
+      id: appsSlot
+
+      readonly property bool hovered: appsMouse.containsMouse
+      property var registeredBar: null
+
+      function syncClickRegistration() {
+        if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(appsSlot)
+        registeredBar = root.bar
+        if (registeredBar && registeredBar.registerClickTarget) registeredBar.registerClickTarget(appsSlot)
+      }
+
+      visible: root.showAppsButton
+      Layout.preferredWidth: root.showAppsButton ? root.slotSize : 0
+      Layout.preferredHeight: root.showAppsButton ? root.slotSize : 0
+
+      Connections {
+        target: root
+        function onBarChanged() { appsSlot.syncClickRegistration() }
+      }
+      Component.onCompleted: syncClickRegistration()
+      Component.onDestruction: {
+        if (root.bar) root.bar.hideTooltip(appsSlot)
+        if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(appsSlot)
+      }
+
+      Rectangle {
+        anchors.centerIn: parent
+        width: root.slotSize - Style.space(2)
+        height: root.slotSize - Style.space(2)
+        radius: Math.max(Style.space(4), Style.cornerRadius)
+        color: appsSlot.hovered ? Style.hoverFill : "transparent"
+
+        Behavior on color { ColorAnimation { duration: Style.duration(120) } }
+      }
+
+      Item {
+        anchors.centerIn: parent
+        width: root.iconSize
+        height: root.iconSize
+        opacity: appsSlot.hovered ? 1.0 : root.idleOpacity
+        scale: appsSlot.hovered ? 1.1 : 1.0
+
+        Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+
+        Grid {
+          readonly property int square: Math.max(2, Math.round(root.iconSize * 0.22))
+
+          anchors.centerIn: parent
+          columns: 3
+          spacing: Math.max(1, Math.round(root.iconSize * 0.1))
+
+          Repeater {
+            model: 9
+
+            delegate: Rectangle {
+              width: parent.square
+              height: parent.square
+              radius: Math.max(1, Math.round(parent.square * 0.2))
+              color: root.bar ? root.bar.barForeground : Commons.Color.bar.text
+            }
+          }
+        }
+      }
+
+      MouseArea {
+        id: appsMouse
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        acceptedButtons: Qt.LeftButton
+
+        onEntered: {
+          if (root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0) {
+            root.bar.showTooltip(appsSlot, TaskbarModel.sanitizeTooltipText(strings.t("taskbar.apps"), 96))
+          }
+        }
+        onExited: if (root.bar) root.bar.hideTooltip(appsSlot)
+        onClicked: {
+          root.closePopouts()
+          if (root.bar) root.bar.hideTooltip(appsSlot)
+          root.toggleAppGrid()
+        }
       }
     }
 

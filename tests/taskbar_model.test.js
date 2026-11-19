@@ -128,6 +128,45 @@ function run() {
   assert.strictEqual(parsed[2].name, "Two Line");
   assert.strictEqual(parsed[2].picturePath, "");
 
+  // 8. parseHiddenEntryIds, entryName & filterAndSortApps
+  const hiddenMap = TaskbarModel.parseHiddenEntryIds("\n btop.desktop \navahi-discover\n\n");
+  assert.deepStrictEqual(hiddenMap, { btop: true, "avahi-discover": true });
+  assert.strictEqual(TaskbarModel.entryName({ name: "Files", id: "org.gnome.Nautilus" }), "Files");
+  assert.strictEqual(TaskbarModel.entryName({ id: "foot" }), "foot");
+  assert.strictEqual(TaskbarModel.entryName(null), "");
+
+  const appEntries = [
+    { id: "btop", name: "Btop++", genericName: "System Monitor", keywords: ["top"] },
+    { id: "avahi-discover.desktop", name: "Avahi SSH", genericName: "Discovery" },
+    { id: "hidden-flag", name: "Hidden Flag", noDisplay: true },
+    { id: "org.gnome.Nautilus", name: "Files", genericName: "File Manager", keywords: ["folder", "explorer"] },
+    { id: "google-chrome", name: "Google Chrome", genericName: "Web Browser", keywords: ["internet"] },
+    { id: "foot", name: "Foot", genericName: "Terminal", keywords: ["shell"] },
+    { id: "my-file-tool", name: "Quick File Viewer", genericName: "Viewer", comment: "Preview files" },
+    { id: "code-visual", name: "Visual Studio Code", genericName: "Text Editor", keywords: ["ide"] }
+  ];
+
+  const allVisible = TaskbarModel.filterAndSortApps(appEntries, "", hiddenMap);
+  assert.deepStrictEqual(allVisible.map(e => e.id), [
+    "org.gnome.Nautilus",
+    "foot",
+    "google-chrome",
+    "my-file-tool",
+    "code-visual"
+  ]);
+
+  const fileRanked = TaskbarModel.filterAndSortApps(appEntries, "fil", hiddenMap);
+  assert.deepStrictEqual(fileRanked.map(e => e.id), [
+    "org.gnome.Nautilus",
+    "my-file-tool"
+  ]);
+
+  const acronymRanked = TaskbarModel.filterAndSortApps(appEntries, "vsc", hiddenMap);
+  assert.deepStrictEqual(acronymRanked.map(e => e.id), ["code-visual"]);
+
+  const multiWord = TaskbarModel.filterAndSortApps(appEntries, "web google", hiddenMap);
+  assert.deepStrictEqual(multiWord.map(e => e.id), ["google-chrome"]);
+
   // Verify i18n JSON files are valid and carry matching keys
   const en = JSON.parse(fs.readFileSync(path.join(__dirname, "../i18n/en.json"), "utf8"));
   const da = JSON.parse(fs.readFileSync(path.join(__dirname, "../i18n/da.json"), "utf8"));

@@ -9,5 +9,11 @@
   "taskbar.unpin": "Unpin from taskbar",
   "taskbar.closeWindow": "Close window",
   "taskbar.closeAll": "Close all",
-  "taskbar.workspaceBadge": "W%1"
+  "taskbar.workspaceBadge": "W%1",
+  "taskbar.apps": "Apps",
+  "appGrid.searchApps": "Search apps...",
+  "appGrid.noAppsMatch": "No apps match \"%1\"",
+  "appGrid.open": "Open",
+  "appGrid.uninstall": "Uninstall",
+  "appGrid.uninstallConfirm": "Uninstall %1?"
 }

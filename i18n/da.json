@@ -9,5 +9,11 @@
   "taskbar.unpin": "Frigør fra proceslinje",
   "taskbar.closeWindow": "Luk vindue",
   "taskbar.closeAll": "Luk alle",
-  "taskbar.workspaceBadge": "S%1"
+  "taskbar.workspaceBadge": "S%1",
+  "taskbar.apps": "Apps",
+  "appGrid.searchApps": "Søg i apps...",
+  "appGrid.noAppsMatch": "Ingen apps matcher \"%1\"",
+  "appGrid.open": "Åbn",
+  "appGrid.uninstall": "Afinstaller",
+  "appGrid.uninstallConfirm": "Afinstaller %1?"
 }

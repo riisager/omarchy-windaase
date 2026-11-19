@@ -50,6 +50,7 @@ function M.setup(user_opts)
     o.bind("ALT + F4", "Close window", hl.dsp.window.close())
     o.bind("SUPER + D", "Show desktop", show_desktop.toggle)
     o.bind("SUPER + E", "File manager", { omarchy = "nautilus" })
+    o.rebind("SUPER + ALT + SPACE", "Apps", "omarchy-shell riisager.windaase apps")
   end
 end
 
