@@ -14,6 +14,12 @@
 
 [Features](#features) · [Quick Start](#quick-start) · [Shortcuts](#shortcuts) · [Configuration](#configuration) · [Architecture](#architecture) · [Uninstall](#uninstall)
 
+<br>
+
+![Omarchy-windåse Snap Layouts overlay and in-bar taskbar](docs/screenshots/snap-layouts.png)
+
+*Windows 11 Snap Layouts overlay with live drop-zone preview and the 40 px in-bar taskbar on Omarchy 4.5.*
+
 </div>
 
 ---
@@ -34,6 +40,10 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow - yet
 - **Pinned + active windows right inside the bar** (`BarWidget.qml`) alongside Omarchy's own 3×3 **Apps** launcher button (`Super + Alt + Space`).
 - **Smart click behavior** - Left-click focuses or toggles minimize on single-window apps, middle-click spawns a new window, and multi-window apps open an upward picker (`WindowPickerCard.qml`) with workspace badges (`W1`, etc.) and per-window close buttons.
 - **Scales cleanly with tall bars** - Pair with a `40 px` bar height (`--bar-height 40` or in the Settings UI) to grow app icons without blowing up system tray icons, and switch Omarchy's clock to a two-line Windows 11 layout (`HH:mm` / `dd-MM-yyyy`).
+
+![Omarchy-windåse taskbar positioned at the top](docs/screenshots/top-bar.png)
+
+*40 px single-bar taskbar positioned at the top with split Chrome windows and the 3×3 Apps launcher button.*
 
 ### Visual All-Apps Grid (`AppGrid.qml`)
 - Triggered from the bar's 3×3 Apps button or `Super + Alt + Space`.
@@ -64,6 +74,10 @@ Right-click the **3×3 Apps button**, right-click any taskbar icon → *Windåse
 
 - **Taskbar:** Bar height presets (`26` / `34` / `40` / `46 px`) + `26–56 px` slider, icon size (`Auto` or manual px), bar position (`Bottom` / `Top`), two-line clock toggle, Apps button toggle.
 - **Windows (Hyprland):** Live toggles for *Snap Layouts*, *Aero Snap*, *Hover-scroll*, *Soft-maximize*, *Auto-raise*, and *Windows shortcuts*, persisted atomically to `~/.config/omarchy/windaase.json`.
+
+![Omarchy-windåse graphical settings popup](docs/screenshots/settings.png)
+
+*Native Settings popup (`SettingsCard.qml`) live-localized via Omarchy's language selector.*
 
 ### Hyprland Floating Ergonomics
 - **Soft-maximize (no `hasfullscreen` click-trap)** - Replaces Hyprland's native `fullscreen = 1` on floating workspaces with an edge-to-edge floating geometry restore/maximize (leaving true `fullscreen = 2` untouched), so clicking overlapping windows on top never locks input behind a maximized layer.
@@ -246,6 +260,7 @@ omarchy-windaase/
 │   ├── taskbar_model.test.js # JS model logic & full 50-locale key/placeholder parity checks
 │   ├── geometry_test.lua     # Snap zone math, frame inset & JSON decoder tests
 │   └── config_helper_test.py # Atomic TOML/JSON rewrite & validation tests
+├── docs/screenshots/        # README screenshots
 ├── install.sh               # Validated staging-swap installer (--shell-only / --full / --bar-height)
 ├── uninstall.sh             # Clean removal + optional --restore-stock
 └── LICENSE                  # MIT
