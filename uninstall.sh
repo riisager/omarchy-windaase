@@ -36,26 +36,27 @@ if [[ "$RESTORE_STOCK" -eq 1 ]] && [[ -f "${CONFIG_HELPER}" ]]; then
   python3 "${CONFIG_HELPER}" bar-height-reset || true
 fi
 
+if [[ -f "${HYPRLAND_LUA}" ]] && grep -qE 'Omarchy-windåse|Omarchy-windaase|hypr\.windaase' "${HYPRLAND_LUA}"; then
+  BACKUP="${HYPRLAND_LUA}.bak-uninstall-$(date +%Y%m%d-%H%M%S)"
+  cp "${HYPRLAND_LUA}" "${BACKUP}"
+  if [[ -f "${CONFIG_HELPER}" ]]; then
+    if python3 "${CONFIG_HELPER}" strip-hyprland-loader "${HYPRLAND_LUA}"; then
+      echo "==> Removed hypr.windaase from ${HYPRLAND_LUA} (backup: ${BACKUP})"
+    else
+      cp "${BACKUP}" "${HYPRLAND_LUA}"
+      echo "Warning: could not automatically strip hypr.windaase from ${HYPRLAND_LUA}; restored backup (${BACKUP}). Please remove it manually." >&2
+    fi
+  else
+    echo "Warning: windaase-config.py not found; left ${HYPRLAND_LUA} unchanged (backup: ${BACKUP})." >&2
+  fi
+fi
+
 if command -v omarchy >/dev/null 2>&1; then
   omarchy plugin disable "${PLUGIN_ID}" >/dev/null 2>&1 || true
 fi
 
 rm -rf "${PLUGIN_DEST}" "${HYPR_DIR}/windaase.lua" "${HYPR_DIR}/windaase"
 rm -f "${HOME}/.config/omarchy/windaase.json"
-
-if [[ -f "${HYPRLAND_LUA}" ]] && grep -qE 'Omarchy-windåse|require\(["'\'']hypr\.windaase["'\'']\)' "${HYPRLAND_LUA}"; then
-  BACKUP="${HYPRLAND_LUA}.bak-uninstall-$(date +%Y%m%d-%H%M%S)"
-  cp "${HYPRLAND_LUA}" "${BACKUP}"
-  python3 - "${HYPRLAND_LUA}" <<'PY'
-import re, sys
-p = sys.argv[1]
-txt = open(p, "r", encoding="utf-8").read()
-txt = re.sub(r'\n?--\s*Omarchy-windåse\n?', '\n', txt)
-txt = re.sub(r'^.*require\(["\']hypr\.windaase["\']\).*\n?', '', txt, flags=re.M)
-open(p, "w", encoding="utf-8").write(txt.rstrip() + "\n")
-PY
-  echo "==> Removed hypr.windaase from ${HYPRLAND_LUA} (backup: ${BACKUP})"
-fi
 
 if [[ "$RESTORE_STOCK" -eq 1 ]] && command -v omarchy >/dev/null 2>&1; then
   omarchy plugin enable omarchy.dock >/dev/null 2>&1 || true

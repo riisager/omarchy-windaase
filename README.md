@@ -129,7 +129,7 @@ Or from a local clone:
 | `--shell-only` | Installs only the Quickshell plugin (skips Hyprland Lua files and bindings). |
 | `--bar-height <px>` | Sets `[bar] size-horizontal` (`24–64 px`) atomically in `~/.config/omarchy/shell.toml`. |
 
-`install.sh` stages and runs `omarchy plugin validate` before swapping directories, and automatically creates timestamped `.bak-*` backups before modifying `hyprland.lua` or `shell.toml`.
+`install.sh` stages and runs `omarchy plugin validate` before swapping directories, and automatically creates timestamped `.bak-*` backups before modifying `hyprland.lua` or `shell.toml`. Passing `--full` also backs up `~/.config/omarchy/shell.json` and `~/.local/state/omarchy/workspace-layouts`, and preserves any pre-existing per-workspace layout overrides for empty workspaces.
 
 ---
 
@@ -300,7 +300,7 @@ The JS test suite automatically verifies key parity, non-empty translations, and
 ./uninstall.sh --restore-stock  # Also restore omarchy.dock, reset bar height, and move bar to top
 ```
 
-`uninstall.sh` automatically backs up `~/.config/hypr/hyprland.lua` before stripping the `require("hypr.windaase")` line.
+`uninstall.sh` automatically backs up `~/.config/hypr/hyprland.lua` and cleanly removes both single-line and multiline `require("hypr.windaase").setup({...})` blocks (validating the result with `luac -p` when available).
 
 ---
 

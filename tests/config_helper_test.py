@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """Unit tests for windaase-config.py in an isolated temporary HOME."""
 
+import glob
 import json
 import os
+import shutil
+import stat
 import subprocess
 import sys
 import tempfile
 import unittest
 
-SCRIPT_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "windaase-config.py")
-)
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+SCRIPT_PATH = os.path.join(REPO_ROOT, "windaase-config.py")
+INSTALL_SH = os.path.join(REPO_ROOT, "install.sh")
+UNINSTALL_SH = os.path.join(REPO_ROOT, "uninstall.sh")
 
 
 class ConfigHelperTests(unittest.TestCase):
@@ -122,6 +126,202 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertIn("[font]\nbase-size = 14\n", content)
         self.assertNotIn("size-horizontal", content)
         self.assertNotIn("[bar]", content)
+
+    def _luac_ok(self, content):
+        luac = shutil.which("luac")
+        if not luac:
+            return
+        res = subprocess.run([luac, "-p", "-"], input=content, text=True, capture_output=True, check=False)
+        self.assertEqual(res.returncode, 0, f"Invalid Lua output:\n{res.stderr}\n---\n{content}")
+
+    def test_strip_hyprland_loader_single_and_multiline_setup(self):
+        lua_path = os.path.join(self.home, "hyprland.lua")
+
+        # 1. Single-line setup() with banner comment
+        single = (
+            'o.bind("SUPER + Return", "Terminal", { term = "foot" })\n\n'
+            "-- Omarchy-windåse\n"
+            'require("hypr.windaase").setup()\n'
+        )
+        with open(lua_path, "w", encoding="utf-8") as handle:
+            handle.write(single)
+        res = self.run_helper("strip-hyprland-loader", lua_path)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        cleaned = self.read_text(lua_path)
+        self.assertEqual(cleaned, 'o.bind("SUPER + Return", "Terminal", { term = "foot" })\n')
+        self._luac_ok(cleaned)
+
+        # 2. Exact documented multiline setup({...}) with nested tables, strings & comments with ) / }
+        multiline = (
+            'o.bind("SUPER + Q", "Close", hl.dsp.window.close())\n\n'
+            "-- Omarchy-windåse\n"
+            'require("hypr.windaase").setup({\n'
+            "  aero_snap = true,     -- handle ) and } inside comments\n"
+            "  snap_layouts = true,  -- Top-edge drag & Super + Z\n"
+            "  soft_maximize = true,\n"
+            "  auto_raise = true,\n"
+            "  hover_scroll = true,\n"
+            '  shortcuts = true,     -- string ) test: "})" }\n'
+            "  gap_out = 8,\n"
+            "  gap_in = 8,\n"
+            '  extra = { nested = { label = "ok ) }" } },\n'
+            "})\n\n"
+            'o.bind("SUPER + W", "Workspace", "test")\n'
+        )
+        with open(lua_path, "w", encoding="utf-8") as handle:
+            handle.write(multiline)
+        res = self.run_helper("strip-hyprland-loader", lua_path)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        cleaned = self.read_text(lua_path)
+        self._luac_ok(cleaned)
+        self.assertNotIn("hypr.windaase", cleaned)
+        self.assertNotIn("aero_snap", cleaned)
+        self.assertNotIn("-- Omarchy-windåse", cleaned)
+        self.assertIn('o.bind("SUPER + Q"', cleaned)
+        self.assertIn('o.bind("SUPER + W"', cleaned)
+
+    def test_strip_hyprland_loader_table_call_local_var_and_comments(self):
+        lua_path = os.path.join(self.home, "hyprland.lua")
+        source = (
+            '-- Keep commented reference: require("hypr.windaase").setup()\n'
+            "local keep = 42\n"
+            "-- Omarchy-windåse\n"
+            'require("hypr.windaase").setup { hover_scroll = false }\n'
+            'local w = require("hypr.windaase")\n'
+            "w.setup({\n"
+            "  shortcuts = false,\n"
+            "})\n"
+        )
+        with open(lua_path, "w", encoding="utf-8") as handle:
+            handle.write(source)
+        res = self.run_helper("strip-hyprland-loader", lua_path)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        cleaned = self.read_text(lua_path)
+        self._luac_ok(cleaned)
+        self.assertIn('-- Keep commented reference: require("hypr.windaase").setup()', cleaned)
+        self.assertIn("local keep = 42", cleaned)
+        self.assertNotIn("hover_scroll", cleaned)
+        self.assertNotIn("shortcuts", cleaned)
+
+    def test_strip_hyprland_loader_refuses_unsafe_expressions(self):
+        lua_path = os.path.join(self.home, "hyprland.lua")
+        cases = [
+            'if require("hypr.windaase") then\n  print("ok")\nend\n',
+            'local w = require("hypr.windaase")\no.bind("SUPER + D", "Desktop", w.show_desktop)\n',
+            'pcall(require, "hypr.windaase")\n',
+        ]
+        for body in cases:
+            with open(lua_path, "w", encoding="utf-8") as handle:
+                handle.write(body)
+            res = self.run_helper("strip-hyprland-loader", lua_path)
+            self.assertNotEqual(res.returncode, 0, f"Expected refusal for:\n{body}")
+            self.assertEqual(self.read_text(lua_path), body)
+
+    def _make_stub_bin(self):
+        stub_dir = os.path.join(self.home, "stub-bin")
+        os.makedirs(stub_dir, exist_ok=True)
+
+        stubs = {
+            "omarchy": (
+                "#!/bin/bash\n"
+                'if [[ "${1:-} ${2:-}" == "plugin validate" ]]; then\n'
+                '  [[ -f "${3:-}/manifest.json" ]] || exit 1\n'
+                "fi\n"
+                "exit 0\n"
+            ),
+            "omarchy-shell": "#!/bin/bash\nexit 0\n",
+            "hyprctl": "#!/bin/bash\nexit 0\n",
+            "omarchy-hyprland-workspace-layout-default": (
+                "#!/bin/bash\n"
+                'modes_dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/workspace-layouts"\n'
+                'mkdir -p "$modes_dir"\n'
+                'for f in "$modes_dir"/[0-9]*.lua; do\n'
+                '  [[ -f "$f" ]] || continue\n'
+                '  rm -f "$f"\n'
+                "done\n"
+                'printf \'o.workspace_mode({ default = "%s" })\\n\' "${1:-floating}" > "$modes_dir/default.lua"\n'
+            ),
+        }
+        for name, content in stubs.items():
+            path = os.path.join(stub_dir, name)
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(content)
+            os.chmod(path, os.stat(path).st_mode | stat.S_IXUSR)
+        return stub_dir
+
+    def test_uninstall_sh_cleanly_removes_multiline_setup(self):
+        stub_dir = self._make_stub_bin()
+        hypr_dir = os.path.join(self.home, ".config", "hypr")
+        os.makedirs(hypr_dir, exist_ok=True)
+        hyprland_lua = os.path.join(hypr_dir, "hyprland.lua")
+        with open(hyprland_lua, "w", encoding="utf-8") as handle:
+            handle.write(
+                "-- Existing user config\n"
+                'o.bind("SUPER + Return", "Term", { term = "foot" })\n\n'
+                "-- Omarchy-windåse\n"
+                'require("hypr.windaase").setup({\n'
+                "  aero_snap = true,\n"
+                "  snap_layouts = true,\n"
+                "  gap_out = 8,\n"
+                "  gap_in = 8,\n"
+                "})\n"
+            )
+
+        env = self.env.copy()
+        env["PATH"] = f"{stub_dir}:{env['PATH']}"
+        env["XDG_STATE_HOME"] = os.path.join(self.home, ".local", "state")
+
+        res = subprocess.run(["bash", UNINSTALL_SH], env=env, capture_output=True, text=True, check=False)
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+
+        cleaned = self.read_text(hyprland_lua)
+        self._luac_ok(cleaned)
+        self.assertNotIn("hypr.windaase", cleaned)
+        self.assertNotIn("aero_snap", cleaned)
+        self.assertIn('o.bind("SUPER + Return"', cleaned)
+        backups = glob.glob(f"{hyprland_lua}.bak-uninstall-*")
+        self.assertEqual(len(backups), 1)
+
+    def test_install_full_backs_up_and_preserves_workspace_layout_overrides(self):
+        stub_dir = self._make_stub_bin()
+        hypr_dir = os.path.join(self.home, ".config", "hypr")
+        state_home = os.path.join(self.home, ".local", "state")
+        layouts_dir = os.path.join(state_home, "omarchy", "workspace-layouts")
+        os.makedirs(hypr_dir, exist_ok=True)
+        os.makedirs(layouts_dir, exist_ok=True)
+
+        with open(os.path.join(hypr_dir, "hyprland.lua"), "w", encoding="utf-8") as handle:
+            handle.write("-- Clean start\n")
+        with open(os.path.join(self.omarchy_dir, "shell.json"), "w", encoding="utf-8") as handle:
+            handle.write('{"bar":{"position":"top"}}\n')
+        with open(os.path.join(layouts_dir, "default.lua"), "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ default = "dwindle" })\n')
+        with open(os.path.join(layouts_dir, "3.lua"), "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ workspace = "3", mode = "scrolling" })\n')
+
+        env = self.env.copy()
+        env["PATH"] = f"{stub_dir}:{env['PATH']}"
+        env["XDG_STATE_HOME"] = state_home
+
+        res = subprocess.run(["bash", INSTALL_SH, "--full"], env=env, capture_output=True, text=True, check=False)
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+
+        layout_backups = glob.glob(os.path.join(state_home, "omarchy", "workspace-layouts.bak-*"))
+        self.assertEqual(len(layout_backups), 1)
+        self.assertTrue(os.path.exists(os.path.join(layout_backups[0], "default.lua")))
+        self.assertTrue(os.path.exists(os.path.join(layout_backups[0], "3.lua")))
+
+        shell_backups = glob.glob(os.path.join(self.omarchy_dir, "shell.json.bak-*"))
+        self.assertEqual(len(shell_backups), 1)
+
+        self.assertEqual(
+            self.read_text(os.path.join(layouts_dir, "default.lua")),
+            'o.workspace_mode({ default = "floating" })\n',
+        )
+        self.assertEqual(
+            self.read_text(os.path.join(layouts_dir, "3.lua")),
+            'o.workspace_mode({ workspace = "3", mode = "scrolling" })\n',
+        )
 
 
 if __name__ == "__main__":
