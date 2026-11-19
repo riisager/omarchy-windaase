@@ -370,6 +370,175 @@ function filterAndSortApps(entries, query, hiddenMap) {
   return rows.map(function(row) { return row.entry })
 }
 
+function resolveIconSize(slotSize, configuredIconSize, minSize) {
+  var slot = Math.max(16, Math.round(Number(slotSize) || 26))
+  var min = Math.max(12, Math.round(Number(minSize) || 14))
+  var max = Math.max(min, slot - 6)
+  var cfg = Number(configuredIconSize)
+  if (isFinite(cfg) && cfg > 0) {
+    return Math.max(min, Math.min(max, Math.round(cfg)))
+  }
+  return Math.max(min, Math.min(slot - 10, Math.round(slot * 0.65)))
+}
+
+var HYPR_OPTION_KEYS = [
+  "snap_layouts",
+  "aero_snap",
+  "hover_scroll",
+  "soft_maximize",
+  "auto_raise",
+  "shortcuts"
+]
+
+function defaultHyprSettings() {
+  var out = {}
+  for (var i = 0; i < HYPR_OPTION_KEYS.length; i++) {
+    out[HYPR_OPTION_KEYS[i]] = true
+  }
+  return out
+}
+
+function parseHyprSettings(rawJson) {
+  var out = defaultHyprSettings()
+  try {
+    var parsed = JSON.parse(String(rawJson || ""))
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      for (var i = 0; i < HYPR_OPTION_KEYS.length; i++) {
+        var key = HYPR_OPTION_KEYS[i]
+        if (typeof parsed[key] === "boolean") {
+          out[key] = parsed[key]
+        }
+      }
+    }
+  } catch (e) {}
+  return out
+}
+
+function buildUpdatedWidgetEntry(currentSettings, moduleName, patch) {
+  var entry = {}
+  var src = (currentSettings && typeof currentSettings === "object" && !Array.isArray(currentSettings)) ? currentSettings : {}
+  for (var k in src) {
+    if (Object.prototype.hasOwnProperty.call(src, k) && src[k] !== undefined) {
+      entry[k] = Array.isArray(src[k]) ? src[k].slice() : src[k]
+    }
+  }
+  if (patch && typeof patch === "object") {
+    for (var pk in patch) {
+      if (Object.prototype.hasOwnProperty.call(patch, pk)) {
+        if (patch[pk] === undefined) delete entry[pk]
+        else entry[pk] = Array.isArray(patch[pk]) ? patch[pk].slice() : patch[pk]
+      }
+    }
+  }
+  entry.id = String(moduleName || entry.id || "")
+  if (entry.iconSize !== undefined) {
+    var iconNum = Number(entry.iconSize)
+    if (!isFinite(iconNum) || iconNum <= 0) delete entry.iconSize
+    else entry.iconSize = Math.round(iconNum)
+  }
+  if (Array.isArray(entry.uncombine) && entry.uncombine.length === 0) {
+    delete entry.uncombine
+  }
+  return entry
+}
+
+function isAppUncombined(uncombinedApps, appKey) {
+  var target = normalizeId(appKey).toLowerCase()
+  if (!target || !Array.isArray(uncombinedApps)) return false
+  for (var i = 0; i < uncombinedApps.length; i++) {
+    if (normalizeId(uncombinedApps[i]).toLowerCase() === target) return true
+  }
+  return false
+}
+
+function toggleUncombineApp(uncombinedApps, appKey) {
+  var raw = normalizeId(appKey)
+  var target = raw.toLowerCase()
+  var list = Array.isArray(uncombinedApps) ? uncombinedApps : []
+  var out = []
+  var seen = {}
+  var existed = false
+  for (var i = 0; i < list.length; i++) {
+    var norm = normalizeId(list[i])
+    var low = norm.toLowerCase()
+    if (!low) continue
+    if (target && low === target) {
+      existed = true
+      continue
+    }
+    if (!seen[low]) {
+      seen[low] = true
+      out.push(norm)
+    }
+  }
+  if (raw && !existed) {
+    out.push(raw)
+  }
+  return out
+}
+
+function isTwoLineClockFormat(rawShellJson) {
+  try {
+    var parsed = JSON.parse(String(rawShellJson || ""))
+    var layout = parsed && parsed.bar && parsed.bar.layout
+    if (!layout || typeof layout !== "object") return false
+    for (var section in layout) {
+      var items = layout[section]
+      if (!Array.isArray(items)) continue
+      for (var i = 0; i < items.length; i++) {
+        var entry = items[i]
+        if (entry && entry.id === "omarchy.clock") {
+          return typeof entry.format === "string" && entry.format.indexOf("\n") >= 0
+        }
+      }
+    }
+  } catch (e) {}
+  return false
+}
+
+function extractPinnedList(rawJson) {
+  try {
+    var parsed = JSON.parse(String(rawJson || ""))
+    if (parsed && parsed.dock && Array.isArray(parsed.dock.pinned)) {
+      return parsed.dock.pinned
+    }
+  } catch (e) {}
+  return null
+}
+
+function launchArgvForEntry(entry) {
+  var id = entry ? String(entry.id || "").trim() : ""
+  if (!id) return []
+  if (entry.runInTerminal) {
+    var cmd = []
+    var rawCmd = entry.command || []
+    for (var i = 0; i < rawCmd.length; i++) {
+      var word = String(rawCmd[i] || "")
+      if (word && !/^%[a-zA-Z]$/.test(word)) {
+        cmd.push(word)
+      }
+    }
+    if (cmd.length > 0) {
+      return ["omarchy-launch-tui"].concat(cmd)
+    }
+  }
+  var launchId = id.slice(-8) === ".desktop" ? id : (id + ".desktop")
+  return ["uwsm-app", "--", "gtk-launch", launchId]
+}
+
+function formatTemplate(template, arg1, arg2) {
+  var text = String(template === undefined || template === null ? "" : template)
+  if (arg1 !== undefined) {
+    var s1 = arg1 === null ? "" : String(arg1)
+    text = text.split("%1").join(s1)
+  }
+  if (arg2 !== undefined) {
+    var s2 = arg2 === null ? "" : String(arg2)
+    text = text.split("%2").join(s2)
+  }
+  return text
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     MINIMIZED_WORKSPACE: MINIMIZED_WORKSPACE,
@@ -386,6 +555,17 @@ if (typeof module !== "undefined") {
     parseChromeProfiles: parseChromeProfiles,
     parseHiddenEntryIds: parseHiddenEntryIds,
     entryName: entryName,
-    filterAndSortApps: filterAndSortApps
+    filterAndSortApps: filterAndSortApps,
+    resolveIconSize: resolveIconSize,
+    HYPR_OPTION_KEYS: HYPR_OPTION_KEYS,
+    defaultHyprSettings: defaultHyprSettings,
+    parseHyprSettings: parseHyprSettings,
+    buildUpdatedWidgetEntry: buildUpdatedWidgetEntry,
+    isAppUncombined: isAppUncombined,
+    toggleUncombineApp: toggleUncombineApp,
+    isTwoLineClockFormat: isTwoLineClockFormat,
+    extractPinnedList: extractPinnedList,
+    launchArgvForEntry: launchArgvForEntry,
+    formatTemplate: formatTemplate
   }
 }

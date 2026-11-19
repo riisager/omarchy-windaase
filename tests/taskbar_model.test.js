@@ -167,10 +167,135 @@ function run() {
   const multiWord = TaskbarModel.filterAndSortApps(appEntries, "web google", hiddenMap);
   assert.deepStrictEqual(multiWord.map(e => e.id), ["google-chrome"]);
 
-  // Verify i18n JSON files are valid and carry matching keys
-  const en = JSON.parse(fs.readFileSync(path.join(__dirname, "../i18n/en.json"), "utf8"));
-  const da = JSON.parse(fs.readFileSync(path.join(__dirname, "../i18n/da.json"), "utf8"));
-  assert.deepStrictEqual(Object.keys(en).sort(), Object.keys(da).sort());
+  // 9. resolveIconSize
+  assert.strictEqual(TaskbarModel.resolveIconSize(26, 0, 14), 16);
+  assert.strictEqual(TaskbarModel.resolveIconSize(40, 0, 14), 26);
+  assert.strictEqual(TaskbarModel.resolveIconSize(44, 0, 14), 29);
+  assert.strictEqual(TaskbarModel.resolveIconSize(40, 28, 14), 28);
+  assert.strictEqual(TaskbarModel.resolveIconSize(26, 99, 14), 20);
+  assert.strictEqual(TaskbarModel.resolveIconSize(26, 4, 14), 14);
+
+  // 10. Settings & uncombine helpers
+  const defaults = TaskbarModel.defaultHyprSettings();
+  assert.deepStrictEqual(defaults, {
+    snap_layouts: true,
+    aero_snap: true,
+    hover_scroll: true,
+    soft_maximize: true,
+    auto_raise: true,
+    shortcuts: true
+  });
+
+  assert.deepStrictEqual(
+    TaskbarModel.parseHyprSettings(JSON.stringify({ hover_scroll: false, auto_raise: "nope", extra: false })),
+    {
+      snap_layouts: true,
+      aero_snap: true,
+      hover_scroll: false,
+      soft_maximize: true,
+      auto_raise: true,
+      shortcuts: true
+    }
+  );
+  assert.deepStrictEqual(TaskbarModel.parseHyprSettings("{bad"), defaults);
+
+  assert.deepStrictEqual(
+    TaskbarModel.buildUpdatedWidgetEntry({ id: "riisager.windaase", uncombine: ["google-chrome"], iconSize: 28 }, "riisager.windaase", { iconSize: 0, uncombine: [] }),
+    { id: "riisager.windaase" }
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.buildUpdatedWidgetEntry({ showAppsButton: true }, "riisager.windaase", { iconSize: 24.4, uncombine: ["chromium"] }),
+    { id: "riisager.windaase", showAppsButton: true, iconSize: 24, uncombine: ["chromium"] }
+  );
+
+  assert.strictEqual(TaskbarModel.isAppUncombined(["google-chrome.desktop"], "Google-Chrome"), true);
+  assert.strictEqual(TaskbarModel.isAppUncombined(["google-chrome"], "foot"), false);
+  assert.deepStrictEqual(TaskbarModel.toggleUncombineApp(["google-chrome"], "chromium.desktop"), ["google-chrome", "chromium"]);
+  assert.deepStrictEqual(TaskbarModel.toggleUncombineApp(["google-chrome", "chromium"], "Google-Chrome"), ["chromium"]);
+
+  assert.strictEqual(
+    TaskbarModel.isTwoLineClockFormat(JSON.stringify({ bar: { layout: { right: [{ id: "omarchy.clock", format: "HH:mm\ndd-MM-yyyy" }] } } })),
+    true
+  );
+  assert.strictEqual(
+    TaskbarModel.isTwoLineClockFormat(JSON.stringify({ bar: { layout: { right: [{ id: "omarchy.clock", format: "dddd HH:mm" }] } } })),
+    false
+  );
+  assert.strictEqual(TaskbarModel.isTwoLineClockFormat("{bad"), false);
+
+  // 11. Shared pinned extraction, launch argv & template formatting
+  assert.deepStrictEqual(
+    TaskbarModel.extractPinnedList(JSON.stringify({ dock: { pinned: ["foot", "google-chrome"] } })),
+    ["foot", "google-chrome"]
+  );
+  assert.strictEqual(TaskbarModel.extractPinnedList("{bad"), null);
+  assert.strictEqual(TaskbarModel.extractPinnedList(JSON.stringify({ dock: {} })), null);
+
+  assert.deepStrictEqual(
+    TaskbarModel.launchArgvForEntry({ id: "google-chrome" }),
+    ["uwsm-app", "--", "gtk-launch", "google-chrome.desktop"]
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.launchArgvForEntry({ id: "org.gnome.Nautilus.desktop" }),
+    ["uwsm-app", "--", "gtk-launch", "org.gnome.Nautilus.desktop"]
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.launchArgvForEntry({ id: "nvim", runInTerminal: true, command: ["nvim", "%F", "%u"] }),
+    ["omarchy-launch-tui", "nvim"]
+  );
+  assert.deepStrictEqual(TaskbarModel.launchArgvForEntry(null), []);
+
+  assert.strictEqual(TaskbarModel.formatTemplate("[Minimeret] %1", "Docs $HOME"), "[Minimeret] Docs $HOME");
+  assert.strictEqual(TaskbarModel.formatTemplate("%1 (%2)", "Chrome", "3"), "Chrome (3)");
+  assert.strictEqual(TaskbarModel.formatTemplate("appGrid.noAppsMatch", ""), "appGrid.noAppsMatch");
+
+  // Verify i18n JSON files cover all 50 Omarchy locales cleanly with exact key & placeholder parity
+  const i18nDir = path.join(__dirname, "../i18n");
+  const omarchyLocalesPath = "/usr/share/omarchy/default/i18n/locales.json";
+  const fallbackLocales = [
+    "ar", "bg", "bn", "ca", "cs", "da", "de", "el", "en", "es-MX",
+    "et", "fa", "fi", "fil", "fr", "ga", "he", "hi", "hr", "hu",
+    "id", "is", "it", "ja", "ko", "lt", "lv", "ms", "nl", "no",
+    "pl", "pt", "pt-BR", "ro", "ru", "si", "sk", "sl", "sr", "sv",
+    "sw", "ta", "th", "tr", "uk", "ur", "uz", "vi", "zh-CN", "zh-TW"
+  ];
+  let expectedLocales = fallbackLocales;
+  if (fs.existsSync(omarchyLocalesPath)) {
+    const rawLocales = JSON.parse(fs.readFileSync(omarchyLocalesPath, "utf8"));
+    const list = Array.isArray(rawLocales)
+      ? rawLocales
+      : (rawLocales.locales || Object.keys(rawLocales));
+    expectedLocales = list.map((entry) =>
+      typeof entry === "string" ? entry : (entry.code || entry.id || entry.locale)
+    );
+  }
+  assert.strictEqual(expectedLocales.length, 50, "Expected 50 Omarchy locales");
+
+  const actualFiles = fs.readdirSync(i18nDir).filter((f) => f.endsWith(".json")).sort();
+  const expectedFiles = expectedLocales.map((loc) => `${loc}.json`).sort();
+  assert.deepStrictEqual(actualFiles, expectedFiles, "i18n directory must match the 50 Omarchy locales exactly");
+
+  const en = JSON.parse(fs.readFileSync(path.join(i18nDir, "en.json"), "utf8"));
+  const enKeys = Object.keys(en).sort();
+  assert.strictEqual(enKeys.length, 38, "Expected 38 keys in en.json");
+
+  const placeholders = (str) => [...(str.match(/%[12]/g) || [])].sort();
+
+  for (const loc of expectedLocales) {
+    const file = path.join(i18nDir, `${loc}.json`);
+    const catalog = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.deepStrictEqual(Object.keys(catalog).sort(), enKeys, `Key parity mismatch in ${loc}.json`);
+    for (const key of enKeys) {
+      const val = catalog[key];
+      assert.strictEqual(typeof val, "string", `${loc}.${key} must be a string`);
+      assert.ok(val.trim().length > 0, `${loc}.${key} must be non-empty`);
+      assert.deepStrictEqual(
+        placeholders(val),
+        placeholders(en[key]),
+        `Placeholder mismatch in ${loc}.json key ${key}`
+      );
+    }
+  }
 
   console.log("ALL TASKBAR MODEL & I18N TESTS PASSED");
 }

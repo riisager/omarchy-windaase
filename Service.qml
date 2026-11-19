@@ -159,6 +159,10 @@ Item {
     function apps(): void {
       appGrid.toggle()
     }
+
+    function settings(): void {
+      Commons.IpcRegistry.call("riisager.windaase.bar", "toggleSettings", [])
+    }
   }
 
   Variants {

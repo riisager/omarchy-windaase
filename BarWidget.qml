@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
@@ -14,7 +13,14 @@ BarWidget {
   moduleName: "riisager.windaase"
 
   readonly property int slotSize: Math.max(Style.space(22), root.barSize)
-  readonly property int iconSize: Math.max(Style.space(14), root.slotSize - Style.space(10))
+  readonly property bool tallBar: root.slotSize >= Style.space(34)
+  readonly property var configuredIconSize: root.setting("iconSize", 0)
+  readonly property int iconSize: TaskbarModel.resolveIconSize(root.slotSize, root.configuredIconSize, Style.space(14))
+  readonly property int appsIconSize: Math.min(root.iconSize, Style.space(22))
+  readonly property int pillInset: root.tallBar ? Style.space(4) : Style.space(2)
+  readonly property int indicatorThickness: root.tallBar ? Style.space(3) : Style.space(2)
+  readonly property int indicatorMargin: root.tallBar ? Style.space(2) : Style.space(1)
+  readonly property int badgeSize: root.tallBar ? Style.space(13) : Style.space(10)
   readonly property real idleOpacity: 0.85
   readonly property var uncombinedApps: root.setting("uncombine", [])
   readonly property bool showAppsButton: root.setting("showAppsButton", true)
@@ -31,6 +37,11 @@ BarWidget {
   property Item pickerAnchor: null
   property string menuKey: ""
   property Item menuAnchor: null
+  property bool settingsOpen: false
+  property Item settingsAnchor: null
+  property bool twoLineClock: false
+  property var hyprSettings: TaskbarModel.defaultHyprSettings()
+  readonly property string configScriptPath: String(Qt.resolvedUrl("windaase-config.py")).replace(/^file:\/\//, "")
 
   implicitWidth: root.vertical ? root.barSize : layoutGrid.implicitWidth
   implicitHeight: root.vertical ? layoutGrid.implicitHeight : root.barSize
@@ -40,23 +51,13 @@ BarWidget {
     directory: Qt.resolvedUrl("i18n")
   }
 
-  function extractPinned(raw) {
-    try {
-      var parsed = JSON.parse(String(raw || ""))
-      if (parsed && parsed.dock && Array.isArray(parsed.dock.pinned)) {
-        return parsed.dock.pinned
-      }
-    } catch (e) {}
-    return null
-  }
-
   FileView {
     id: defaultShellFile
     path: (Quickshell.env("OMARCHY_PATH") || "/usr/share/omarchy") + "/config/omarchy/shell.json"
     watchChanges: false
     blockLoading: true
     printErrors: false
-    onLoaded: root.defaultPinnedList = root.extractPinned(text()) || []
+    onLoaded: root.defaultPinnedList = TaskbarModel.extractPinnedList(text()) || []
     onLoadFailed: root.defaultPinnedList = []
   }
 
@@ -67,8 +68,26 @@ BarWidget {
     blockLoading: true
     printErrors: false
     onFileChanged: reload()
-    onLoaded: root.userPinnedList = root.extractPinned(text())
-    onLoadFailed: root.userPinnedList = null
+    onLoaded: {
+      var raw = text()
+      root.userPinnedList = TaskbarModel.extractPinnedList(raw)
+      root.twoLineClock = TaskbarModel.isTwoLineClockFormat(raw)
+    }
+    onLoadFailed: {
+      root.userPinnedList = null
+      root.twoLineClock = false
+    }
+  }
+
+  FileView {
+    id: hyprSettingsFile
+    path: Commons.Color.home + "/.config/omarchy/windaase.json"
+    watchChanges: true
+    blockLoading: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.hyprSettings = TaskbarModel.parseHyprSettings(text())
+    onLoadFailed: root.hyprSettings = TaskbarModel.defaultHyprSettings()
   }
 
   FileView {
@@ -171,8 +190,11 @@ BarWidget {
 
   onItemsChanged: syncItemModel()
   Component.onCompleted: {
-    root.defaultPinnedList = root.extractPinned(defaultShellFile.text()) || []
-    root.userPinnedList = root.extractPinned(userShellFile.text())
+    var userRaw = userShellFile.text()
+    root.defaultPinnedList = TaskbarModel.extractPinnedList(defaultShellFile.text()) || []
+    root.userPinnedList = TaskbarModel.extractPinnedList(userRaw)
+    root.twoLineClock = TaskbarModel.isTwoLineClockFormat(userRaw)
+    root.hyprSettings = TaskbarModel.parseHyprSettings(hyprSettingsFile.text())
     syncItemModel()
   }
 
@@ -229,18 +251,8 @@ BarWidget {
   }
 
   function launch(item) {
-    var entry = entryFor(item)
-    if (!entry) return
-    if (entry.runInTerminal) {
-      var cmd = (entry.command || []).filter(function(word) {
-        return !/^%[a-zA-Z]$/.test(String(word))
-      })
-      if (cmd.length > 0) {
-        Util.execDetached("omarchy-launch-tui " + cmd.map(function(w) { return Util.shellQuote(w) }).join(" "))
-        return
-      }
-    }
-    Util.execDetached("uwsm-app -- gtk-launch " + Util.shellQuote(entry.id + ".desktop"))
+    var argv = TaskbarModel.launchArgvForEntry(entryFor(item))
+    if (argv.length > 0) Util.execArgv(argv)
   }
 
   function browserBinaryForItem(item) {
@@ -261,7 +273,7 @@ BarWidget {
     if (!TaskbarModel.isValidProfileDir(dir)) return
     var bin = browserBinaryForItem(item)
     if (!bin) return
-    Util.execDetached("uwsm-app -- " + Util.shellQuote(bin) + " --profile-directory=" + Util.shellQuote(dir))
+    Util.execArgv(["uwsm-app", "--", bin, "--profile-directory=" + dir])
   }
 
   function bringForward(window) {
@@ -368,22 +380,58 @@ BarWidget {
 
   function setPinned(key, pinned) {
     if (!key) return
-    Util.execDetached("omarchy-dock " + (pinned ? "pin " : "unpin ") + Util.shellQuote(key))
+    Util.execArgv(["omarchy-dock", pinned ? "pin" : "unpin", String(key)])
   }
 
   function closePopouts() {
     root.pickerKey = ""
     root.menuKey = ""
+    root.settingsOpen = false
+  }
+
+  function updateWidgetSettings(patch) {
+    var entry = TaskbarModel.buildUpdatedWidgetEntry(root.settings, root.moduleName, patch)
+    root.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function") {
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
+    }
+  }
+
+  function runConfigHelper(args) {
+    if (!root.configScriptPath) return
+    Util.execArgv(["python3", root.configScriptPath].concat(args))
+  }
+
+  function openSettings(slot) {
+    root.pickerKey = ""
+    root.menuKey = ""
+    root.settingsAnchor = slot || (root.showAppsButton ? appsSlot : root)
+    root.settingsOpen = true
+    if (root.bar && root.settingsAnchor) root.bar.hideTooltip(root.settingsAnchor)
+  }
+
+  function toggleSettingsOnFocusedMonitor() {
+    var monitor = Hyprland.focusedMonitor
+    var win = root.QsWindow ? root.QsWindow.window : null
+    var screenName = win && win.screen ? String(win.screen.name || "") : ""
+    var focusedName = monitor ? String(monitor.name || "") : ""
+    if (focusedName && screenName && focusedName !== screenName) return
+    if (root.settingsOpen) {
+      root.closePopouts()
+    } else {
+      root.openSettings(root.showAppsButton ? appsSlot : root)
+    }
   }
 
   function toggleAppGrid() {
     var res = Commons.IpcRegistry.call("riisager.windaase", "apps", [])
     if (!res || !res.ran) {
-      Util.execDetached("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"apps\"}'")
+      Util.execArgv(["omarchy-shell", "shell", "toggle", "omarchy.menu", "{\"menu\":\"apps\"}"])
     }
   }
 
   function openPicker(key, slot) {
+    root.settingsOpen = false
     root.menuKey = ""
     root.pickerKey = key
     root.pickerAnchor = slot
@@ -402,18 +450,27 @@ BarWidget {
       root.activeBrowserDir = ""
       root.browserProfiles = []
     }
+    root.settingsOpen = false
     root.pickerKey = ""
     root.menuKey = key
     root.menuAnchor = slot
     if (root.bar) root.bar.hideTooltip(slot)
   }
 
+  ShellIpc {
+    target: "riisager.windaase.bar"
+
+    function toggleSettings(): void {
+      root.broadcast("toggleSettingsOnFocusedMonitor")
+    }
+  }
+
   GridLayout {
     id: layoutGrid
     columns: root.vertical ? 1 : itemRepeater.count + 1 + (root.showAppsButton ? 1 : 0)
     rows: root.vertical ? itemRepeater.count + 1 + (root.showAppsButton ? 1 : 0) : 1
-    columnSpacing: root.vertical ? 0 : Style.space(2)
-    rowSpacing: root.vertical ? Style.space(2) : 0
+    columnSpacing: root.vertical ? 0 : (root.tallBar ? Style.space(3) : Style.space(2))
+    rowSpacing: root.vertical ? (root.tallBar ? Style.space(3) : Style.space(2)) : 0
 
     // Subtle 1px divider separating omarchy.workspaces from the taskbar apps
     Item {
@@ -458,8 +515,8 @@ BarWidget {
 
       Rectangle {
         anchors.centerIn: parent
-        width: root.slotSize - Style.space(2)
-        height: root.slotSize - Style.space(2)
+        width: root.slotSize - root.pillInset
+        height: root.slotSize - root.pillInset
         radius: Math.max(Style.space(4), Style.cornerRadius)
         color: appsSlot.hovered ? Style.hoverFill : "transparent"
 
@@ -468,19 +525,19 @@ BarWidget {
 
       Item {
         anchors.centerIn: parent
-        width: root.iconSize
-        height: root.iconSize
+        width: root.appsIconSize
+        height: root.appsIconSize
         opacity: appsSlot.hovered ? 1.0 : root.idleOpacity
         scale: appsSlot.hovered ? 1.1 : 1.0
 
         Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
 
         Grid {
-          readonly property int square: Math.max(2, Math.round(root.iconSize * 0.22))
+          readonly property int square: Math.max(2, Math.round(root.appsIconSize * 0.22))
 
           anchors.centerIn: parent
           columns: 3
-          spacing: Math.max(1, Math.round(root.iconSize * 0.1))
+          spacing: Math.max(1, Math.round(root.appsIconSize * 0.1))
 
           Repeater {
             model: 9
@@ -500,17 +557,22 @@ BarWidget {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
 
         onEntered: {
-          if (root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0) {
+          if (root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0 && !root.settingsOpen) {
             root.bar.showTooltip(appsSlot, TaskbarModel.sanitizeTooltipText(strings.t("taskbar.apps"), 96))
           }
         }
         onExited: if (root.bar) root.bar.hideTooltip(appsSlot)
-        onClicked: {
-          root.closePopouts()
+        onClicked: function(event) {
           if (root.bar) root.bar.hideTooltip(appsSlot)
+          if (event.button === Qt.RightButton) {
+            if (root.settingsOpen) root.closePopouts()
+            else root.openSettings(appsSlot)
+            return
+          }
+          root.closePopouts()
           root.toggleAppGrid()
         }
       }
@@ -556,8 +618,8 @@ BarWidget {
 
         Rectangle {
           anchors.centerIn: parent
-          width: root.slotSize - Style.space(2)
-          height: root.slotSize - Style.space(2)
+          width: root.slotSize - root.pillInset
+          height: root.slotSize - root.pillInset
           radius: Math.max(Style.space(4), Style.cornerRadius)
           color: taskSlot.focused ? Style.selectedFill : (taskSlot.hovered ? Style.hoverFill : "transparent")
           border.width: taskSlot.focused ? 1 : 0
@@ -568,6 +630,7 @@ BarWidget {
 
         Image {
           anchors.centerIn: parent
+          anchors.verticalCenterOffset: root.vertical ? 0 : (root.tallBar ? -1 : 0)
           width: root.iconSize
           height: root.iconSize
           sourceSize: Qt.size(root.iconSize * 2, root.iconSize * 2)
@@ -584,20 +647,24 @@ BarWidget {
 
         // Windows 11-style active/open indicator bar
         Rectangle {
+          readonly property int indicatorLength: taskSlot.focused
+            ? Math.round(root.slotSize * 0.42)
+            : (taskSlot.windowCount > 1 ? Math.round(root.slotSize * 0.28) : Math.round(root.slotSize * 0.16))
+
           visible: taskSlot.windowCount > 0
-          width: root.vertical ? Style.space(2) : (taskSlot.focused ? Style.space(12) : (taskSlot.windowCount > 1 ? Style.space(8) : Style.space(5)))
-          height: root.vertical ? (taskSlot.focused ? Style.space(12) : (taskSlot.windowCount > 1 ? Style.space(8) : Style.space(5))) : Style.space(2)
-          radius: Style.space(1)
+          width: root.vertical ? root.indicatorThickness : indicatorLength
+          height: root.vertical ? indicatorLength : root.indicatorThickness
+          radius: Math.max(1, Math.round(root.indicatorThickness / 2))
           color: taskSlot.focused ? Commons.Color.accent : (root.bar ? root.bar.barForeground : Commons.Color.bar.text)
           opacity: taskSlot.focused ? 1.0 : (taskSlot.allMinimized ? 0.45 : 0.8)
           anchors.horizontalCenter: root.vertical ? undefined : parent.horizontalCenter
           anchors.bottom: root.vertical ? undefined : parent.bottom
-          anchors.bottomMargin: root.vertical ? 0 : Style.space(1)
+          anchors.bottomMargin: root.vertical ? 0 : root.indicatorMargin
           anchors.verticalCenter: root.vertical ? parent.verticalCenter : undefined
           anchors.left: (root.bar && root.bar.position === "left") ? parent.left : undefined
-          anchors.leftMargin: (root.bar && root.bar.position === "left") ? Style.space(1) : 0
+          anchors.leftMargin: (root.bar && root.bar.position === "left") ? root.indicatorMargin : 0
           anchors.right: (root.bar && root.bar.position === "right") ? parent.right : undefined
-          anchors.rightMargin: (root.bar && root.bar.position === "right") ? Style.space(1) : 0
+          anchors.rightMargin: (root.bar && root.bar.position === "right") ? root.indicatorMargin : 0
 
           Behavior on width { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
         }
@@ -607,10 +674,10 @@ BarWidget {
           visible: taskSlot.windowCount > 1
           anchors.top: parent.top
           anchors.right: parent.right
-          anchors.topMargin: Style.space(1)
-          anchors.rightMargin: Style.space(1)
-          width: Math.max(Style.space(10), countTxt.implicitWidth + Style.space(3))
-          height: Style.space(10)
+          anchors.topMargin: root.tallBar ? Style.space(2) : Style.space(1)
+          anchors.rightMargin: root.tallBar ? Style.space(2) : Style.space(1)
+          width: Math.max(root.badgeSize, countTxt.implicitWidth + Style.space(4))
+          height: root.badgeSize
           radius: height / 2
           color: taskSlot.focused ? Commons.Color.accent : Commons.Color.popups.background
           border.width: 1
@@ -623,7 +690,7 @@ BarWidget {
             text: Commons.I18n.formatNumber(taskSlot.windowCount)
             color: taskSlot.focused ? Commons.Color.background : Commons.Color.popups.text
             font.family: Style.font.family
-            font.pixelSize: Math.max(7, Style.font.caption - 2)
+            font.pixelSize: root.tallBar ? Math.max(8, Style.font.caption - 1) : Math.max(7, Style.font.caption - 2)
             font.bold: true
           }
         }
@@ -636,15 +703,21 @@ BarWidget {
           acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
 
           onEntered: {
-            if (root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0) {
+            if (root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0 && !root.settingsOpen) {
               var rawLabel = ""
               if (taskSlot.modelData && taskSlot.modelData.split && taskSlot.windowCount === 1) {
                 var w = taskSlot.modelData.windows[0]
                 var rawTitle = (w.toplevel && w.toplevel.title) ? w.toplevel.title : (w.title || taskSlot.appLabel)
-                rawLabel = w.minimized ? strings.t("taskbar.minimizedPrefix").arg(rawTitle) : rawTitle
+                rawLabel = w.minimized
+                  ? TaskbarModel.formatTemplate(strings.t("taskbar.minimizedPrefix"), rawTitle)
+                  : rawTitle
               } else {
                 rawLabel = taskSlot.windowCount > 1
-                  ? strings.t("taskbar.windowCount").arg(taskSlot.appLabel).arg(Commons.I18n.formatNumber(taskSlot.windowCount))
+                  ? TaskbarModel.formatTemplate(
+                      strings.t("taskbar.windowCount"),
+                      taskSlot.appLabel,
+                      Commons.I18n.formatNumber(taskSlot.windowCount)
+                    )
                   : taskSlot.appLabel
               }
               root.bar.showTooltip(taskSlot, TaskbarModel.sanitizeTooltipText(rawLabel, 96))
@@ -692,378 +765,105 @@ BarWidget {
     function close() { root.menuKey = "" }
   }
 
-  PopupCard {
+  WindowPickerCard {
     id: pickerCard
 
-    readonly property var item: root.pickerKey.length > 0 ? root.itemFor(root.pickerKey) : null
-    readonly property var windows: item && item.windows ? item.windows : []
-    onWindowsChanged: if (root.pickerKey.length > 0 && windows.length === 0) Qt.callLater(pickerOwner.close)
+    readonly property var targetItem: root.pickerKey.length > 0 ? root.itemFor(root.pickerKey) : null
 
     anchorItem: root.pickerAnchor || root
     owner: pickerOwner
     bar: root.bar
-    open: root.pickerKey.length > 0 && windows.length > 0
-    padding: Style.spacing.sm
-    contentWidth: pickerCard.fittedContentWidth(Style.space(290))
-    contentHeight: pickerCard.fittedContentHeight(Math.min(Style.space(220), pickerColumn.implicitHeight))
+    open: root.pickerKey.length > 0 && !!targetItem && targetItem.windows.length > 0
+    strings: strings
+    item: targetItem
+    fallbackLabel: targetItem ? root.labelFor(targetItem) : ""
 
-    Flickable {
-      anchors.fill: parent
-      contentHeight: pickerColumn.implicitHeight
-      clip: true
-      boundsBehavior: Flickable.StopAtBounds
-
-      Column {
-        id: pickerColumn
-        width: parent.width
-        spacing: Style.space(2)
-
-        Repeater {
-          model: pickerCard.windows
-
-          delegate: Rectangle {
-            id: pickerRow
-            required property var modelData
-            readonly property bool isActive: !modelData.minimized && !!modelData.toplevel && !!modelData.toplevel.activated
-            readonly property string baseTitle: modelData.title || (pickerCard.item ? root.labelFor(pickerCard.item) : "")
-            readonly property string winTitle: modelData.minimized
-              ? strings.t("taskbar.minimizedPrefix").arg(baseTitle)
-              : baseTitle
-
-            width: pickerColumn.width
-            height: Style.spacing.popupRowHeight
-            radius: Style.cornerRadius
-            color: pickerRowMouse.containsMouse ? Style.hoverFill : (isActive ? Style.selectedFill : "transparent")
-
-            Rectangle {
-              id: winDot
-              anchors.verticalCenter: parent.verticalCenter
-              anchors.left: parent.left
-              anchors.leftMargin: Style.spacing.sm
-              width: Style.space(6)
-              height: Style.space(6)
-              radius: width / 2
-              color: pickerRow.isActive ? Commons.Color.accent : Commons.Color.popups.text
-              opacity: pickerRow.modelData.minimized ? 0.35 : (pickerRow.isActive ? 1.0 : 0.7)
-            }
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              anchors.left: winDot.right
-              anchors.leftMargin: Style.spacing.sm
-              anchors.right: wsBadge.left
-              anchors.rightMargin: Style.spacing.xs
-              elide: Text.ElideRight
-              textFormat: Text.PlainText
-              text: pickerRow.winTitle
-              color: Commons.Color.popups.text
-              opacity: pickerRow.modelData.minimized ? 0.7 : 1.0
-              font.family: Style.font.family
-              font.pixelSize: Style.font.bodySmall
-              font.bold: pickerRow.isActive
-            }
-
-            Text {
-              id: wsBadge
-              anchors.verticalCenter: parent.verticalCenter
-              anchors.right: closeBtn.left
-              anchors.rightMargin: Style.spacing.xs
-              visible: !pickerRow.modelData.minimized && pickerRow.modelData.workspaceId >= 1
-              textFormat: Text.PlainText
-              text: strings.t("taskbar.workspaceBadge").arg(Commons.I18n.formatNumber(pickerRow.modelData.workspaceId))
-              color: Commons.Color.popups.text
-              opacity: 0.5
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-            }
-
-            MouseArea {
-              id: pickerRowMouse
-              anchors.left: parent.left
-              anchors.right: closeBtn.left
-              anchors.top: parent.top
-              anchors.bottom: parent.bottom
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: {
-                root.activateWindow(pickerRow.modelData)
-                pickerOwner.close()
-              }
-            }
-
-            Rectangle {
-              id: closeBtn
-              anchors.verticalCenter: parent.verticalCenter
-              anchors.right: parent.right
-              anchors.rightMargin: Style.spacing.xs
-              width: Style.space(20)
-              height: Style.space(20)
-              radius: Style.cornerRadius
-              color: closeMouse.containsMouse ? Style.hoverFill : "transparent"
-
-              Text {
-                anchors.centerIn: parent
-                textFormat: Text.PlainText
-                text: "×"
-                color: Commons.Color.popups.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-              }
-
-              MouseArea {
-                id: closeMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.closeWindow(pickerRow.modelData)
-              }
-            }
-          }
-        }
-      }
-    }
+    onWindowActivated: function(win) { root.activateWindow(win) }
+    onWindowClosed: function(win) { root.closeWindow(win) }
   }
 
-  PopupCard {
+  AppMenuCard {
     id: menuCard
 
-    readonly property var item: root.menuKey.length > 0 ? root.itemFor(root.menuKey) : null
-    readonly property string appKey: item ? (item.appKey || item.key) : ""
-    readonly property bool hasEntry: !!item && !!root.entryFor(item)
-    readonly property bool running: !!item && item.windows.length > 0
-    readonly property bool isBrowser: TaskbarModel.browserProfileConfigDir(appKey, Commons.Color.home).length > 0
-    readonly property bool showProfiles: isBrowser && root.browserProfiles.length > 0
+    readonly property var targetItem: root.menuKey.length > 0 ? root.itemFor(root.menuKey) : null
+    readonly property string targetAppKey: targetItem ? (targetItem.appKey || targetItem.key) : ""
+    readonly property bool isBrowser: TaskbarModel.browserProfileConfigDir(targetAppKey, Commons.Color.home).length > 0
 
     anchorItem: root.menuAnchor || root
     owner: menuOwner
     bar: root.bar
-    open: root.menuKey.length > 0 && !!item
-    onOpenChanged: if (open) menuFlickable.contentY = 0
-    padding: Style.spacing.sm
-    contentWidth: menuCard.fittedContentWidth(menuCard.showProfiles ? Style.space(260) : Style.space(180))
-    contentHeight: menuCard.fittedContentHeight(Math.min(Style.space(420), menuColumn.implicitHeight))
+    open: root.menuKey.length > 0 && !!targetItem
+    strings: strings
+    item: targetItem
+    appKey: targetAppKey
+    hasEntry: !!targetItem && !!root.entryFor(targetItem)
+    running: !!targetItem && targetItem.windows.length > 0
+    allMinimized: root.isItemAllMinimized(targetItem)
+    splitWindows: TaskbarModel.isAppUncombined(root.uncombinedApps, targetAppKey)
+    showProfiles: isBrowser && root.browserProfiles.length > 0
+    browserProfiles: root.browserProfiles
 
-    Flickable {
-      id: menuFlickable
-      anchors.fill: parent
-      contentHeight: menuColumn.implicitHeight
-      clip: true
-      boundsBehavior: Flickable.StopAtBounds
-
-      Column {
-        id: menuColumn
-        width: menuFlickable.width
-
-        Item {
-          visible: menuCard.showProfiles
-          width: menuColumn.width
-          height: visible ? Style.space(22) : 0
-
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: Style.spacing.controlPaddingX
-            textFormat: Text.PlainText
-            text: strings.t("taskbar.openProfile")
-            color: Commons.Color.popups.text
-            opacity: 0.6
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-          }
-        }
-
-        Repeater {
-          model: menuCard.showProfiles ? root.browserProfiles : []
-
-          delegate: Rectangle {
-            id: profileRow
-            required property var modelData
-
-            width: menuColumn.width
-            height: Style.spacing.popupRowHeight
-            radius: Style.cornerRadius
-            color: profileMouse.containsMouse ? Style.hoverFill : "transparent"
-
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: Style.spacing.sm
-              anchors.rightMargin: Style.spacing.sm
-              spacing: Style.spacing.sm
-
-              Item {
-                Layout.preferredWidth: Style.space(18)
-                Layout.preferredHeight: Style.space(18)
-
-                Rectangle {
-                  id: avatarMask
-                  anchors.fill: parent
-                  radius: width / 2
-                  color: "white"
-                  visible: false
-                  layer.enabled: true
-                }
-
-                Item {
-                  anchors.fill: parent
-                  visible: avatarImg.status !== Image.Ready
-
-                  Rectangle {
-                    anchors.fill: parent
-                    radius: width / 2
-                    color: Commons.Color.accent
-                    opacity: 0.25
-                  }
-
-                  Text {
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    text: profileRow.modelData.initial
-                    color: Commons.Color.popups.text
-                    font.family: Style.font.family
-                    font.pixelSize: Math.max(9, Style.font.caption)
-                    font.bold: true
-                  }
-                }
-
-                Image {
-                  id: avatarImg
-                  anchors.fill: parent
-                  source: profileRow.modelData.picturePath ? Util.fileUrl(profileRow.modelData.picturePath) : ""
-                  sourceSize: Qt.size(Style.space(36), Style.space(36))
-                  fillMode: Image.PreserveAspectCrop
-                  asynchronous: true
-                  smooth: true
-                  mipmap: true
-                  visible: status === Image.Ready
-                  layer.enabled: visible
-                  layer.smooth: true
-                  layer.effect: MultiEffect {
-                    maskEnabled: true
-                    maskSource: avatarMask
-                    maskThresholdMin: 0.3
-                    maskSpreadAtMin: 0.3
-                  }
-                }
-              }
-
-              Text {
-                textFormat: Text.PlainText
-                text: profileRow.modelData.name
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-                Layout.minimumWidth: Style.space(60)
-                color: Commons.Color.popups.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-              }
-
-              Text {
-                textFormat: Text.PlainText
-                visible: profileRow.modelData.email.length > 0 && profileRow.modelData.email !== profileRow.modelData.name
-                text: profileRow.modelData.email
-                elide: Text.ElideRight
-                Layout.maximumWidth: Style.space(125)
-                color: Commons.Color.popups.text
-                opacity: 0.55
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-              }
-            }
-
-            MouseArea {
-              id: profileMouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: {
-                root.launchBrowserProfile(menuCard.item, profileRow.modelData.dir)
-                menuOwner.close()
-              }
-            }
-          }
-        }
-
-        Item {
-          visible: menuCard.showProfiles
-          width: menuColumn.width
-          height: visible ? Style.space(9) : 0
-
-          Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: Style.spacing.sm
-            anchors.rightMargin: Style.spacing.sm
-            height: Math.max(1, Style.spacing.hairline)
-            color: Commons.Color.popups.text
-            opacity: 0.15
-          }
-        }
-
-        TaskMenuRow {
-          visible: menuCard.hasEntry && menuCard.running
-          text: strings.t("taskbar.newWindow")
-          onTriggered: root.launch(menuCard.item)
-        }
-
-        TaskMenuRow {
-          visible: menuCard.running && !root.isItemAllMinimized(menuCard.item)
-          text: strings.t("taskbar.minimize")
-          onTriggered: root.minimizeAll(menuCard.item)
-        }
-
-        TaskMenuRow {
-          visible: menuCard.running && root.isItemAllMinimized(menuCard.item)
-          text: strings.t("taskbar.restore")
-          onTriggered: root.restoreAll(menuCard.item)
-        }
-
-        TaskMenuRow {
-          visible: menuCard.hasEntry
-          text: menuCard.item && menuCard.item.pinned ? strings.t("taskbar.unpin") : strings.t("taskbar.pin")
-          onTriggered: root.setPinned(menuCard.appKey, !menuCard.item.pinned)
-        }
-
-        TaskMenuRow {
-          visible: menuCard.running
-          text: (menuCard.item && menuCard.item.windows.length === 1) ? strings.t("taskbar.closeWindow") : strings.t("taskbar.closeAll")
-          onTriggered: root.quitItem(menuCard.item)
-        }
-      }
+    onProfileLaunched: function(dir) { root.launchBrowserProfile(targetItem, dir) }
+    onNewWindowRequested: root.launch(targetItem)
+    onMinimizeRequested: root.minimizeAll(targetItem)
+    onRestoreRequested: root.restoreAll(targetItem)
+    onPinToggled: function(pinned) { root.setPinned(targetAppKey, pinned) }
+    onSplitWindowsToggled: root.updateWidgetSettings({
+      uncombine: TaskbarModel.toggleUncombineApp(root.uncombinedApps, targetAppKey)
+    })
+    onCloseRequested: root.quitItem(targetItem)
+    onSettingsRequested: {
+      var anchor = root.menuAnchor || root
+      Qt.callLater(function() { root.openSettings(anchor) })
     }
   }
 
-  component TaskMenuRow: Rectangle {
-    id: menuRow
+  QtObject {
+    id: settingsOwner
+    function close() { root.settingsOpen = false }
+  }
 
-    property string text: ""
-    signal triggered()
+  SettingsCard {
+    id: settingsCard
 
-    width: parent ? parent.width : 0
-    height: visible ? Style.spacing.popupRowHeight : 0
-    radius: Style.cornerRadius
-    color: rowMouse.containsMouse ? Style.hoverFill : "transparent"
+    anchorItem: root.settingsAnchor || (root.showAppsButton ? appsSlot : root)
+    owner: settingsOwner
+    bar: root.bar
+    open: root.settingsOpen
+    strings: strings
+    barSize: root.barSize
+    iconSize: root.iconSize
+    configuredIconSize: Number(root.configuredIconSize) || 0
+    showAppsButton: root.showAppsButton
+    twoLineClock: root.twoLineClock
+    hyprSettings: root.hyprSettings
 
-    Text {
-      anchors.verticalCenter: parent.verticalCenter
-      anchors.left: parent.left
-      anchors.leftMargin: Style.spacing.controlPaddingX
-      textFormat: Text.PlainText
-      text: menuRow.text
-      color: Commons.Color.popups.text
-      font.family: Style.font.family
-      font.pixelSize: Style.font.body
+    onBarHeightRequested: function(px) {
+      root.runConfigHelper(["bar-height", String(px)])
     }
-
-    MouseArea {
-      id: rowMouse
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: {
-        menuRow.triggered()
-        menuOwner.close()
+    onIconSizeRequested: function(px) {
+      root.updateWidgetSettings({ iconSize: px > 0 ? px : 0 })
+    }
+    onBarPositionRequested: function(pos) {
+      if (pos === "top" || pos === "bottom") {
+        Util.execArgv(["omarchy", "bar", "position", pos])
       }
+    }
+    onTwoLineClockToggled: function(enabled) {
+      root.twoLineClock = enabled
+      root.runConfigHelper(["two-line-clock", enabled ? "on" : "off"])
+    }
+    onShowAppsButtonToggled: function(enabled) {
+      if (!enabled && root.settingsAnchor === appsSlot) {
+        root.settingsAnchor = root
+      }
+      root.updateWidgetSettings({ showAppsButton: enabled })
+    }
+    onHyprOptionToggled: function(key, enabled) {
+      var next = TaskbarModel.parseHyprSettings(JSON.stringify(root.hyprSettings))
+      next[key] = enabled
+      root.hyprSettings = next
+      root.runConfigHelper(["hypr-set", key, enabled ? "true" : "false"])
     }
   }
 }

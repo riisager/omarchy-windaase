@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ID="riisager.windaase"
 PLUGIN_DEST="${HOME}/.config/omarchy/plugins/${PLUGIN_ID}"
 HYPR_DIR="${HOME}/.config/hypr"
@@ -15,7 +16,7 @@ for arg in "$@"; do
 Usage: ./uninstall.sh [--restore-stock]
 
 Removes the Omarchy-windåse plugin and Hyprland Lua module.
-Pass --restore-stock to also re-enable omarchy.dock and move the bar back to top.
+Pass --restore-stock to also re-enable omarchy.dock, reset [bar] size-horizontal, and move the bar back to top.
 USAGE
       exit 0
       ;;
@@ -26,11 +27,21 @@ USAGE
   esac
 done
 
+CONFIG_HELPER="${PLUGIN_DEST}/windaase-config.py"
+if [[ ! -f "${CONFIG_HELPER}" && -f "${SCRIPT_DIR}/windaase-config.py" ]]; then
+  CONFIG_HELPER="${SCRIPT_DIR}/windaase-config.py"
+fi
+
+if [[ "$RESTORE_STOCK" -eq 1 ]] && [[ -f "${CONFIG_HELPER}" ]]; then
+  python3 "${CONFIG_HELPER}" bar-height-reset || true
+fi
+
 if command -v omarchy >/dev/null 2>&1; then
   omarchy plugin disable "${PLUGIN_ID}" >/dev/null 2>&1 || true
 fi
 
 rm -rf "${PLUGIN_DEST}" "${HYPR_DIR}/windaase.lua" "${HYPR_DIR}/windaase"
+rm -f "${HOME}/.config/omarchy/windaase.json"
 
 if [[ -f "${HYPRLAND_LUA}" ]] && grep -qE 'Omarchy-windåse|require\(["'\'']hypr\.windaase["'\'']\)' "${HYPRLAND_LUA}"; then
   BACKUP="${HYPRLAND_LUA}.bak-uninstall-$(date +%Y%m%d-%H%M%S)"

@@ -8,43 +8,80 @@ HYPR_DIR="${HOME}/.config/hypr"
 HYPRLAND_LUA="${HYPR_DIR}/hyprland.lua"
 
 MODE="default"
-for arg in "$@"; do
-  case "$arg" in
+BAR_HEIGHT=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --shell-only) MODE="shell-only" ;;
     --full) MODE="full" ;;
+    --bar-height)
+      [[ $# -ge 2 ]] || { echo "Missing value for --bar-height" >&2; exit 1; }
+      BAR_HEIGHT="$2"
+      shift
+      ;;
+    --bar-height=*)
+      BAR_HEIGHT="${1#--bar-height=}"
+      ;;
     -h|--help)
       cat <<USAGE
-Usage: ./install.sh [--shell-only | --full]
+Usage: ./install.sh [--shell-only | --full] [--bar-height <px>]
 
-  (default)     Install the Omarchy-windåse shell plugin + Hyprland Lua module.
-  --shell-only  Install only the Omarchy shell plugin (taskbar + Snap Layouts UI).
-  --full        Default install PLUS bottom bar, disable omarchy.dock, and floating layout default.
+  (default)          Install the Omarchy-windåse shell plugin + Hyprland Lua module.
+  --shell-only       Install only the Omarchy shell plugin (taskbar + Snap Layouts UI).
+  --full             Default install PLUS bottom bar, disable omarchy.dock, and floating layout default.
+  --bar-height <px>  Set [bar] size-horizontal in ~/.config/omarchy/shell.toml (24-64 px).
 USAGE
       exit 0
       ;;
     *)
-      echo "Unknown option: $arg" >&2
+      echo "Unknown option: $1" >&2
       exit 1
       ;;
   esac
+  shift
 done
 
-echo "==> Installing Omarchy-windåse shell plugin to ${PLUGIN_DEST}"
-rm -rf "${PLUGIN_DEST}"
-mkdir -p "${PLUGIN_DEST}/i18n"
+if [[ -n "$BAR_HEIGHT" ]]; then
+  if ! [[ "$BAR_HEIGHT" =~ ^[0-9]+$ ]] || (( BAR_HEIGHT < 24 || BAR_HEIGHT > 64 )); then
+    echo "Invalid --bar-height '$BAR_HEIGHT' (expected integer between 24 and 64)" >&2
+    exit 1
+  fi
+fi
+
+echo "==> Staging and validating Omarchy-windåse shell plugin"
+mkdir -p "$(dirname "${PLUGIN_DEST}")"
+STAGING_DIR="${PLUGIN_DEST}.staging.$$"
+OLD_DIR="${PLUGIN_DEST}.old.$$"
+cleanup_temp_dirs() {
+  rm -rf "${STAGING_DIR}" "${OLD_DIR}"
+}
+trap cleanup_temp_dirs EXIT
+
+mkdir -p "${STAGING_DIR}/i18n"
 cp "${SCRIPT_DIR}/manifest.json" \
    "${SCRIPT_DIR}/layouts.json" \
    "${SCRIPT_DIR}/TaskbarModel.js" \
    "${SCRIPT_DIR}/BarWidget.qml" \
+   "${SCRIPT_DIR}/WindowPickerCard.qml" \
+   "${SCRIPT_DIR}/AppMenuCard.qml" \
+   "${SCRIPT_DIR}/SettingsCard.qml" \
    "${SCRIPT_DIR}/Service.qml" \
    "${SCRIPT_DIR}/AppGrid.qml" \
+   "${SCRIPT_DIR}/windaase-config.py" \
    "${SCRIPT_DIR}/LICENSE" \
    "${SCRIPT_DIR}/README.md" \
-   "${PLUGIN_DEST}/"
-cp "${SCRIPT_DIR}/i18n/"*.json "${PLUGIN_DEST}/i18n/"
+   "${STAGING_DIR}/"
+chmod +x "${STAGING_DIR}/windaase-config.py"
+cp "${SCRIPT_DIR}/i18n/"*.json "${STAGING_DIR}/i18n/"
 
-omarchy plugin validate "${PLUGIN_DEST}"
+omarchy plugin validate "${STAGING_DIR}"
 echo "==> Validated plugin: ${PLUGIN_ID}"
+
+if [[ -e "${PLUGIN_DEST}" ]]; then
+  mv "${PLUGIN_DEST}" "${OLD_DIR}"
+fi
+mv "${STAGING_DIR}" "${PLUGIN_DEST}"
+rm -rf "${OLD_DIR}"
+echo "==> Installed Omarchy-windåse shell plugin to ${PLUGIN_DEST}"
 
 if [[ "$MODE" != "shell-only" ]]; then
   echo "==> Installing Hyprland Lua module to ${HYPR_DIR}/windaase*"
@@ -72,6 +109,17 @@ if [[ "$MODE" == "full" ]]; then
   omarchy-hyprland-workspace-layout-default floating || true
   omarchy plugin disable omarchy.dock || true
   omarchy bar position bottom || true
+fi
+
+if [[ -n "$BAR_HEIGHT" ]]; then
+  SHELL_TOML="${HOME}/.config/omarchy/shell.toml"
+  if [[ -f "${SHELL_TOML}" ]]; then
+    TOML_BAK="${SHELL_TOML}.bak-$(date +%Y%m%d-%H%M%S)"
+    cp "${SHELL_TOML}" "${TOML_BAK}"
+    echo "==> Backed up ${SHELL_TOML} to ${TOML_BAK}"
+  fi
+  python3 "${SCRIPT_DIR}/windaase-config.py" bar-height "${BAR_HEIGHT}"
+  echo "==> Set [bar] size-horizontal = ${BAR_HEIGHT} in ${SHELL_TOML}"
 fi
 
 if command -v omarchy-shell >/dev/null 2>&1; then

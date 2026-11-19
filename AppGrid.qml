@@ -62,16 +62,6 @@ Item {
     font.pixelSize: Style.font.body
   }
 
-  function extractPinned(raw) {
-    try {
-      var parsed = JSON.parse(String(raw || ""))
-      if (parsed && parsed.dock && Array.isArray(parsed.dock.pinned)) {
-        return parsed.dock.pinned
-      }
-    } catch (e) {}
-    return null
-  }
-
   function isPinned(id) {
     var norm = TaskbarModel.normalizeId(id)
     if (!norm) return false
@@ -85,7 +75,7 @@ Item {
   function setPinned(id, pinned) {
     var norm = TaskbarModel.normalizeId(id)
     if (!norm) return
-    Util.execDetached("omarchy-dock " + (pinned ? "pin " : "unpin ") + Util.shellQuote(norm))
+    Util.execArgv(["omarchy-dock", pinned ? "pin" : "unpin", norm])
   }
 
   function combinedHiddenMap() {
@@ -197,20 +187,8 @@ Item {
   }
 
   function launchEntry(entry) {
-    if (!entry) return
-    var id = String(entry.id || "").trim()
-    if (!id) return
-    if (entry.runInTerminal) {
-      var cmd = (entry.command || []).filter(function(word) {
-        return !/^%[a-zA-Z]$/.test(String(word))
-      })
-      if (cmd.length > 0) {
-        Util.execDetached("omarchy-launch-tui " + cmd.map(function(w) { return Util.shellQuote(w) }).join(" "))
-        return
-      }
-    }
-    var launchId = id.slice(-8) === ".desktop" ? id : (id + ".desktop")
-    Util.execDetached("uwsm-app -- gtk-launch " + Util.shellQuote(launchId))
+    var argv = TaskbarModel.launchArgvForEntry(entry)
+    if (argv.length > 0) Util.execArgv(argv)
   }
 
   function launch(index) {
@@ -245,11 +223,7 @@ Item {
     var id = TaskbarModel.normalizeId(entry.id)
     if (!id) return
     var name = TaskbarModel.entryName(entry) || id
-    Util.execDetached(
-      Util.shellQuote(root.omarchyPath + "/bin/omarchy-remove-launcher-entry") +
-      " " + Util.shellQuote(id) +
-      " " + Util.shellQuote(name)
-    )
+    Util.execArgv([root.omarchyPath + "/bin/omarchy-remove-launcher-entry", id, name])
   }
 
   FileView {
@@ -258,7 +232,7 @@ Item {
     watchChanges: false
     blockLoading: true
     printErrors: false
-    onLoaded: root.defaultPinnedList = root.extractPinned(text()) || []
+    onLoaded: root.defaultPinnedList = TaskbarModel.extractPinnedList(text()) || []
     onLoadFailed: root.defaultPinnedList = []
   }
 
@@ -269,7 +243,7 @@ Item {
     blockLoading: true
     printErrors: false
     onFileChanged: reload()
-    onLoaded: root.userPinnedList = root.extractPinned(text())
+    onLoaded: root.userPinnedList = TaskbarModel.extractPinnedList(text())
     onLoadFailed: root.userPinnedList = null
   }
 
@@ -391,7 +365,10 @@ Item {
         anchors.fill: parent
         opened: !!root.uninstallEntry
         z: 10
-        message: strings.t("appGrid.uninstallConfirm").arg(TaskbarModel.entryName(root.uninstallEntry))
+        message: TaskbarModel.formatTemplate(
+          strings.t("appGrid.uninstallConfirm"),
+          TaskbarModel.entryName(root.uninstallEntry)
+        )
         confirmText: strings.t("appGrid.uninstall")
         background: Commons.Color.menu.background
         foreground: Commons.Color.menu.text
@@ -559,7 +536,7 @@ Item {
             anchors.centerIn: parent
             visible: root.apps.length === 0
             textFormat: Text.PlainText
-            text: strings.t("appGrid.noAppsMatch").arg(root.filterText)
+            text: TaskbarModel.formatTemplate(strings.t("appGrid.noAppsMatch"), root.filterText)
             color: Commons.Color.menu.text
             opacity: 0.7
             font.family: Style.font.menuFamily
