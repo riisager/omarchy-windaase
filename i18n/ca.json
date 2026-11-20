@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Desplaçament en passar el cursor",
   "settings.softMaximize": "Maximització suau",
   "settings.autoRaise": "Eleva en enfocar",
-  "settings.shortcuts": "Dreceres de Windows"
+  "settings.shortcuts": "Dreceres de Windows",
+  "settings.windowFilter": "Mostra finestres",
+  "settings.filterAll": "Totes",
+  "settings.filterWorkspace": "Espai de treball",
+  "settings.filterMonitor": "Pantalla",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Disseny ultraample 25/50/25",
+  "settings.companionMissing": "El mòdul de Hyprland encara no és instal·lat. Executa:",
+  "settings.copyCommand": "Copia al porta-retalls",
+  "settings.copied": "Copiat",
+  "snapAssist.title": "Omple l'altra meitat",
+  "snapAssist.hint": "Fes clic a una finestra o prem Esc"
 }

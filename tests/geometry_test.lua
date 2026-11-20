@@ -68,4 +68,21 @@ assert(ci2 == 5 and zi2 == 0 and z2.max == true, "hit test maximize card mismatc
 local miss_c, miss_z, miss = geometry.hit_test_snap_layouts(10, 10, 1920, cfg)
 assert(miss_c == -1 and miss_z == -1 and miss == nil, "hit test outside pill should miss")
 
+-- 6. resolve_layouts_config (ultrawide 25/50/25 toggle) & complementary_zone
+local std_cfg = geometry.resolve_layouts_config(cfg, false)
+assert(#std_cfg.layouts == 6, "expected 6 layouts when ultrawide disabled")
+
+local uw_cfg = geometry.resolve_layouts_config(cfg, true)
+assert(#uw_cfg.layouts == 7, "expected 7 layouts when ultrawide enabled")
+assert(#uw_cfg.layouts[7] == 3 and uw_cfg.layouts[7][2].rw == 0.5, "expected 25/50/25 7th card")
+local uw_ci, uw_zi, uw_z = geometry.hit_test_snap_layouts(636 + 6 * (84 + 10) + 42, 40, 1920, uw_cfg)
+assert(uw_ci == 6 and uw_zi == 1 and uw_z.rw == 0.5, "hit test ultrawide center zone mismatch")
+
+local comp_r = geometry.complementary_zone(cfg.layouts[1][1])
+assert(comp_r and comp_r.rx == 0.5 and comp_r.rw == 0.5, "50/50 left complementary failed")
+local comp_l = geometry.complementary_zone(cfg.layouts[2][2])
+assert(comp_l and comp_l.rx == 0 and comp_l.rw == 0.65, "65/35 right complementary failed")
+assert(geometry.complementary_zone(cfg.layouts[5][1]) == nil, "quarter zone should not trigger Snap Assist")
+assert(geometry.complementary_zone(cfg.layouts[6][1]) == nil, "maximize zone should not trigger Snap Assist")
+
 print("ALL GEOMETRY LUA TESTS PASSED")

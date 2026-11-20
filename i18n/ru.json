@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Прокрутка под курсором",
   "settings.softMaximize": "Мягкое разворачивание",
   "settings.autoRaise": "Поднимать окно при фокусе",
-  "settings.shortcuts": "Горячие клавиши Windows"
+  "settings.shortcuts": "Горячие клавиши Windows",
+  "settings.windowFilter": "Показывать окна",
+  "settings.filterAll": "Все",
+  "settings.filterWorkspace": "Рабочий стол",
+  "settings.filterMonitor": "Дисплей",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Широкий макет 25/50/25",
+  "settings.companionMissing": "Модуль Hyprland ещё не установлен. Выполните:",
+  "settings.copyCommand": "Копировать в буфер обмена",
+  "settings.copied": "Скопировано",
+  "snapAssist.title": "Заполнить другую сторону",
+  "snapAssist.hint": "Нажмите на окно или Esc"
 }

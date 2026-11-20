@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Görgetés rámutatáskor",
   "settings.softMaximize": "Lágy maximalizálás",
   "settings.autoRaise": "Előtérbe hozás fókuszáláskor",
-  "settings.shortcuts": "Windows gyorsbillentyűk"
+  "settings.shortcuts": "Windows gyorsbillentyűk",
+  "settings.windowFilter": "Ablakok megjelenítése",
+  "settings.filterAll": "Összes",
+  "settings.filterWorkspace": "Munkaterület",
+  "settings.filterMonitor": "Kijelző",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Ultraszéles 25/50/25 elrendezés",
+  "settings.companionMissing": "A Hyprland modul még nincs telepítve. Futtassa:",
+  "settings.copyCommand": "Másolás vágólapra",
+  "settings.copied": "Másolva",
+  "snapAssist.title": "Másik oldal kitöltése",
+  "snapAssist.hint": "Kattintson egy ablakra vagy nyomja meg az Esc-et"
 }

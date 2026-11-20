@@ -36,5 +36,16 @@
   "settings.hoverScroll": "হোভার-স্ক্রল",
   "settings.softMaximize": "সফট-ম্যাক্সিমাইজ",
   "settings.autoRaise": "ফোকাসে সামনে আনুন",
-  "settings.shortcuts": "Windows শর্টকাট"
+  "settings.shortcuts": "Windows শর্টকাট",
+  "settings.windowFilter": "উইন্ডো দেখান",
+  "settings.filterAll": "সব",
+  "settings.filterWorkspace": "ওয়ার্কস্পেস",
+  "settings.filterMonitor": "ডিসপ্লে",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "আল্ট্রাওয়াইড 25/50/25 লেআউট",
+  "settings.companionMissing": "Hyprland কম্প্যানিয়ন এখনো ইনস্টল করা নেই। চালান:",
+  "settings.copyCommand": "ক্লিপবোর্ডে কপি করুন",
+  "settings.copied": "কপি হয়েছে",
+  "snapAssist.title": "অন্য পাশ পূরণ করুন",
+  "snapAssist.hint": "উইন্ডোতে ক্লিক করুন বা Esc চাপুন"
 }

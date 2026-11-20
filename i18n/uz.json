@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Kursor ostida aylantirish",
   "settings.softMaximize": "Yumshoq kattalashtirish",
   "settings.autoRaise": "Fokusda oldinga chiqarish",
-  "settings.shortcuts": "Windows tugmalari"
+  "settings.shortcuts": "Windows tugmalari",
+  "settings.windowFilter": "Oynalarni koʻrsatish",
+  "settings.filterAll": "Barchasi",
+  "settings.filterWorkspace": "Ish maydoni",
+  "settings.filterMonitor": "Displey",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Keng 25/50/25 joylashuv",
+  "settings.companionMissing": "Hyprland moduli hali oʻrnatilmagan. Ishga tushiring:",
+  "settings.copyCommand": "Buferga nusxalash",
+  "settings.copied": "Nusxalandi",
+  "snapAssist.title": "Ikkinchi tomonni toʻldirish",
+  "snapAssist.hint": "Oynani bosing yoki Esc tugmasini bosing"
 }

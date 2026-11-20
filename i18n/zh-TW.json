@@ -36,5 +36,16 @@
   "settings.hoverScroll": "懸停捲動",
   "settings.softMaximize": "柔和最大化",
   "settings.autoRaise": "聚焦時移至最前",
-  "settings.shortcuts": "Windows 快捷鍵"
+  "settings.shortcuts": "Windows 快捷鍵",
+  "settings.windowFilter": "顯示視窗",
+  "settings.filterAll": "全部",
+  "settings.filterWorkspace": "工作區",
+  "settings.filterMonitor": "顯示器",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "超寬 25/50/25 版面",
+  "settings.companionMissing": "Hyprland 配套模組尚未安裝。請執行：",
+  "settings.copyCommand": "複製到剪貼簿",
+  "settings.copied": "已複製",
+  "snapAssist.title": "填滿另一側",
+  "snapAssist.hint": "點選視窗或按 Esc"
 }

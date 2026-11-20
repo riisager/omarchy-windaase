@@ -179,33 +179,37 @@ function run() {
   const defaults = TaskbarModel.defaultHyprSettings();
   assert.deepStrictEqual(defaults, {
     snap_layouts: true,
+    snap_assist: true,
     aero_snap: true,
     hover_scroll: true,
     soft_maximize: true,
     auto_raise: true,
-    shortcuts: true
+    shortcuts: true,
+    ultrawide_layout: false
   });
 
   assert.deepStrictEqual(
-    TaskbarModel.parseHyprSettings(JSON.stringify({ hover_scroll: false, auto_raise: "nope", extra: false })),
+    TaskbarModel.parseHyprSettings(JSON.stringify({ hover_scroll: false, ultrawide_layout: true, auto_raise: "nope", extra: false })),
     {
       snap_layouts: true,
+      snap_assist: true,
       aero_snap: true,
       hover_scroll: false,
       soft_maximize: true,
       auto_raise: true,
-      shortcuts: true
+      shortcuts: true,
+      ultrawide_layout: true
     }
   );
   assert.deepStrictEqual(TaskbarModel.parseHyprSettings("{bad"), defaults);
 
   assert.deepStrictEqual(
-    TaskbarModel.buildUpdatedWidgetEntry({ id: "riisager.windaase", uncombine: ["google-chrome"], iconSize: 28 }, "riisager.windaase", { iconSize: 0, uncombine: [] }),
+    TaskbarModel.buildUpdatedWidgetEntry({ id: "riisager.windaase", uncombine: ["google-chrome"], iconSize: 28, windowFilter: "workspace" }, "riisager.windaase", { iconSize: 0, uncombine: [], windowFilter: "all" }),
     { id: "riisager.windaase" }
   );
   assert.deepStrictEqual(
-    TaskbarModel.buildUpdatedWidgetEntry({ showAppsButton: true }, "riisager.windaase", { iconSize: 24.4, uncombine: ["chromium"] }),
-    { id: "riisager.windaase", showAppsButton: true, iconSize: 24, uncombine: ["chromium"] }
+    TaskbarModel.buildUpdatedWidgetEntry({ showAppsButton: true }, "riisager.windaase", { iconSize: 24.4, uncombine: ["chromium"], windowFilter: "monitor" }),
+    { id: "riisager.windaase", showAppsButton: true, iconSize: 24, uncombine: ["chromium"], windowFilter: "monitor" }
   );
 
   assert.strictEqual(TaskbarModel.isAppUncombined(["google-chrome.desktop"], "Google-Chrome"), true);
@@ -249,6 +253,74 @@ function run() {
   assert.strictEqual(TaskbarModel.formatTemplate("%1 (%2)", "Chrome", "3"), "Chrome (3)");
   assert.strictEqual(TaskbarModel.formatTemplate("appGrid.noAppsMatch", ""), "appGrid.noAppsMatch");
 
+  // 12. v1.1 scope filter, Snap Layouts keyboard navigation & Snap Assist helpers
+  assert.strictEqual(TaskbarModel.normalizeWindowFilter("workspace"), "workspace");
+  assert.strictEqual(TaskbarModel.normalizeWindowFilter("MONITOR"), "monitor");
+  assert.strictEqual(TaskbarModel.normalizeWindowFilter("unknown"), "all");
+
+  assert.strictEqual(TaskbarModel.minimizedOriginWorkspaceId(["omarchy-floating-workspace", "omarchy-minimized-from-3"]), 3);
+  assert.strictEqual(TaskbarModel.minimizedOriginWorkspaceId(["omarchy-showdesktop-2"]), 2);
+  assert.strictEqual(TaskbarModel.minimizedOriginWorkspaceId([]), -1);
+
+  const scopeWins = [
+    { key: "foot", address: "0x1", workspaceId: 1, monitorName: "DP-1", minimized: false, tags: [] },
+    { key: "google-chrome", address: "0x2", workspaceId: 2, monitorName: "DP-2", minimized: false, tags: [] },
+    { key: "obsidian", address: "0x3", workspaceId: -1, monitorName: "DP-1", minimized: true, tags: ["omarchy-minimized-from-1"] },
+    { key: "spotify", address: "0x4", workspaceId: -1, monitorName: "DP-2", minimized: true, tags: ["omarchy-minimized-from-2"] }
+  ];
+  assert.deepStrictEqual(TaskbarModel.filterWindowsByScope(scopeWins, "all", 1, "DP-1").map(w => w.key), ["foot", "google-chrome", "obsidian", "spotify"]);
+  assert.deepStrictEqual(TaskbarModel.filterWindowsByScope(scopeWins, "workspace", 1, "DP-1").map(w => w.key), ["foot", "obsidian"]);
+  assert.deepStrictEqual(TaskbarModel.filterWindowsByScope(scopeWins, "monitor", 1, "DP-1").map(w => w.key), ["foot", "obsidian"]);
+
+  assert.deepStrictEqual(
+    TaskbarModel.complementaryZone({ rx: 0, ry: 0, rw: 0.5, rh: 1.0, max: false }),
+    { rx: 0.5, ry: 0, rw: 0.5, rh: 1.0, max: false }
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.complementaryZone({ rx: 0.65, ry: 0, rw: 0.35, rh: 1.0, max: false }),
+    { rx: 0, ry: 0, rw: 0.65, rh: 1.0, max: false }
+  );
+  assert.strictEqual(TaskbarModel.complementaryZone({ rx: 0, ry: 0, rw: 0.5, rh: 0.5, max: false }), null);
+  assert.strictEqual(TaskbarModel.complementaryZone({ rx: 0.3333333, ry: 0, rw: 0.3333333, rh: 1.0, max: false }), null);
+  assert.strictEqual(TaskbarModel.complementaryZone({ rx: 0, ry: 0, rw: 1.0, rh: 1.0, max: true }), null);
+
+  const layoutsJson = JSON.parse(fs.readFileSync(path.join(__dirname, "../layouts.json"), "utf8"));
+  const snapCards = layoutsJson.layouts.concat([layoutsJson.ultrawideLayout]);
+  assert.strictEqual(snapCards.length, 7);
+  assert.deepStrictEqual(TaskbarModel.nextSnapZone(snapCards, 0, 0, "right"), { card: 0, zone: 1 });
+  assert.deepStrictEqual(TaskbarModel.nextSnapZone(snapCards, 0, 1, "right"), { card: 1, zone: 0 });
+  assert.deepStrictEqual(TaskbarModel.nextSnapZone(snapCards, 2, 1, "down"), { card: 2, zone: 2 });
+  assert.deepStrictEqual(TaskbarModel.nextSnapZone(snapCards, 2, 1, "left"), { card: 2, zone: 0 });
+  assert.deepStrictEqual(TaskbarModel.nextSnapZone(snapCards, 4, 0, "down"), { card: 4, zone: 2 });
+  assert.deepStrictEqual(TaskbarModel.nextSnapZone(snapCards, 0, 0, "left"), { card: 6, zone: 2 });
+  assert.deepStrictEqual(TaskbarModel.jumpToSnapCard(snapCards, 3, 0, 0), { card: 2, zone: 0 });
+  assert.deepStrictEqual(TaskbarModel.jumpToSnapCard(snapCards, 3, 2, 0), { card: 2, zone: 1 });
+  assert.deepStrictEqual(TaskbarModel.jumpToSnapCard(snapCards, 7, 0, 0), { card: 6, zone: 0 });
+  assert.strictEqual(TaskbarModel.jumpToSnapCard(snapCards, 8, 0, 0), null);
+
+  const assistPool = [
+    { address: "0x1", workspaceId: 1, minimized: false, floating: true, fullscreen: false, title: "Snapped" },
+    { address: "0x2", workspaceId: 1, minimized: false, floating: true, fullscreen: false, title: "Target" },
+    { address: "0x3", workspaceId: 1, minimized: false, floating: false, fullscreen: false, title: "Tiled" },
+    { address: "0x4", workspaceId: 1, minimized: true, floating: true, fullscreen: false, title: "Min" },
+    { address: "0x5", workspaceId: 2, minimized: false, floating: true, fullscreen: false, title: "OtherWS" }
+  ];
+  assert.deepStrictEqual(
+    TaskbarModel.filterSnapAssistCandidates(assistPool, "0x1", 1).map(w => w.address),
+    ["0x2"]
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.filterSnapAssistCandidates(
+      [
+        { address: "0xabc123", workspaceId: 1, minimized: false, floating: true, fullscreen: false, title: "Snapped" },
+        { address: "0xDEF456", workspaceId: 1, minimized: false, floating: true, fullscreen: false, title: "Target" }
+      ],
+      "0xABC123",
+      1
+    ).map(w => w.address),
+    ["0xDEF456"]
+  );
+
   // Verify i18n JSON files cover all 50 Omarchy locales cleanly with exact key & placeholder parity
   const i18nDir = path.join(__dirname, "../i18n");
   const omarchyLocalesPath = "/usr/share/omarchy/default/i18n/locales.json";
@@ -277,7 +349,7 @@ function run() {
 
   const en = JSON.parse(fs.readFileSync(path.join(i18nDir, "en.json"), "utf8"));
   const enKeys = Object.keys(en).sort();
-  assert.strictEqual(enKeys.length, 38, "Expected 38 keys in en.json");
+  assert.strictEqual(enKeys.length, 49, "Expected 49 keys in en.json");
 
   const placeholders = (str) => [...(str.match(/%[12]/g) || [])].sort();
 

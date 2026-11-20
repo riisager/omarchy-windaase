@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Sogeza kwa kielekezi",
   "settings.softMaximize": "Kukuza laini",
   "settings.autoRaise": "Leta mbele ukibofya",
-  "settings.shortcuts": "Njia za mkato za Windows"
+  "settings.shortcuts": "Njia za mkato za Windows",
+  "settings.windowFilter": "Onyesha madirisha",
+  "settings.filterAll": "Zote",
+  "settings.filterWorkspace": "Eneo la kazi",
+  "settings.filterMonitor": "Skrini",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Mpangilio mpana 25/50/25",
+  "settings.companionMissing": "Kiambatanisho cha Hyprland bado hakijasakinishwa. Endesha:",
+  "settings.copyCommand": "Nakili kwenye ubao wa kunakili",
+  "settings.copied": "Imenakiliwa",
+  "snapAssist.title": "Jaza upande mwingine",
+  "snapAssist.hint": "Bofya dirisha au bonyeza Esc"
 }

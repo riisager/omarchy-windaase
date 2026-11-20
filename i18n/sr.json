@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Померање испод курсора",
   "settings.softMaximize": "Меко увећање",
   "settings.autoRaise": "Подигни на врх при фокусу",
-  "settings.shortcuts": "Windows пречице"
+  "settings.shortcuts": "Windows пречице",
+  "settings.windowFilter": "Прикажи прозоре",
+  "settings.filterAll": "Сви",
+  "settings.filterWorkspace": "Радни простор",
+  "settings.filterMonitor": "Екран",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Широки распоред 25/50/25",
+  "settings.companionMissing": "Додатак за Hyprland још није инсталиран. Покрени:",
+  "settings.copyCommand": "Копирај у клипборд",
+  "settings.copied": "Копирано",
+  "snapAssist.title": "Попуни другу страну",
+  "snapAssist.hint": "Кликни на прозор или притисни Esc"
 }

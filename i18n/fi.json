@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Vieritys osoittimen alla",
   "settings.softMaximize": "Pehmeä suurennus",
   "settings.autoRaise": "Nosta etualalle kohdistettaessa",
-  "settings.shortcuts": "Windows-pikanäppäimet"
+  "settings.shortcuts": "Windows-pikanäppäimet",
+  "settings.windowFilter": "Näytä ikkunat",
+  "settings.filterAll": "Kaikki",
+  "settings.filterWorkspace": "Työtila",
+  "settings.filterMonitor": "Näyttö",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Ultrawide 25/50/25 -asettelu",
+  "settings.companionMissing": "Hyprland-laajennusta ei ole vielä asennettu. Suorita:",
+  "settings.copyCommand": "Kopioi leikepöydälle",
+  "settings.copied": "Kopioitu",
+  "snapAssist.title": "Täytä toinen puoli",
+  "snapAssist.hint": "Napsauta ikkunaa tai paina Esc"
 }

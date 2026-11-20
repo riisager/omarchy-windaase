@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Hover-scroll",
   "settings.softMaximize": "Soft-maximize",
   "settings.autoRaise": "Iangat kapag naka-focus",
-  "settings.shortcuts": "Mga shortcut ng Windows"
+  "settings.shortcuts": "Mga shortcut ng Windows",
+  "settings.windowFilter": "Ipakita ang mga window",
+  "settings.filterAll": "Lahat",
+  "settings.filterWorkspace": "Workspace",
+  "settings.filterMonitor": "Display",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Ultrawide 25/50/25 layout",
+  "settings.companionMissing": "Hindi pa naka-install ang Hyprland companion. Patakbuhin:",
+  "settings.copyCommand": "Kopyahin sa clipboard",
+  "settings.copied": "Nakopya",
+  "snapAssist.title": "Punan ang kabilang panig",
+  "snapAssist.hint": "Mag-click ng window o pindutin ang Esc"
 }

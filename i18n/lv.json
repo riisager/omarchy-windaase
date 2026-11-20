@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Ritināšana virs loga",
   "settings.softMaximize": "Maiga maksimizēšana",
   "settings.autoRaise": "Pacelt priekšplānā fokusā",
-  "settings.shortcuts": "Windows saīsnes"
+  "settings.shortcuts": "Windows saīsnes",
+  "settings.windowFilter": "Rādīt logus",
+  "settings.filterAll": "Visi",
+  "settings.filterWorkspace": "Darbvieta",
+  "settings.filterMonitor": "Ekrāns",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Platiekrāna 25/50/25 izkārtojums",
+  "settings.companionMissing": "Hyprland papildinājums vēl nav instalēts. Palaidiet:",
+  "settings.copyCommand": "Kopēt starpliktuvē",
+  "settings.copied": "Nokopēts",
+  "snapAssist.title": "Aizpildīt otru pusi",
+  "snapAssist.hint": "Noklikšķiniet uz loga vai nospiediet Esc"
 }

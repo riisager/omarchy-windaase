@@ -6,12 +6,15 @@ local snap = require("hypr.windaase.snap")
 
 local M = {}
 
-local snap_state_path = (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/omarchy-windaase-snap.json"
+local snap_state_path = (os.getenv("XDG_RUNTIME_DIR") or os.getenv("XDG_CACHE_HOME") or ((os.getenv("HOME") or ".") .. "/.cache")) .. "/omarchy-windaase-snap.json"
 local last_snap_json = ""
 local layouts_cfg = nil
 local gap_out = 8
 local gap_in = 8
 local snap_layouts_enabled = true
+local snap_assist_enabled = true
+local ultrawide_enabled = false
+local assist_seq = 0
 
 local mouse_drag_state = nil
 local prev_sample = nil
@@ -19,11 +22,14 @@ local suppress_snap_ticks = 0
 local monitor_running = false
 local monitor_token = 0
 
-function M.suppress(ticks)
-  local n = tonumber(ticks) or 6
-  if n > suppress_snap_ticks then
-    suppress_snap_ticks = n
+local function read_snap_state_raw()
+  local f = io.open(snap_state_path, "r")
+  if not f then
+    return ""
   end
+  local raw = f:read("*a") or ""
+  f:close()
+  return raw
 end
 
 local function write_snap_state(tbl)
@@ -31,8 +37,10 @@ local function write_snap_state(tbl)
   if not tbl or not tbl.open then
     payload = '{"open":false}\n'
   else
+    local uw_flag = (tbl.uw ~= nil) and tbl.uw or ultrawide_enabled
+    local assist_flag = (tbl.assist ~= nil) and tbl.assist or snap_assist_enabled
     payload = string.format(
-      '{"open":true,"mode":"%s","monitor":"%s","card":%d,"zone":%d,"px":%d,"py":%d,"pw":%d,"ph":%d,"addr":"%s","border":%d,"titlebar":%d}\n',
+      '{"open":true,"mode":"%s","monitor":"%s","card":%d,"zone":%d,"px":%d,"py":%d,"pw":%d,"ph":%d,"addr":"%s","border":%d,"titlebar":%d,"ws":%d,"uw":%s,"assist":%s,"go":%d,"gi":%d}\n',
       geometry.json_escape(tbl.mode or "drag"),
       geometry.json_escape(tbl.monitor or ""),
       tbl.card or -1,
@@ -43,21 +51,39 @@ local function write_snap_state(tbl)
       tbl.ph or 0,
       geometry.json_escape(tbl.addr or ""),
       tbl.border or 2,
-      tbl.titlebar or 30
+      tbl.titlebar or 30,
+      tbl.ws or -1,
+      uw_flag and "true" or "false",
+      assist_flag and "true" or "false",
+      tbl.go or gap_out,
+      tbl.gi or gap_in
     )
   end
 
-  if payload == last_snap_json then
+  local is_drag = tbl and tbl.open and (tbl.mode == nil or tbl.mode == "drag")
+  if is_drag and payload == last_snap_json then
     return
   end
   last_snap_json = payload
 
-  local tmp = snap_state_path .. ".tmp"
+  local tmp = snap_state_path .. ".lua.tmp"
   local f = io.open(tmp, "w")
   if f then
     f:write(payload)
     f:close()
     os.rename(tmp, snap_state_path)
+  end
+end
+
+function M.suppress(ticks)
+  local n = tonumber(ticks) or 6
+  if n > suppress_snap_ticks then
+    suppress_snap_ticks = n
+  end
+  assist_seq = assist_seq + 1
+  local raw = read_snap_state_raw()
+  if raw:find('"open":true') and (raw:find('"mode":"assist"') or raw:find('"mode":"click"')) then
+    write_snap_state({ open = false })
   end
 end
 
@@ -102,6 +128,7 @@ local function update_drag_overlay(st, cur, c)
 
   if not st.snap_open then
     if ly <= 40 or win_top <= 36 then
+      assist_seq = assist_seq + 1
       st.snap_open = true
       st.snap_mon = m
     end
@@ -279,23 +306,96 @@ local function ensure_monitor_running()
   hl.timer(function() tick(token) end, { type = "oneshot", timeout = 50 })
 end
 
-function M.toggle_click_overlay()
-  local w = hl.get_active_window()
-  local m = (w and w.monitor) or hl.get_active_monitor()
-  if not m then
+local function has_assist_candidate(ws_id, exclude_addr)
+  for _, other in ipairs(hl.get_workspace_windows(tostring(ws_id))) do
+    if other.address ~= exclude_addr
+      and other.mapped ~= false
+      and other.floating
+      and (other.fullscreen or 0) == 0 then
+      return true
+    end
+  end
+  return false
+end
+
+function M.schedule_assist(window, m, snapped_zone)
+  if not snap_assist_enabled or not window or not m then
+    return
+  end
+  local comp = geometry.complementary_zone(snapped_zone)
+  if not comp then
     return
   end
 
-  local f = io.open(snap_state_path, "r")
-  local raw = f and f:read("*a") or ""
-  if f then
-    f:close()
+  local ws = (window.workspace and window.workspace.id and window.workspace) or hl.get_active_workspace()
+  local ws_id = ws and tonumber(ws.id) or -1
+  if ws_id < 1 then
+    return
   end
-  if raw:find('"open":true') and raw:find('"mode":"click"') then
+
+  local exclude_addr = window.address
+  if not has_assist_candidate(ws_id, exclude_addr) then
+    return
+  end
+
+  assist_seq = assist_seq + 1
+  local seq = assist_seq
+  local mon_name = m.name
+  local area = geometry.get_work_area(m, gap_out, gap_in)
+  if not area then
+    return
+  end
+  local rect = geometry.zone_rect_in_area(area, comp)
+  local px = rect.x - (m.x or 0)
+  local py = rect.y - (m.y or 0)
+  local pw = rect.w
+  local ph = rect.h
+  local border, titlebar = geometry.get_window_frame_insets(window)
+
+  hl.timer(function()
+    if seq ~= assist_seq then
+      return
+    end
+    if not has_assist_candidate(ws_id, exclude_addr) then
+      return
+    end
+    write_snap_state({
+      open = true,
+      mode = "assist",
+      monitor = mon_name,
+      card = -1,
+      zone = -1,
+      px = px,
+      py = py,
+      pw = pw,
+      ph = ph,
+      addr = exclude_addr or "",
+      border = border,
+      titlebar = titlebar,
+      ws = ws_id,
+    })
+  end, { type = "oneshot", timeout = 40 })
+end
+
+function M.toggle_click_overlay()
+  assist_seq = assist_seq + 1
+  local raw = read_snap_state_raw()
+  if raw:find('"open":true') and (raw:find('"mode":"click"') or raw:find('"mode":"assist"')) then
     write_snap_state({ open = false })
     return
   end
 
+  local w = hl.get_active_window()
+  if not w or not w.floating then
+    return
+  end
+  local m = w.monitor or hl.get_active_monitor()
+  if not m then
+    return
+  end
+
+  local ws = (w.workspace and w.workspace.id and w.workspace) or hl.get_active_workspace()
+  local ws_id = ws and tonumber(ws.id) or -1
   local border, titlebar = geometry.get_window_frame_insets(w)
   write_snap_state({
     open = true,
@@ -303,17 +403,20 @@ function M.toggle_click_overlay()
     monitor = m.name,
     card = -1,
     zone = -1,
-    addr = w and w.address or "",
+    addr = w.address or "",
     border = border,
     titlebar = titlebar,
+    ws = ws_id,
   })
 end
 
 function M.setup(opts)
-  layouts_cfg = geometry.load_layouts_config()
+  ultrawide_enabled = opts.ultrawide_layout == true
+  layouts_cfg = geometry.resolve_layouts_config(geometry.load_layouts_config(), ultrawide_enabled)
   gap_out = opts.gap_out or 8
   gap_in = opts.gap_in or 8
   snap_layouts_enabled = opts.snap_layouts ~= false
+  snap_assist_enabled = opts.snap_assist ~= false
 
   monitor_token = monitor_token + 1
   monitor_running = false

@@ -54,7 +54,7 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow - yet
 - **1-click *Split windows in taskbar* (`AppMenuCard.qml`)** - Right-click any taskbar icon to uncombine its windows into separate taskbar buttons with window-title tooltips (`uncombine`), persisted directly in `shell.json`.
 - **Live browser profiles** - Right-click **Google Chrome**, **Chromium**, or **Brave** to launch any profile directly from its `Local State` metadata with profile avatars and account emails.
 
-### Windows 11 Snap Layouts & Aero Snap
+### Windows 11 Snap Layouts, Snap Assist & Aero Snap
 Drag any floating window to the top edge of any monitor - or press **`Super + Z`** - to trigger the native themed **Snap Layouts** overlay (`Service.qml` + `snap_layouts.lua`) with live drop-zone previews and pixel-accurate `hyprbars` inset compensation:
 
 ```text
@@ -66,14 +66,17 @@ Drag any floating window to the top edge of any monitor - or press **`Super + Z`
   50 / 50      65 / 35     50 | 25/25    33/33/33      2 × 2        100%
 ```
 
+- **Full keyboard navigation (`Super + Z`):** Move across cards and zones with `Arrow` keys or `Tab`, jump straight to cards `1`–`7` with number keys, and press `Enter` to snap (`Esc` to cancel).
+- **Windows 11 Snap Assist (`SnapAssistCard.qml`):** When you snap a floating window to one side (via `Super + Left/Right`, edge drag, or Snap Layouts) while other windows are open on the same workspace, **Snap Assist** appears in the remaining half/column so one click or `Enter` fills the other side cleanly.
+- **Optional Ultrawide `25 / 50 / 25` layout:** Enable *Ultrawide 25/50/25 layout* in Settings (or `ultrawide_layout = true`) to add a 7th centered wide-screen card.
 - **Multi-monitor aware** - Automatically mirrors onto whichever monitor your cursor enters, respecting each monitor's reserved bar margins and gaps.
 - **Aero Snap** - Drag floating windows to screen corners/edges or step cleanly between halves, quarters, maximize, and minimize via `Super + Arrow` keys (`snap.lua`).
 
 ### Native Graphical Settings UI
 Right-click the **3×3 Apps button**, right-click any taskbar icon → *Windåse settings*, or run `omarchy-shell riisager.windaase settings` to open `SettingsCard.qml`:
 
-- **Taskbar:** Bar height presets (`26` / `34` / `40` / `46 px`) + `26–56 px` slider, icon size (`Auto` or manual px), bar position (`Bottom` / `Top`), two-line clock toggle, Apps button toggle.
-- **Windows (Hyprland):** Live toggles for *Snap Layouts*, *Aero Snap*, *Hover-scroll*, *Soft-maximize*, *Auto-raise*, and *Windows shortcuts*, persisted atomically to `~/.config/omarchy/windaase.json`.
+- **Taskbar:** Bar height presets (`26` / `34` / `40` / `46 px`) + `26–56 px` slider, icon size (`Auto` or manual px), position (`Bottom` / `Top`), **Show windows** filter (`All` / `Workspace` / `Display`), two-line clock toggle, Apps button toggle.
+- **Windows (Hyprland):** Live companion status detection (with one-click copy of `~/.config/omarchy/plugins/riisager.windaase/install.sh` when running shell-only from Marketplace) and toggles for *Snap Layouts*, *Snap Assist*, *Aero Snap*, *Hover-scroll*, *Soft-maximize*, *Auto-raise*, *Windows shortcuts*, and *Ultrawide 25/50/25 layout*, persisted atomically to `~/.config/omarchy/windaase.json`.
 
 ![Omarchy-windåse graphical settings popup](docs/screenshots/settings.png)
 
@@ -118,7 +121,7 @@ Or from a local clone:
 ./install.sh --shell-only
 ```
 
-*(Shell-only installs the taskbar widget, All-Apps grid, settings popup, and Snap Layouts overlay host; `hypr.windaase` handles drag-snap, Aero Snap, soft-maximize, auto-raise, hover-scroll, and `Super + D`/`Super + Z`.)*
+*(Shell-only installs the taskbar widget, All-Apps grid, settings popup, and Snap Layouts overlay host; `hypr.windaase` handles drag-snap, Aero Snap, soft-maximize, auto-raise, hover-scroll, and `Super + D`/`Super + Z`. If you installed via `omarchy plugin add` or the Omarchy Marketplace, you can run `~/.config/omarchy/plugins/riisager.windaase/install.sh` anytime to add the Hyprland companion while preserving `omarchy plugin update`.)*
 
 ### Installer Flags
 
@@ -176,7 +179,7 @@ Most users never need to touch a config file:
 
 ### Taskbar Options in `~/.config/omarchy/shell.json`
 
-Configure placement in `bar.layout`, override icon size (`0` = automatic scaling with bar height), toggle the 3×3 Apps button (`showAppsButton`), or pre-configure uncombined desktop IDs:
+Configure placement in `bar.layout`, override icon size (`0` = automatic scaling with bar height), filter shown windows via `windowFilter` (`"all"`, `"workspace"`, or `"monitor"`), toggle the 3×3 Apps button (`showAppsButton`), or pre-configure uncombined desktop IDs:
 
 ```json
 {
@@ -190,6 +193,7 @@ Configure placement in `bar.layout`, override icon size (`0` = automatic scaling
           "id": "riisager.windaase",
           "showAppsButton": true,
           "iconSize": 0,
+          "windowFilter": "all",
           "uncombine": ["google-chrome"]
         }
       ],
@@ -217,14 +221,16 @@ The graphical Settings popup writes Hyprland toggles atomically to `~/.config/om
 
 ```lua
 require("hypr.windaase").setup({
-  aero_snap = true,     -- Super + Arrow keys & edge-drag snap
-  snap_layouts = true,  -- Top-edge drag Snap Layouts & Super + Z
-  soft_maximize = true, -- Edge-to-edge maximize without fullscreen=1 click lock
-  auto_raise = true,    -- Raise floating window to top on focus
-  hover_scroll = true,  -- Enforce input.follow_mouse = 2
-  shortcuts = true,     -- Alt+F4, Super+D, Super+E, Super+Alt+Space
-  gap_out = 8,          -- Outer gap around snapped work area (px)
-  gap_in = 8,           -- Inner gap between snapped zones (px)
+  aero_snap = true,         -- Super + Arrow keys & edge-drag snap
+  snap_layouts = true,      -- Top-edge drag Snap Layouts & Super + Z
+  snap_assist = true,       -- Show Snap Assist picker after half/side snap
+  ultrawide_layout = false, -- Add 7th 25/50/25 layout card in Snap Layouts
+  soft_maximize = true,     -- Edge-to-edge maximize without fullscreen=1 click lock
+  auto_raise = true,        -- Raise floating window to top on focus
+  hover_scroll = true,      -- Enforce input.follow_mouse = 2
+  shortcuts = true,         -- Alt+F4, Super+D, Super+E, Super+Alt+Space
+  gap_out = 8,              -- Outer gap around snapped work area (px)
+  gap_in = 8,               -- Inner gap between snapped zones (px)
 })
 ```
 
@@ -241,8 +247,9 @@ omarchy-windaase/
 ├── BarWidget.qml            # In-bar taskbar widget & 3×3 Apps launcher button
 ├── WindowPickerCard.qml     # Upward grouped-window picker with workspace badges
 ├── AppMenuCard.qml          # Context menu (Chromium/Chrome/Brave profiles, actions & split toggle)
-├── SettingsCard.qml         # Native Settings popup (bar height, clock, Hyprland toggles)
-├── Service.qml              # Snap Layouts multi-monitor overlay host + ShellIpc (riisager.windaase)
+├── SettingsCard.qml         # Native Settings popup (bar height, filter, companion status & toggles)
+├── SnapAssistCard.qml       # Windows 11-style Snap Assist window picker card
+├── Service.qml              # Snap Layouts + Snap Assist overlay host & ShellIpc (riisager.windaase)
 ├── AppGrid.qml              # Self-contained visual All-Apps launcher overlay
 ├── TaskbarModel.js          # Pure JS grouping, stable ordering, search, launch & config helpers
 ├── windaase-config.py       # Atomic CLI writer for shell.toml, shell.json & windaase.json

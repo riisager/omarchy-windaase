@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "riisager.windaase",
   "name": "Omarchy-windåse",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "riisager",
   "license": "MIT",
   "description": "Windows-style taskbar inside the Omarchy bar, Windows 11 Snap Layouts, and floating desktop ergonomics.",

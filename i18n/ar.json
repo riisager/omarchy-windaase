@@ -36,5 +36,16 @@
   "settings.hoverScroll": "التمرير عند التمرير بالمؤشر",
   "settings.softMaximize": "تكبير مرن",
   "settings.autoRaise": "إبراز النافذة عند التركيز",
-  "settings.shortcuts": "اختصارات Windows"
+  "settings.shortcuts": "اختصارات Windows",
+  "settings.windowFilter": "عرض النوافذ",
+  "settings.filterAll": "الكل",
+  "settings.filterWorkspace": "مساحة العمل",
+  "settings.filterMonitor": "الشاشة",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "تخطيط 25/50/25 العريض",
+  "settings.companionMissing": "وحدة Hyprland غير مثبّتة بعد. شغّل:",
+  "settings.copyCommand": "النسخ إلى الحافظة",
+  "settings.copied": "تم النسخ",
+  "snapAssist.title": "ملء الجانب الآخر",
+  "snapAssist.hint": "انقر نافذة أو اضغط Esc"
 }

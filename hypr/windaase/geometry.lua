@@ -3,6 +3,12 @@
 
 local M = {}
 
+local FALLBACK_ULTRAWIDE_LAYOUT = {
+  { rx = 0, ry = 0, rw = 0.25, rh = 1.0, max = false },
+  { rx = 0.25, ry = 0, rw = 0.5, rh = 1.0, max = false },
+  { rx = 0.75, ry = 0, rw = 0.25, rh = 1.0, max = false },
+}
+
 local FALLBACK_LAYOUTS = {
   cardW = 84,
   cardH = 52,
@@ -18,6 +24,7 @@ local FALLBACK_LAYOUTS = {
     { { rx = 0, ry = 0, rw = 0.5, rh = 0.5, max = false }, { rx = 0.5, ry = 0, rw = 0.5, rh = 0.5, max = false }, { rx = 0, ry = 0.5, rw = 0.5, rh = 0.5, max = false }, { rx = 0.5, ry = 0.5, rw = 0.5, rh = 0.5, max = false } },
     { { rx = 0, ry = 0, rw = 1.0, rh = 1.0, max = true } },
   },
+  ultrawideLayout = FALLBACK_ULTRAWIDE_LAYOUT,
 }
 
 -- Minimal self-contained JSON decoder (handles objects, arrays, strings, numbers, bools, null).
@@ -241,12 +248,66 @@ function M.load_layouts_config(search_paths)
           padY = tonumber(parsed.padY) or FALLBACK_LAYOUTS.padY,
           topMargin = tonumber(parsed.topMargin) or FALLBACK_LAYOUTS.topMargin,
           layouts = parsed.layouts,
+          ultrawideLayout = (type(parsed.ultrawideLayout) == "table" and #parsed.ultrawideLayout > 0)
+            and parsed.ultrawideLayout
+            or FALLBACK_ULTRAWIDE_LAYOUT,
         }
       end
     end
   end
 
   return FALLBACK_LAYOUTS
+end
+
+function M.resolve_layouts_config(cfg, include_ultrawide)
+  local base = cfg or FALLBACK_LAYOUTS
+  local resolved_layouts = {}
+  for _, card in ipairs(base.layouts or FALLBACK_LAYOUTS.layouts) do
+    resolved_layouts[#resolved_layouts + 1] = card
+  end
+  if include_ultrawide == true then
+    local uw = base.ultrawideLayout or FALLBACK_ULTRAWIDE_LAYOUT
+    if type(uw) == "table" and #uw > 0 then
+      resolved_layouts[#resolved_layouts + 1] = uw
+    end
+  end
+  return {
+    cardW = base.cardW or FALLBACK_LAYOUTS.cardW,
+    cardH = base.cardH or FALLBACK_LAYOUTS.cardH,
+    cardGap = base.cardGap or FALLBACK_LAYOUTS.cardGap,
+    padX = base.padX or FALLBACK_LAYOUTS.padX,
+    padY = base.padY or FALLBACK_LAYOUTS.padY,
+    topMargin = base.topMargin or FALLBACK_LAYOUTS.topMargin,
+    layouts = resolved_layouts,
+    ultrawideLayout = base.ultrawideLayout or FALLBACK_ULTRAWIDE_LAYOUT,
+  }
+end
+
+local function round6(n)
+  return math.floor(n * 1000000 + 0.5) / 1000000
+end
+
+function M.complementary_zone(z)
+  if type(z) ~= "table" or z.max == true then
+    return nil
+  end
+  local rx = tonumber(z.rx) or 0
+  local ry = tonumber(z.ry) or 0
+  local rw = tonumber(z.rw) or 0
+  local rh = tonumber(z.rh) or 0
+  if math.abs(ry) > 0.02 or rh < 0.98 then
+    return nil
+  end
+  if rw <= 0.15 or rw >= 0.85 then
+    return nil
+  end
+  if math.abs(rx) <= 0.02 then
+    return { rx = round6(rw), ry = 0, rw = round6(1 - rw), rh = 1.0, max = false }
+  end
+  if math.abs((rx + rw) - 1.0) <= 0.02 then
+    return { rx = 0, ry = 0, rw = round6(rx), rh = 1.0, max = false }
+  end
+  return nil
 end
 
 function M.json_escape(s)

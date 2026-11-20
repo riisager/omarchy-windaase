@@ -36,5 +36,16 @@
   "settings.hoverScroll": "호버 스크롤",
   "settings.softMaximize": "소프트 최대화",
   "settings.autoRaise": "포커스 시 맨 앞으로",
-  "settings.shortcuts": "Windows 단축키"
+  "settings.shortcuts": "Windows 단축키",
+  "settings.windowFilter": "창 표시",
+  "settings.filterAll": "모두",
+  "settings.filterWorkspace": "작업 공간",
+  "settings.filterMonitor": "디스플레이",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "울트라와이드 25/50/25",
+  "settings.companionMissing": "Hyprland 도우미가 아직 설치되지 않았습니다. 실행:",
+  "settings.copyCommand": "클립보드에 복사",
+  "settings.copied": "복사됨",
+  "snapAssist.title": "반대쪽 채우기",
+  "snapAssist.hint": "창을 클릭하거나 Esc 누르기"
 }

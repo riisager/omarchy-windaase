@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Прокручування під курсором",
   "settings.softMaximize": "М'яке розгортання",
   "settings.autoRaise": "Піднімати вікно при фокусі",
-  "settings.shortcuts": "Гарячі клавіші Windows"
+  "settings.shortcuts": "Гарячі клавіші Windows",
+  "settings.windowFilter": "Показувати вікна",
+  "settings.filterAll": "Усі",
+  "settings.filterWorkspace": "Робочий стіл",
+  "settings.filterMonitor": "Дисплей",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Широкий макет 25/50/25",
+  "settings.companionMissing": "Модуль Hyprland ще не встановлено. Виконайте:",
+  "settings.copyCommand": "Копіювати в буфер обміну",
+  "settings.copied": "Скопійовано",
+  "snapAssist.title": "Заповнити інший бік",
+  "snapAssist.hint": "Натисніть вікно або Esc"
 }

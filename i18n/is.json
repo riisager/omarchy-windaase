@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Skruna yfir glugga",
   "settings.softMaximize": "Mjúk hámarksstærð",
   "settings.autoRaise": "Lyfta fremst við fókus",
-  "settings.shortcuts": "Windows flýtilyklar"
+  "settings.shortcuts": "Windows flýtilyklar",
+  "settings.windowFilter": "Sýna glugga",
+  "settings.filterAll": "Allt",
+  "settings.filterWorkspace": "Vinnusvæði",
+  "settings.filterMonitor": "Skjár",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Breiðskjás 25/50/25 útlit",
+  "settings.companionMissing": "Hyprland-viðbótin er ekki uppsett enn. Keyrðu:",
+  "settings.copyCommand": "Afrita á klippiborð",
+  "settings.copied": "Afritað",
+  "snapAssist.title": "Fylla hina hliðina",
+  "snapAssist.hint": "Smelltu á glugga eða ýttu á Esc"
 }

@@ -18,6 +18,7 @@ local options = {
 }
 
 local on_before_snap = nil
+local on_after_snap = nil
 
 local function work_area_for_window(window)
   local m = (window and window.monitor) or hl.get_active_monitor()
@@ -157,6 +158,12 @@ function M.apply_snap(window, zone)
   geometry.place_window_in_outer_rect(window, tx, ty, tw, th)
   hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
   snap_current_zone[addr] = zone
+  if on_after_snap and (zone == "left" or zone == "right") then
+    local zone_spec = zone == "left"
+      and { rx = 0, ry = 0, rw = 0.5, rh = 1.0, max = false }
+      or { rx = 0.5, ry = 0, rw = 0.5, rh = 1.0, max = false }
+    on_after_snap(window, (window and window.monitor) or hl.get_active_monitor(), zone_spec)
+  end
   return true
 end
 
@@ -199,6 +206,9 @@ function M.apply_snap_zone(window, m, z, orig_geom)
   geometry.place_window_in_outer_rect(window, rect.x, rect.y, rect.w, rect.h)
   hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
   snap_current_zone[addr] = "custom"
+  if on_after_snap then
+    on_after_snap(window, m, z)
+  end
   return true
 end
 
@@ -280,13 +290,14 @@ local function convert_native_maximize(addr)
   end
 end
 
-function M.setup(opts, before_snap_cb)
+function M.setup(opts, before_snap_cb, after_snap_cb)
   options.aero_snap = opts.aero_snap ~= false
   options.soft_maximize = opts.soft_maximize ~= false
   options.auto_raise = opts.auto_raise ~= false
   options.gap_out = opts.gap_out or 8
   options.gap_in = opts.gap_in or 8
   on_before_snap = before_snap_cb
+  on_after_snap = after_snap_cb
 
   hl.on("window.destroy", function(window)
     if not window or not window.address then

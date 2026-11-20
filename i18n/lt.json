@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Slinkimas užvedus žymeklį",
   "settings.softMaximize": "Švelnus išdidinimas",
   "settings.autoRaise": "Iškelti į priekį pažymėjus",
-  "settings.shortcuts": "Windows spartieji klavišai"
+  "settings.shortcuts": "Windows spartieji klavišai",
+  "settings.windowFilter": "Rodyti langus",
+  "settings.filterAll": "Visi",
+  "settings.filterWorkspace": "Darbo sritis",
+  "settings.filterMonitor": "Ekranas",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Platusis 25/50/25 išdėstymas",
+  "settings.companionMissing": "„Hyprland“ priedas dar neįdiegtas. Paleiskite:",
+  "settings.copyCommand": "Kopijuoti į iškarpinę",
+  "settings.copied": "Nukopijuota",
+  "snapAssist.title": "Užpildyti kitą pusę",
+  "snapAssist.hint": "Spustelėkite langą arba paspauskite Esc"
 }

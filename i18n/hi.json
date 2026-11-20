@@ -36,5 +36,16 @@
   "settings.hoverScroll": "हॉवर-स्क्रॉल",
   "settings.softMaximize": "सॉफ़्ट-मैक्सिमाइज़",
   "settings.autoRaise": "फ़ोकस पर आगे लाएँ",
-  "settings.shortcuts": "Windows शॉर्टकट"
+  "settings.shortcuts": "Windows शॉर्टकट",
+  "settings.windowFilter": "विंडो दिखाएँ",
+  "settings.filterAll": "सभी",
+  "settings.filterWorkspace": "कार्यक्षेत्र",
+  "settings.filterMonitor": "डिस्प्ले",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "अल्ट्रावाइड 25/50/25 लेआउट",
+  "settings.companionMissing": "Hyprland मॉड्यूल अभी इंस्टॉल नहीं है। चलाएँ:",
+  "settings.copyCommand": "क्लिपबोर्ड पर कॉपी करें",
+  "settings.copied": "कॉपी हो गया",
+  "snapAssist.title": "दूसरी तरफ़ भरें",
+  "snapAssist.hint": "किसी विंडो पर क्लिक करें या Esc दबाएँ"
 }

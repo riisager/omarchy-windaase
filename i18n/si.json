@@ -36,5 +36,16 @@
   "settings.hoverScroll": "මූසිකය මත අනුචලනය",
   "settings.softMaximize": "මෘදු විශාලනය",
   "settings.autoRaise": "නාභිගත විට ඉදිරියට ගෙන එන්න",
-  "settings.shortcuts": "Windows කෙටිමං"
+  "settings.shortcuts": "Windows කෙටිමං",
+  "settings.windowFilter": "කවුළු පෙන්වන්න",
+  "settings.filterAll": "සියල්ල",
+  "settings.filterWorkspace": "වැඩ අවකාශය",
+  "settings.filterMonitor": "සංදර්ශකය",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "පුළුල් 25/50/25 පිරිසැලසුම",
+  "settings.companionMissing": "Hyprland මොඩියුලය තවම ස්ථාපනය කර නැත. ක්‍රියාත්මක කරන්න:",
+  "settings.copyCommand": "පසුරු පුවරුවට පිටපත් කරන්න",
+  "settings.copied": "පිටපත් විය",
+  "snapAssist.title": "අනෙක් පස පුරවන්න",
+  "snapAssist.hint": "කවුළුවක් ක්ලික් කරන්න හෝ Esc ඔබන්න"
 }

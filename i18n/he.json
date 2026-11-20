@@ -36,5 +36,16 @@
   "settings.hoverScroll": "גלילה בריחוף",
   "settings.softMaximize": "הגדלה רכה",
   "settings.autoRaise": "הבאה לחזית במיקוד",
-  "settings.shortcuts": "קיצורי דרך של Windows"
+  "settings.shortcuts": "קיצורי דרך של Windows",
+  "settings.windowFilter": "הצג חלונות",
+  "settings.filterAll": "הכול",
+  "settings.filterWorkspace": "סביבת עבודה",
+  "settings.filterMonitor": "תצוגה",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "פריסת 25/50/25 רחבה",
+  "settings.companionMissing": "תוסף Hyprland עדיין לא מותקן. הרץ:",
+  "settings.copyCommand": "העתקה ללוח",
+  "settings.copied": "הועתק",
+  "snapAssist.title": "מלא צד שני",
+  "snapAssist.hint": "לחץ על חלון או הקש Esc"
 }

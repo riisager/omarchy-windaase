@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Scrollú ar ainliú",
   "settings.softMaximize": "Uasmhéadú bog",
   "settings.autoRaise": "Ardaigh ar fhócas",
-  "settings.shortcuts": "Aicearraí Windows"
+  "settings.shortcuts": "Aicearraí Windows",
+  "settings.windowFilter": "Taispeáin fuinneoga",
+  "settings.filterAll": "Uile",
+  "settings.filterWorkspace": "Spás oibre",
+  "settings.filterMonitor": "Scáileán",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Leagan amach 25/50/25",
+  "settings.companionMissing": "Níl modúl Hyprland suiteáilte fós. Rith:",
+  "settings.copyCommand": "Cóipeáil chuig an ngearrthaisce",
+  "settings.copied": "Cóipeáilte",
+  "snapAssist.title": "Líon an taobh eile",
+  "snapAssist.hint": "Cliceáil fuinneog nó brúigh Esc"
 }

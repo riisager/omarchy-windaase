@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Scroll ved hover",
   "settings.softMaximize": "Blød maksimering",
   "settings.autoRaise": "Løft vindue ved klik",
-  "settings.shortcuts": "Windows-genveje"
+  "settings.shortcuts": "Windows-genveje",
+  "settings.windowFilter": "Vis vinduer",
+  "settings.filterAll": "Alle",
+  "settings.filterWorkspace": "Arbejdsområde",
+  "settings.filterMonitor": "Skærm",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Ultrawide 25/50/25-layout",
+  "settings.companionMissing": "Hyprland-modulet er ikke installeret endnu. Kør:",
+  "settings.copyCommand": "Kopiér til udklipsholder",
+  "settings.copied": "Kopieret",
+  "snapAssist.title": "Udfyld modsatte side",
+  "snapAssist.hint": "Klik på et vindue eller tryk Esc"
 }

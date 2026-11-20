@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Превъртане при посочване",
   "settings.softMaximize": "Меко максимизиране",
   "settings.autoRaise": "Извеждане отпред при фокус",
-  "settings.shortcuts": "Клавишни комбинации на Windows"
+  "settings.shortcuts": "Клавишни комбинации на Windows",
+  "settings.windowFilter": "Покажи прозорци",
+  "settings.filterAll": "Всички",
+  "settings.filterWorkspace": "Работна площ",
+  "settings.filterMonitor": "Дисплей",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Широко оформление 25/50/25",
+  "settings.companionMissing": "Модулът за Hyprland не е инсталиран. Изпълнете:",
+  "settings.copyCommand": "Копирай в клипборда",
+  "settings.copied": "Копирано",
+  "snapAssist.title": "Попълни другата страна",
+  "snapAssist.hint": "Кликнете прозорец или натиснете Esc"
 }

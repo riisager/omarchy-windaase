@@ -36,5 +36,16 @@
   "settings.hoverScroll": "ホバースクロール",
   "settings.softMaximize": "ソフト最大化",
   "settings.autoRaise": "フォーカス時に前面表示",
-  "settings.shortcuts": "Windows ショートカット"
+  "settings.shortcuts": "Windows ショートカット",
+  "settings.windowFilter": "ウィンドウ表示",
+  "settings.filterAll": "すべて",
+  "settings.filterWorkspace": "ワークスペース",
+  "settings.filterMonitor": "ディスプレイ",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "ウルトラワイド 25/50/25",
+  "settings.companionMissing": "Hyprland 連携はまだ導入されていません。実行:",
+  "settings.copyCommand": "クリップボードにコピー",
+  "settings.copied": "コピーしました",
+  "snapAssist.title": "もう片側を埋める",
+  "snapAssist.hint": "ウィンドウをクリックまたは Esc"
 }

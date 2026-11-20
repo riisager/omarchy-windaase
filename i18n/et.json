@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Kerimine hõljumisel",
   "settings.softMaximize": "Pehme maksimeerimine",
   "settings.autoRaise": "Tõsta fookuses esile",
-  "settings.shortcuts": "Windowsi kiirklahvid"
+  "settings.shortcuts": "Windowsi kiirklahvid",
+  "settings.windowFilter": "Kuva aknad",
+  "settings.filterAll": "Kõik",
+  "settings.filterWorkspace": "Tööala",
+  "settings.filterMonitor": "Kuvar",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Ülilai 25/50/25 paigutus",
+  "settings.companionMissing": "Hyprlandi moodul pole veel paigaldatud. Käivita:",
+  "settings.copyCommand": "Kopeeri lõikelauale",
+  "settings.copied": "Kopeeritud",
+  "snapAssist.title": "Täida teine pool",
+  "snapAssist.hint": "Klõpsa aknal või vajuta Esc"
 }

@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Posouvání pod kurzorem",
   "settings.softMaximize": "Měkká maximalizace",
   "settings.autoRaise": "Přenést do popředí při fokusu",
-  "settings.shortcuts": "Zkratky Windows"
+  "settings.shortcuts": "Zkratky Windows",
+  "settings.windowFilter": "Zobrazit okna",
+  "settings.filterAll": "Vše",
+  "settings.filterWorkspace": "Pracovní plocha",
+  "settings.filterMonitor": "Displej",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Širokoúhlé rozložení 25/50/25",
+  "settings.companionMissing": "Modul Hyprland zatím není nainstalovaný. Spusťte:",
+  "settings.copyCommand": "Kopírovat do schránky",
+  "settings.copied": "Zkopírováno",
+  "snapAssist.title": "Vyplnit druhou stranu",
+  "snapAssist.hint": "Klikněte na okno nebo stiskněte Esc"
 }

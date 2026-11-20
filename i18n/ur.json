@@ -36,5 +36,16 @@
   "settings.hoverScroll": "ہوور اسکرول",
   "settings.softMaximize": "سافٹ میکسمائز",
   "settings.autoRaise": "فوکس پر آگے لائیں",
-  "settings.shortcuts": "Windows شارٹ کٹس"
+  "settings.shortcuts": "Windows شارٹ کٹس",
+  "settings.windowFilter": "ونڈوز دکھائیں",
+  "settings.filterAll": "سب",
+  "settings.filterWorkspace": "ورک اسپیس",
+  "settings.filterMonitor": "ڈسپلے",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "الٹرا وائیڈ 25/50/25 لے آؤٹ",
+  "settings.companionMissing": "Hyprland ماڈیول ابھی انسٹال نہیں ہے۔ چلائیں:",
+  "settings.copyCommand": "کلپ بورڈ پر کاپی کریں",
+  "settings.copied": "کاپی ہو گیا",
+  "snapAssist.title": "دوسری جانب بھریں",
+  "snapAssist.hint": "ونڈو پر کلک کریں یا Esc دبائیں"
 }

@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Hover-scroll",
   "settings.softMaximize": "Soft-maximize",
   "settings.autoRaise": "Auto-raise on focus",
-  "settings.shortcuts": "Windows shortcuts"
+  "settings.shortcuts": "Windows shortcuts",
+  "settings.windowFilter": "Show windows",
+  "settings.filterAll": "All",
+  "settings.filterWorkspace": "Workspace",
+  "settings.filterMonitor": "Display",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Ultrawide 25/50/25 layout",
+  "settings.companionMissing": "Hyprland companion not installed yet. Run:",
+  "settings.copyCommand": "Copy to clipboard",
+  "settings.copied": "Copied",
+  "snapAssist.title": "Fill other side",
+  "snapAssist.hint": "Click a window or press Esc"
 }

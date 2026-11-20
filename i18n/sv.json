@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Skrolla vid hovring",
   "settings.softMaximize": "Mjuk maximering",
   "settings.autoRaise": "Lyft fönster vid fokus",
-  "settings.shortcuts": "Windows-genvägar"
+  "settings.shortcuts": "Windows-genvägar",
+  "settings.windowFilter": "Visa fönster",
+  "settings.filterAll": "Alla",
+  "settings.filterWorkspace": "Arbetsyta",
+  "settings.filterMonitor": "Skärm",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Ultrawide 25/50/25-layout",
+  "settings.companionMissing": "Hyprland-modulen är inte installerad ännu. Kör:",
+  "settings.copyCommand": "Kopiera till urklipp",
+  "settings.copied": "Kopierad",
+  "snapAssist.title": "Fyll motsatt sida",
+  "snapAssist.hint": "Klicka på ett fönster eller tryck Esc"
 }

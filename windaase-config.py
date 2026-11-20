@@ -12,6 +12,8 @@ import tempfile
 HYPR_OPTION_KEYS = (
     "aero_snap",
     "snap_layouts",
+    "snap_assist",
+    "ultrawide_layout",
     "soft_maximize",
     "auto_raise",
     "hover_scroll",

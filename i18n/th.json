@@ -36,5 +36,16 @@
   "settings.hoverScroll": "เลื่อนเมื่อวางเมาส์",
   "settings.softMaximize": "ขยายแบบนุ่มนวล",
   "settings.autoRaise": "ยกหน้าต่างขึ้นเมื่อโฟกัส",
-  "settings.shortcuts": "ปุ่มลัด Windows"
+  "settings.shortcuts": "ปุ่มลัด Windows",
+  "settings.windowFilter": "แสดงหน้าต่าง",
+  "settings.filterAll": "ทั้งหมด",
+  "settings.filterWorkspace": "พื้นที่ทำงาน",
+  "settings.filterMonitor": "จอภาพ",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "เลย์เอาต์กว้าง 25/50/25",
+  "settings.companionMissing": "ยังไม่ได้ติดตั้งส่วนเสริม Hyprland กรุณารัน:",
+  "settings.copyCommand": "คัดลอกไปยังคลิปบอร์ด",
+  "settings.copied": "คัดลอกแล้ว",
+  "snapAssist.title": "เติมอีกฝั่ง",
+  "snapAssist.hint": "คลิกหน้าต่างหรือกด Esc"
 }

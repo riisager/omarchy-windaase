@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Scrollen bei Mauszeiger",
   "settings.softMaximize": "Sanftes Maximieren",
   "settings.autoRaise": "Bei Fokus nach vorn holen",
-  "settings.shortcuts": "Windows-Tastenkürzel"
+  "settings.shortcuts": "Windows-Tastenkürzel",
+  "settings.windowFilter": "Fenster anzeigen",
+  "settings.filterAll": "Alle",
+  "settings.filterWorkspace": "Arbeitsbereich",
+  "settings.filterMonitor": "Bildschirm",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Ultrawide-25/50/25-Layout",
+  "settings.companionMissing": "Hyprland-Modul noch nicht installiert. Ausführen:",
+  "settings.copyCommand": "In Zwischenablage kopieren",
+  "settings.copied": "Kopiert",
+  "snapAssist.title": "Andere Seite füllen",
+  "snapAssist.hint": "Fenster anklicken oder Esc drücken"
 }

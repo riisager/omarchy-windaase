@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Κύλιση κατά την αιώρηση",
   "settings.softMaximize": "Ήπια μεγιστοποίηση",
   "settings.autoRaise": "Προβολή μπροστά στην εστίαση",
-  "settings.shortcuts": "Συντομεύσεις Windows"
+  "settings.shortcuts": "Συντομεύσεις Windows",
+  "settings.windowFilter": "Εμφάνιση παραθύρων",
+  "settings.filterAll": "Όλα",
+  "settings.filterWorkspace": "Χώρος εργασίας",
+  "settings.filterMonitor": "Οθόνη",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Διάταξη Ultrawide 25/50/25",
+  "settings.companionMissing": "Το πρόσθετο Hyprland δεν έχει εγκατασταθεί. Εκτέλεση:",
+  "settings.copyCommand": "Αντιγραφή στο πρόχειρο",
+  "settings.copied": "Αντιγράφηκε",
+  "snapAssist.title": "Συμπλήρωση άλλης πλευράς",
+  "snapAssist.hint": "Κάντε κλικ σε παράθυρο ή πατήστε Esc"
 }

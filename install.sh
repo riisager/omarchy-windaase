@@ -47,41 +47,61 @@ if [[ -n "$BAR_HEIGHT" ]]; then
   fi
 fi
 
-echo "==> Staging and validating Omarchy-windåse shell plugin"
-mkdir -p "$(dirname "${PLUGIN_DEST}")"
-STAGING_DIR="${PLUGIN_DEST}.staging.$$"
-OLD_DIR="${PLUGIN_DEST}.old.$$"
+STAGING_DIR=""
+OLD_DIR=""
 cleanup_temp_dirs() {
-  rm -rf "${STAGING_DIR}" "${OLD_DIR}"
+  if [[ -n "${STAGING_DIR}" ]]; then
+    rm -rf "${STAGING_DIR}"
+  fi
+  if [[ -n "${OLD_DIR}" ]]; then
+    rm -rf "${OLD_DIR}"
+  fi
 }
 trap cleanup_temp_dirs EXIT
 
-mkdir -p "${STAGING_DIR}/i18n"
-cp "${SCRIPT_DIR}/manifest.json" \
-   "${SCRIPT_DIR}/layouts.json" \
-   "${SCRIPT_DIR}/TaskbarModel.js" \
-   "${SCRIPT_DIR}/BarWidget.qml" \
-   "${SCRIPT_DIR}/WindowPickerCard.qml" \
-   "${SCRIPT_DIR}/AppMenuCard.qml" \
-   "${SCRIPT_DIR}/SettingsCard.qml" \
-   "${SCRIPT_DIR}/Service.qml" \
-   "${SCRIPT_DIR}/AppGrid.qml" \
-   "${SCRIPT_DIR}/windaase-config.py" \
-   "${SCRIPT_DIR}/LICENSE" \
-   "${SCRIPT_DIR}/README.md" \
-   "${STAGING_DIR}/"
-chmod +x "${STAGING_DIR}/windaase-config.py"
-cp "${SCRIPT_DIR}/i18n/"*.json "${STAGING_DIR}/i18n/"
+mkdir -p "$(dirname "${PLUGIN_DEST}")"
+SCRIPT_REAL="$(cd "${SCRIPT_DIR}" && pwd -P)"
+DEST_PARENT_REAL="$(cd "$(dirname "${PLUGIN_DEST}")" && pwd -P)"
+DEST_REAL="${DEST_PARENT_REAL}/$(basename "${PLUGIN_DEST}")"
 
-omarchy plugin validate "${STAGING_DIR}"
-echo "==> Validated plugin: ${PLUGIN_ID}"
+if [[ "${SCRIPT_REAL}" == "${DEST_REAL}" ]]; then
+  echo "==> Validating in-place Omarchy-windåse shell plugin at ${PLUGIN_DEST}"
+  chmod +x "${PLUGIN_DEST}/windaase-config.py"
+  omarchy plugin validate "${PLUGIN_DEST}"
+  echo "==> Validated plugin: ${PLUGIN_ID}"
+else
+  echo "==> Staging and validating Omarchy-windåse shell plugin"
+  STAGING_DIR="${PLUGIN_DEST}.staging.$$"
+  OLD_DIR="${PLUGIN_DEST}.old.$$"
 
-if [[ -e "${PLUGIN_DEST}" ]]; then
-  mv "${PLUGIN_DEST}" "${OLD_DIR}"
+  mkdir -p "${STAGING_DIR}/i18n"
+  cp "${SCRIPT_DIR}/manifest.json" \
+     "${SCRIPT_DIR}/layouts.json" \
+     "${SCRIPT_DIR}/TaskbarModel.js" \
+     "${SCRIPT_DIR}/BarWidget.qml" \
+     "${SCRIPT_DIR}/WindowPickerCard.qml" \
+     "${SCRIPT_DIR}/AppMenuCard.qml" \
+     "${SCRIPT_DIR}/SettingsCard.qml" \
+     "${SCRIPT_DIR}/SnapAssistCard.qml" \
+     "${SCRIPT_DIR}/Service.qml" \
+     "${SCRIPT_DIR}/AppGrid.qml" \
+     "${SCRIPT_DIR}/windaase-config.py" \
+     "${SCRIPT_DIR}/LICENSE" \
+     "${SCRIPT_DIR}/README.md" \
+     "${STAGING_DIR}/"
+  chmod +x "${STAGING_DIR}/windaase-config.py"
+  cp "${SCRIPT_DIR}/i18n/"*.json "${STAGING_DIR}/i18n/"
+
+  omarchy plugin validate "${STAGING_DIR}"
+  echo "==> Validated plugin: ${PLUGIN_ID}"
+
+  if [[ -e "${PLUGIN_DEST}" ]]; then
+    mv "${PLUGIN_DEST}" "${OLD_DIR}"
+  fi
+  mv "${STAGING_DIR}" "${PLUGIN_DEST}"
+  rm -rf "${OLD_DIR}"
+  echo "==> Installed Omarchy-windåse shell plugin to ${PLUGIN_DEST}"
 fi
-mv "${STAGING_DIR}" "${PLUGIN_DEST}"
-rm -rf "${OLD_DIR}"
-echo "==> Installed Omarchy-windåse shell plugin to ${PLUGIN_DEST}"
 
 if [[ "$MODE" != "shell-only" ]]; then
   echo "==> Installing Hyprland Lua module to ${HYPR_DIR}/windaase*"

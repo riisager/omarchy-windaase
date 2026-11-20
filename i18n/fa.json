@@ -36,5 +36,16 @@
   "settings.hoverScroll": "پیمایش با اشاره‌گر",
   "settings.softMaximize": "بزرگ‌نمایی نرم",
   "settings.autoRaise": "بالا آوردن هنگام تمرکز",
-  "settings.shortcuts": "میانبرهای Windows"
+  "settings.shortcuts": "میانبرهای Windows",
+  "settings.windowFilter": "نمایش پنجره‌ها",
+  "settings.filterAll": "همه",
+  "settings.filterWorkspace": "فضای کاری",
+  "settings.filterMonitor": "نمایشگر",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "چیدمان عریض 25/50/25",
+  "settings.companionMissing": "افزونه Hyprland هنوز نصب نشده است. اجرا کنید:",
+  "settings.copyCommand": "کپی در کلیپ‌بورد",
+  "settings.copied": "کپی شد",
+  "snapAssist.title": "پر کردن سمت دیگر",
+  "snapAssist.hint": "روی یک پنجره کلیک کنید یا Esc بزنید"
 }

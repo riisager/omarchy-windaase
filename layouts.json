@@ -33,5 +33,10 @@
     [
       { "rx": 0, "ry": 0, "rw": 1.0, "rh": 1.0, "max": true }
     ]
+  ],
+  "ultrawideLayout": [
+    { "rx": 0, "ry": 0, "rw": 0.25, "rh": 1.0, "max": false },
+    { "rx": 0.25, "ry": 0, "rw": 0.5, "rh": 1.0, "max": false },
+    { "rx": 0.75, "ry": 0, "rw": 0.25, "rh": 1.0, "max": false }
   ]
 }

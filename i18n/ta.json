@@ -36,5 +36,16 @@
   "settings.hoverScroll": "சுட்டி மேல் உருட்டல்",
   "settings.softMaximize": "மென் பெரிதாக்கம்",
   "settings.autoRaise": "கவனம் பெறும்போது முன்னால் கொண்டுவா",
-  "settings.shortcuts": "Windows குறுக்குவழிகள்"
+  "settings.shortcuts": "Windows குறுக்குவழிகள்",
+  "settings.windowFilter": "சாளரங்களைக் காட்டு",
+  "settings.filterAll": "அனைத்தும்",
+  "settings.filterWorkspace": "பணியிடம்",
+  "settings.filterMonitor": "திரை",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "அகல 25/50/25 அமைப்பு",
+  "settings.companionMissing": "Hyprland துணைப் பகுதி இன்னும் நிறுவப்படவில்லை. இயக்கவும்:",
+  "settings.copyCommand": "கிளிப்போர்டுக்கு நகலெடு",
+  "settings.copied": "நகலெடுக்கப்பட்டது",
+  "snapAssist.title": "மறுபுறத்தை நிரப்பு",
+  "snapAssist.hint": "சாளரத்தைக் கிளிக் செய்யவும் அல்லது Esc அழுத்தவும்"
 }

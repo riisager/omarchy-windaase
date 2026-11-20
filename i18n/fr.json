@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Défilement au survol",
   "settings.softMaximize": "Maximisation souple",
   "settings.autoRaise": "Mettre au premier plan au focus",
-  "settings.shortcuts": "Raccourcis Windows"
+  "settings.shortcuts": "Raccourcis Windows",
+  "settings.windowFilter": "Afficher les fenêtres",
+  "settings.filterAll": "Toutes",
+  "settings.filterWorkspace": "Bureau",
+  "settings.filterMonitor": "Écran",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Disposition 25/50/25 large",
+  "settings.companionMissing": "Le module Hyprland n'est pas encore installé. Exécutez :",
+  "settings.copyCommand": "Copier dans le presse-papiers",
+  "settings.copied": "Copié",
+  "snapAssist.title": "Remplir l'autre côté",
+  "snapAssist.hint": "Cliquez une fenêtre ou appuyez sur Échap"
 }

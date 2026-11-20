@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Cuộn khi di chuột",
   "settings.softMaximize": "Phóng to mềm",
   "settings.autoRaise": "Đưa lên trước khi chọn",
-  "settings.shortcuts": "Phím tắt Windows"
+  "settings.shortcuts": "Phím tắt Windows",
+  "settings.windowFilter": "Hiện cửa sổ",
+  "settings.filterAll": "Tất cả",
+  "settings.filterWorkspace": "Không gian",
+  "settings.filterMonitor": "Màn hình",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Bố cục rộng 25/50/25",
+  "settings.companionMissing": "Tiện ích Hyprland chưa được cài. Chạy:",
+  "settings.copyCommand": "Sao chép vào bộ nhớ tạm",
+  "settings.copied": "Đã sao chép",
+  "snapAssist.title": "Lấp nửa còn lại",
+  "snapAssist.hint": "Nhấp vào cửa sổ hoặc nhấn Esc"
 }

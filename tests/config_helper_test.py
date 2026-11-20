@@ -104,10 +104,22 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stderr)
         res = self.run_helper("hypr-set", "auto_raise", "true", "--no-reload")
         self.assertEqual(res.returncode, 0, res.stderr)
+        res = self.run_helper("hypr-set", "snap_assist", "false", "--no-reload")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        res = self.run_helper("hypr-set", "ultrawide_layout", "true", "--no-reload")
+        self.assertEqual(res.returncode, 0, res.stderr)
 
         cfg_path = os.path.join(self.omarchy_dir, "windaase.json")
         loaded = self.read_json(cfg_path)
-        self.assertEqual(loaded, {"hover_scroll": False, "auto_raise": True})
+        self.assertEqual(
+            loaded,
+            {
+                "hover_scroll": False,
+                "auto_raise": True,
+                "snap_assist": False,
+                "ultrawide_layout": True,
+            },
+        )
 
         self.assertNotEqual(self.run_helper("hypr-set", "evil_key", "false", "--no-reload").returncode, 0)
         self.assertNotEqual(self.run_helper("hypr-set", "hover_scroll", "yes", "--no-reload").returncode, 0)
@@ -484,6 +496,50 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertFalse(os.path.exists(st["lua_entry"]))
         self.assertFalse(os.path.exists(st["lua_sub_dir"]))
         self.assertFalse(os.path.exists(st["plugin_dir"]))
+
+    def test_install_sh_in_place_from_plugin_dir_preserves_git_and_installs_hypr(self):
+        stub_dir = self._make_stub_bin()
+        hypr_dir = os.path.join(self.home, ".config", "hypr")
+        plugin_dir = os.path.join(self.home, ".config", "omarchy", "plugins", "riisager.windaase")
+        os.makedirs(hypr_dir, exist_ok=True)
+        os.makedirs(os.path.dirname(plugin_dir), exist_ok=True)
+
+        shutil.copytree(REPO_ROOT, plugin_dir, ignore=shutil.ignore_patterns(".git", "docs"))
+        git_dir = os.path.join(plugin_dir, ".git")
+        os.makedirs(git_dir, exist_ok=True)
+        with open(os.path.join(git_dir, "HEAD"), "w", encoding="utf-8") as handle:
+            handle.write("ref: refs/heads/main\n")
+
+        hyprland_lua = os.path.join(hypr_dir, "hyprland.lua")
+        with open(hyprland_lua, "w", encoding="utf-8") as handle:
+            handle.write("-- Existing user config\n")
+
+        env = self.env.copy()
+        env["PATH"] = f"{stub_dir}:{env['PATH']}"
+        env["XDG_STATE_HOME"] = os.path.join(self.home, ".local", "state")
+
+        res = subprocess.run(
+            ["bash", os.path.join(plugin_dir, "install.sh")],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+
+        # In-place install must preserve git checkout and companion sources inside PLUGIN_DEST
+        self.assertEqual(self.read_text(os.path.join(git_dir, "HEAD")), "ref: refs/heads/main\n")
+        self.assertTrue(os.path.exists(os.path.join(plugin_dir, "install.sh")))
+        self.assertTrue(os.path.exists(os.path.join(plugin_dir, "hypr", "windaase.lua")))
+        self.assertTrue(os.path.exists(os.path.join(plugin_dir, "SnapAssistCard.qml")))
+
+        # Hyprland companion must be installed and wired into hyprland.lua
+        self.assertTrue(os.path.exists(os.path.join(hypr_dir, "windaase.lua")))
+        self.assertTrue(os.path.exists(os.path.join(hypr_dir, "windaase", "snap.lua")))
+        self.assertTrue(os.path.exists(os.path.join(hypr_dir, "windaase", "layouts.json")))
+        lua_content = self.read_text(hyprland_lua)
+        self.assertIn('require("hypr.windaase").setup()', lua_content)
+        self._luac_ok(lua_content)
 
 
 if __name__ == "__main__":

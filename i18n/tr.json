@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Üzerine gelince kaydır",
   "settings.softMaximize": "Yumuşak büyütme",
   "settings.autoRaise": "Odakta öne getir",
-  "settings.shortcuts": "Windows kısayolları"
+  "settings.shortcuts": "Windows kısayolları",
+  "settings.windowFilter": "Pencereleri göster",
+  "settings.filterAll": "Tümü",
+  "settings.filterWorkspace": "Çalışma alanı",
+  "settings.filterMonitor": "Ekran",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Geniş 25/50/25 düzeni",
+  "settings.companionMissing": "Hyprland eklentisi henüz kurulmadı. Çalıştırın:",
+  "settings.copyCommand": "Panoya kopyala",
+  "settings.copied": "Kopyalandı",
+  "snapAssist.title": "Diğer tarafı doldur",
+  "snapAssist.hint": "Bir pencereye tıklayın veya Esc'ye basın"
 }

@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Rolar ao passar o mouse",
   "settings.softMaximize": "Maximização suave",
   "settings.autoRaise": "Elevar ao focar",
-  "settings.shortcuts": "Atalhos do Windows"
+  "settings.shortcuts": "Atalhos do Windows",
+  "settings.windowFilter": "Mostrar janelas",
+  "settings.filterAll": "Todas",
+  "settings.filterWorkspace": "Área de trabalho",
+  "settings.filterMonitor": "Tela",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Layout amplo 25/50/25",
+  "settings.companionMissing": "O módulo Hyprland ainda não está instalado. Execute:",
+  "settings.copyCommand": "Copiar para área de transferência",
+  "settings.copied": "Copiado",
+  "snapAssist.title": "Preencher outro lado",
+  "snapAssist.hint": "Clique em uma janela ou pressione Esc"
 }

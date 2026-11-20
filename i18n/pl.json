@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Przewijanie pod kursorem",
   "settings.softMaximize": "Miękka maksymalizacja",
   "settings.autoRaise": "Wysuwaj na wierzch po fokusie",
-  "settings.shortcuts": "Skróty Windows"
+  "settings.shortcuts": "Skróty Windows",
+  "settings.windowFilter": "Pokaż okna",
+  "settings.filterAll": "Wszystkie",
+  "settings.filterWorkspace": "Obszar roboczy",
+  "settings.filterMonitor": "Ekran",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Układ szeroki 25/50/25",
+  "settings.companionMissing": "Dodatek Hyprland nie jest jeszcze zainstalowany. Uruchom:",
+  "settings.copyCommand": "Kopiuj do schowka",
+  "settings.copied": "Skopiowano",
+  "snapAssist.title": "Wypełnij drugą stronę",
+  "snapAssist.hint": "Kliknij okno lub naciśnij Esc"
 }

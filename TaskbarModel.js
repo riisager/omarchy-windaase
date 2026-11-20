@@ -151,6 +151,200 @@ function buildItems(pinned, windows, uncombinedKeys) {
   return items
 }
 
+function normalizeWindowFilter(value) {
+  var v = String(value === undefined || value === null ? "" : value).trim().toLowerCase()
+  if (v === "workspace" || v === "monitor") return v
+  return "all"
+}
+
+function minimizedOriginWorkspaceId(tags) {
+  if (!tags || typeof tags.length !== "number") return -1
+  for (var i = 0; i < tags.length; i++) {
+    var m = /^omarchy-(?:minimized-from|showdesktop)-([1-9][0-9]*)$/.exec(String(tags[i] || ""))
+    if (m) return parseInt(m[1], 10)
+  }
+  return -1
+}
+
+function filterWindowsByScope(windows, scope, activeWorkspaceId, activeMonitorName) {
+  var list = windows || []
+  var mode = normalizeWindowFilter(scope)
+  if (mode === "all") return list.slice()
+  var ws = Number(activeWorkspaceId)
+  var mon = String(activeMonitorName || "")
+  var out = []
+  for (var i = 0; i < list.length; i++) {
+    var win = list[i]
+    if (!win) continue
+    if (mode === "workspace") {
+      if (!(ws >= 1)) {
+        out.push(win)
+        continue
+      }
+      if (win.minimized) {
+        var originWs = minimizedOriginWorkspaceId(win.tags)
+        if (originWs === ws || originWs < 0) out.push(win)
+      } else if (win.workspaceId === ws) {
+        out.push(win)
+      }
+    } else if (mode === "monitor") {
+      if (!mon || !win.monitorName || String(win.monitorName) === mon) {
+        out.push(win)
+      }
+    }
+  }
+  return out
+}
+
+function complementaryZone(zone) {
+  if (!zone || zone.max === true) return null
+  var rx = Number(zone.rx) || 0
+  var ry = Number(zone.ry) || 0
+  var rw = Number(zone.rw) || 0
+  var rh = Number(zone.rh) || 0
+  if (Math.abs(ry) > 0.02 || rh < 0.98) return null
+  if (rw <= 0.15 || rw >= 0.85) return null
+  var round6 = function(n) { return Math.round(n * 1000000) / 1000000 }
+  if (Math.abs(rx) <= 0.02) {
+    return { rx: round6(rw), ry: 0, rw: round6(1 - rw), rh: 1.0, max: false }
+  }
+  if (Math.abs((rx + rw) - 1.0) <= 0.02) {
+    return { rx: 0, ry: 0, rw: round6(rx), rh: 1.0, max: false }
+  }
+  return null
+}
+
+function _zoneCenter(z) {
+  var rx = Number(z && z.rx) || 0
+  var ry = Number(z && z.ry) || 0
+  var rw = Number(z && z.rw) || 0
+  var rh = Number(z && z.rh) || 0
+  return { cx: rx + rw / 2, cy: ry + rh / 2, rx: rx, ry: ry, rw: rw, rh: rh }
+}
+
+function _edgeZoneInCard(card, fromEdge, targetCy) {
+  if (!Array.isArray(card) || card.length === 0) return 0
+  var bestIdx = 0
+  var bestScore = Infinity
+  for (var i = 0; i < card.length; i++) {
+    var m = _zoneCenter(card[i])
+    var primary = fromEdge === "left" ? m.cx : (1 - m.cx)
+    var dy = Math.abs(m.cy - targetCy)
+    var score = primary * 10 + dy
+    if (score < bestScore) {
+      bestScore = score
+      bestIdx = i
+    }
+  }
+  return bestIdx
+}
+
+function nextSnapZone(layouts, cardIdx, zoneIdx, direction) {
+  var list = Array.isArray(layouts) ? layouts : []
+  if (list.length === 0) return { card: -1, zone: -1 }
+  var dir = String(direction || "").toLowerCase()
+  var c = typeof cardIdx === "number" ? cardIdx : -1
+  var z = typeof zoneIdx === "number" ? zoneIdx : -1
+  if (c < 0 || c >= list.length || !Array.isArray(list[c]) || list[c].length === 0) {
+    return { card: 0, zone: 0 }
+  }
+  if (z < 0 || z >= list[c].length) z = 0
+
+  if (dir === "tab" || dir === "backtab") {
+    var delta = dir === "tab" ? 1 : -1
+    var nz = z + delta
+    var nc = c
+    if (nz >= list[nc].length) {
+      nc = (nc + 1) % list.length
+      nz = 0
+    } else if (nz < 0) {
+      nc = (nc - 1 + list.length) % list.length
+      nz = Math.max(0, list[nc].length - 1)
+    }
+    return { card: nc, zone: nz }
+  }
+
+  var card = list[c]
+  var cur = _zoneCenter(card[z])
+
+  if (dir === "left" || dir === "right") {
+    var bestSame = -1
+    var bestDist = Infinity
+    for (var i = 0; i < card.length; i++) {
+      if (i === z) continue
+      var cand = _zoneCenter(card[i])
+      var overlapsY = Math.min(cur.ry + cur.rh, cand.ry + cand.rh) > Math.max(cur.ry, cand.ry) + 0.01
+      if (!overlapsY) continue
+      var dx = dir === "right" ? (cand.cx - cur.cx) : (cur.cx - cand.cx)
+      if (dx <= 0.02) continue
+      var score = dx + Math.abs(cand.cy - cur.cy) * 2
+      if (score < bestDist) {
+        bestDist = score
+        bestSame = i
+      }
+    }
+    if (bestSame >= 0) return { card: c, zone: bestSame }
+
+    var step = dir === "right" ? 1 : -1
+    var nextC = (c + step + list.length) % list.length
+    var nextZ = _edgeZoneInCard(list[nextC], dir === "right" ? "left" : "right", cur.cy)
+    return { card: nextC, zone: nextZ }
+  }
+
+  if (dir === "up" || dir === "down") {
+    var bestV = -1
+    var bestVScore = Infinity
+    for (var k = 0; k < card.length; k++) {
+      if (k === z) continue
+      var vc = _zoneCenter(card[k])
+      var overlapsX = Math.min(cur.rx + cur.rw, vc.rx + vc.rw) > Math.max(cur.rx, vc.rx) + 0.01
+      if (!overlapsX) continue
+      var dy = dir === "down" ? (vc.cy - cur.cy) : (cur.cy - vc.cy)
+      if (dy <= 0.02) continue
+      var vscore = dy + Math.abs(vc.cx - cur.cx) * 2
+      if (vscore < bestVScore) {
+        bestVScore = vscore
+        bestV = k
+      }
+    }
+    if (bestV >= 0) return { card: c, zone: bestV }
+  }
+
+  return { card: c, zone: z }
+}
+
+function jumpToSnapCard(layouts, cardNumber, currentCard, currentZone) {
+  var list = Array.isArray(layouts) ? layouts : []
+  var targetCard = Number(cardNumber) - 1
+  if (!isFinite(targetCard) || targetCard < 0 || targetCard >= list.length) return null
+  var card = list[targetCard]
+  if (!Array.isArray(card) || card.length === 0) return null
+  if (targetCard === currentCard) {
+    var nextZ = (typeof currentZone === "number" && currentZone >= 0) ? ((currentZone + 1) % card.length) : 0
+    return { card: targetCard, zone: nextZ }
+  }
+  return { card: targetCard, zone: 0 }
+}
+
+function filterSnapAssistCandidates(windows, snappedAddr, workspaceId) {
+  var list = windows || []
+  var excludeAddr = normalizeAddress(snappedAddr).toLowerCase()
+  var ws = Number(workspaceId)
+  var out = []
+  for (var i = 0; i < list.length; i++) {
+    var win = list[i]
+    if (!win) continue
+    if (win.minimized === true) continue
+    if (win.floating === false) continue
+    if (win.fullscreen) continue
+    if (ws >= 1 && win.workspaceId !== ws) continue
+    var addr = normalizeAddress(win.address).toLowerCase()
+    if (!addr || (excludeAddr && addr === excludeAddr)) continue
+    out.push(win)
+  }
+  return out
+}
+
 function isValidProfileDir(dir) {
   if (typeof dir !== "string") return false
   var trimmed = dir.trim()
@@ -383,19 +577,26 @@ function resolveIconSize(slotSize, configuredIconSize, minSize) {
 
 var HYPR_OPTION_KEYS = [
   "snap_layouts",
+  "snap_assist",
   "aero_snap",
   "hover_scroll",
   "soft_maximize",
   "auto_raise",
-  "shortcuts"
+  "shortcuts",
+  "ultrawide_layout"
 ]
 
 function defaultHyprSettings() {
-  var out = {}
-  for (var i = 0; i < HYPR_OPTION_KEYS.length; i++) {
-    out[HYPR_OPTION_KEYS[i]] = true
+  return {
+    snap_layouts: true,
+    snap_assist: true,
+    aero_snap: true,
+    hover_scroll: true,
+    soft_maximize: true,
+    auto_raise: true,
+    shortcuts: true,
+    ultrawide_layout: false
   }
-  return out
 }
 
 function parseHyprSettings(rawJson) {
@@ -438,6 +639,11 @@ function buildUpdatedWidgetEntry(currentSettings, moduleName, patch) {
   }
   if (Array.isArray(entry.uncombine) && entry.uncombine.length === 0) {
     delete entry.uncombine
+  }
+  if (entry.windowFilter !== undefined) {
+    var wf = normalizeWindowFilter(entry.windowFilter)
+    if (wf === "all") delete entry.windowFilter
+    else entry.windowFilter = wf
   }
   return entry
 }
@@ -549,6 +755,13 @@ if (typeof module !== "undefined") {
     claimingEntryId: claimingEntryId,
     stabilizeWindows: stabilizeWindows,
     buildItems: buildItems,
+    normalizeWindowFilter: normalizeWindowFilter,
+    minimizedOriginWorkspaceId: minimizedOriginWorkspaceId,
+    filterWindowsByScope: filterWindowsByScope,
+    complementaryZone: complementaryZone,
+    nextSnapZone: nextSnapZone,
+    jumpToSnapCard: jumpToSnapCard,
+    filterSnapAssistCandidates: filterSnapAssistCandidates,
     isValidProfileDir: isValidProfileDir,
     sanitizeTooltipText: sanitizeTooltipText,
     browserProfileConfigDir: browserProfileConfigDir,

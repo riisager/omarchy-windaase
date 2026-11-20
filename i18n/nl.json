@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Scrollen bij aanwijzen",
   "settings.softMaximize": "Zacht maximaliseren",
   "settings.autoRaise": "Naar voren halen bij focus",
-  "settings.shortcuts": "Windows-sneltoetsen"
+  "settings.shortcuts": "Windows-sneltoetsen",
+  "settings.windowFilter": "Vensters tonen",
+  "settings.filterAll": "Alle",
+  "settings.filterWorkspace": "Werkruimte",
+  "settings.filterMonitor": "Scherm",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Ultrawide 25/50/25-indeling",
+  "settings.companionMissing": "Hyprland-module is nog niet geïnstalleerd. Voer uit:",
+  "settings.copyCommand": "Naar klembord kopiëren",
+  "settings.copied": "Gekopieerd",
+  "snapAssist.title": "Andere kant vullen",
+  "snapAssist.hint": "Klik op een venster of druk op Esc"
 }

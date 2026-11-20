@@ -13,6 +13,8 @@ local M = {}
 local DEFAULTS = {
   aero_snap = true,
   snap_layouts = true,
+  snap_assist = true,
+  ultrawide_layout = false,
   soft_maximize = true,
   auto_raise = true,
   hover_scroll = true,
@@ -63,9 +65,15 @@ end
 function M.setup(user_opts)
   local opts = merge_opts(user_opts)
 
-  snap.setup(opts, function(ticks)
-    snap_layouts.suppress(ticks)
-  end)
+  snap.setup(
+    opts,
+    function(ticks)
+      snap_layouts.suppress(ticks)
+    end,
+    function(window, m, zone_spec)
+      snap_layouts.schedule_assist(window, m, zone_spec)
+    end
+  )
 
   snap_layouts.setup(opts)
 

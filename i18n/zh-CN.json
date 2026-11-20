@@ -36,5 +36,16 @@
   "settings.hoverScroll": "悬停滚动",
   "settings.softMaximize": "软最大化",
   "settings.autoRaise": "聚焦时置顶",
-  "settings.shortcuts": "Windows 快捷键"
+  "settings.shortcuts": "Windows 快捷键",
+  "settings.windowFilter": "显示窗口",
+  "settings.filterAll": "全部",
+  "settings.filterWorkspace": "工作区",
+  "settings.filterMonitor": "显示器",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "超宽 25/50/25 布局",
+  "settings.companionMissing": "Hyprland 配套模块尚未安装。请运行：",
+  "settings.copyCommand": "复制到剪贴板",
+  "settings.copied": "已复制",
+  "snapAssist.title": "填充另一侧",
+  "snapAssist.hint": "点击窗口或按 Esc"
 }

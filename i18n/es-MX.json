@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Desplazar al pasar el cursor",
   "settings.softMaximize": "Maximización suave",
   "settings.autoRaise": "Elevar al enfocar",
-  "settings.shortcuts": "Atajos de Windows"
+  "settings.shortcuts": "Atajos de Windows",
+  "settings.windowFilter": "Mostrar ventanas",
+  "settings.filterAll": "Todas",
+  "settings.filterWorkspace": "Espacio",
+  "settings.filterMonitor": "Pantalla",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Diseño ultraancho 25/50/25",
+  "settings.companionMissing": "El complemento Hyprland aún no está instalado. Ejecuta:",
+  "settings.copyCommand": "Copiar al portapapeles",
+  "settings.copied": "Copiado",
+  "snapAssist.title": "Llenar el otro lado",
+  "snapAssist.hint": "Haz clic en una ventana o pulsa Esc"
 }

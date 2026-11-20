@@ -24,6 +24,14 @@ BarWidget {
   readonly property real idleOpacity: 0.85
   readonly property var uncombinedApps: root.setting("uncombine", [])
   readonly property bool showAppsButton: root.setting("showAppsButton", true)
+  readonly property string windowFilter: TaskbarModel.normalizeWindowFilter(root.setting("windowFilter", "all"))
+  readonly property var barMonitor: {
+    var win = root.QsWindow ? root.QsWindow.window : null
+    var scr = win ? win.screen : null
+    return scr ? Hyprland.monitorFor(scr) : Hyprland.focusedMonitor
+  }
+  readonly property string barMonitorName: root.barMonitor && root.barMonitor.name ? String(root.barMonitor.name) : ""
+  readonly property int barActiveWorkspaceId: root.barMonitor && root.barMonitor.activeWorkspace ? Number(root.barMonitor.activeWorkspace.id) : -1
 
   property var defaultPinnedList: []
   property var userPinnedList: null
@@ -41,6 +49,11 @@ BarWidget {
   property Item settingsAnchor: null
   property bool twoLineClock: false
   property var hyprSettings: TaskbarModel.defaultHyprSettings()
+  property bool companionInstalled: false
+  property bool hasLocalInstaller: false
+  readonly property string companionInstallCmd: root.hasLocalInstaller
+    ? "~/.config/omarchy/plugins/riisager.windaase/install.sh"
+    : "git clone https://github.com/riisager/omarchy-windaase.git && ./omarchy-windaase/install.sh"
   readonly property string configScriptPath: String(Qt.resolvedUrl("windaase-config.py")).replace(/^file:\/\//, "")
 
   implicitWidth: root.vertical ? root.barSize : layoutGrid.implicitWidth
@@ -91,6 +104,27 @@ BarWidget {
   }
 
   FileView {
+    id: companionLuaFile
+    path: Commons.Color.home + "/.config/hypr/windaase.lua"
+    watchChanges: true
+    blockLoading: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.companionInstalled = String(text() || "").length > 0
+    onLoadFailed: root.companionInstalled = false
+  }
+
+  FileView {
+    id: localInstallerFile
+    path: String(Qt.resolvedUrl("install.sh")).replace(/^file:\/\//, "")
+    watchChanges: false
+    blockLoading: true
+    printErrors: false
+    onLoaded: root.hasLocalInstaller = String(text() || "").length > 0
+    onLoadFailed: root.hasLocalInstaller = false
+  }
+
+  FileView {
     id: browserStateFile
     path: root.activeBrowserDir ? (root.activeBrowserDir + "/Local State") : ""
     watchChanges: false
@@ -110,6 +144,9 @@ BarWidget {
       var name = event ? String(event.name) : ""
       if (name === "fullscreen" || name === "configreloaded") {
         Hyprland.refreshToplevels()
+      }
+      if (name === "configreloaded") {
+        companionLuaFile.reload()
       }
     }
   }
@@ -153,6 +190,7 @@ BarWidget {
       if (!toplevel || !toplevel.appId || toplevel.parent) continue
       var entry = root.entryForAppId(toplevel.appId)
       var workspace = toplevels[i].workspace
+      var winMon = toplevels[i].monitor || (workspace ? workspace.monitor : null)
       var rawTags = toplevels[i].lastIpcObject && toplevels[i].lastIpcObject.tags ? toplevels[i].lastIpcObject.tags : []
       var cleanTags = []
       for (var ti = 0; ti < rawTags.length; ti++) {
@@ -164,6 +202,7 @@ BarWidget {
         title: toplevel.title || (entry ? entry.name : toplevel.appId),
         activated: !!toplevel.activated,
         workspaceId: workspace ? workspace.id : -1,
+        monitorName: winMon && winMon.name ? String(winMon.name) : "",
         minimized: !!workspace && TaskbarModel.isMinimizedWorkspace(workspace.name),
         address: toplevels[i].address,
         tags: cleanTags,
@@ -172,8 +211,14 @@ BarWidget {
     }
 
     var orderedWindows = TaskbarModel.stabilizeWindows(windows, root.windowOrderState)
+    var scopedWindows = TaskbarModel.filterWindowsByScope(
+      orderedWindows,
+      root.windowFilter,
+      root.barActiveWorkspaceId,
+      root.barMonitorName
+    )
     var uncombined = Array.isArray(root.uncombinedApps) ? root.uncombinedApps : []
-    return TaskbarModel.buildItems(pinned, orderedWindows, uncombined)
+    return TaskbarModel.buildItems(pinned, scopedWindows, uncombined)
   }
 
   readonly property var itemsByKey: {
@@ -195,6 +240,8 @@ BarWidget {
     root.userPinnedList = TaskbarModel.extractPinnedList(userRaw)
     root.twoLineClock = TaskbarModel.isTwoLineClockFormat(userRaw)
     root.hyprSettings = TaskbarModel.parseHyprSettings(hyprSettingsFile.text())
+    root.companionInstalled = String(companionLuaFile.text() || "").length > 0
+    root.hasLocalInstaller = String(localInstallerFile.text() || "").length > 0
     syncItemModel()
   }
 
@@ -405,6 +452,8 @@ BarWidget {
   function openSettings(slot) {
     root.pickerKey = ""
     root.menuKey = ""
+    companionLuaFile.reload()
+    localInstallerFile.reload()
     root.settingsAnchor = slot || (root.showAppsButton ? appsSlot : root)
     root.settingsOpen = true
     if (root.bar && root.settingsAnchor) root.bar.hideTooltip(root.settingsAnchor)
@@ -834,9 +883,12 @@ BarWidget {
     barSize: root.barSize
     iconSize: root.iconSize
     configuredIconSize: Number(root.configuredIconSize) || 0
+    windowFilter: root.windowFilter
     showAppsButton: root.showAppsButton
     twoLineClock: root.twoLineClock
     hyprSettings: root.hyprSettings
+    companionInstalled: root.companionInstalled
+    companionInstallCmd: root.companionInstallCmd
 
     onBarHeightRequested: function(px) {
       root.runConfigHelper(["bar-height", String(px)])
@@ -848,6 +900,9 @@ BarWidget {
       if (pos === "top" || pos === "bottom") {
         Util.execArgv(["omarchy", "bar", "position", pos])
       }
+    }
+    onWindowFilterRequested: function(scope) {
+      root.updateWidgetSettings({ windowFilter: TaskbarModel.normalizeWindowFilter(scope) })
     }
     onTwoLineClockToggled: function(enabled) {
       root.twoLineClock = enabled
@@ -864,6 +919,9 @@ BarWidget {
       next[key] = enabled
       root.hyprSettings = next
       root.runConfigHelper(["hypr-set", key, enabled ? "true" : "false"])
+    }
+    onCopyInstallCommandRequested: {
+      Util.execArgv(["wl-copy", "--", root.companionInstallCmd])
     }
   }
 }

@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Derulare la trecerea cursorului",
   "settings.softMaximize": "Maximizare lină",
   "settings.autoRaise": "Adu în față la focalizare",
-  "settings.shortcuts": "Scurtături Windows"
+  "settings.shortcuts": "Scurtături Windows",
+  "settings.windowFilter": "Afișează ferestre",
+  "settings.filterAll": "Toate",
+  "settings.filterWorkspace": "Spațiu",
+  "settings.filterMonitor": "Ecran",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Aspect lat 25/50/25",
+  "settings.companionMissing": "Modulul Hyprland nu este încă instalat. Rulează:",
+  "settings.copyCommand": "Copiază în clipboard",
+  "settings.copied": "Copiat",
+  "snapAssist.title": "Umple cealaltă parte",
+  "snapAssist.hint": "Fă clic pe o fereastră sau apasă Esc"
 }

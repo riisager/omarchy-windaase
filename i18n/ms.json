@@ -36,5 +36,16 @@
   "settings.hoverScroll": "Tatal ketika tuding",
   "settings.softMaximize": "Maksimum lembut",
   "settings.autoRaise": "Naikkan ke hadapan bila fokus",
-  "settings.shortcuts": "Pintasan Windows"
+  "settings.shortcuts": "Pintasan Windows",
+  "settings.windowFilter": "Papar tetingkap",
+  "settings.filterAll": "Semua",
+  "settings.filterWorkspace": "Ruang kerja",
+  "settings.filterMonitor": "Paparan",
+  "settings.snapAssist": "Snap Assist",
+  "settings.ultrawideLayout": "Susun atur 25/50/25 lebar",
+  "settings.companionMissing": "Pelengkap Hyprland belum dipasang lagi. Jalankan:",
+  "settings.copyCommand": "Salin ke papan klip",
+  "settings.copied": "Disalin",
+  "snapAssist.title": "Isi sebelah lain",
+  "snapAssist.hint": "Klik tetingkap atau tekan Esc"
 }

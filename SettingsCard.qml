@@ -13,16 +13,25 @@ PopupCard {
   property int barSize: 26
   property int iconSize: 16
   property real configuredIconSize: 0
+  property string windowFilter: "all"
   property bool showAppsButton: true
   property bool twoLineClock: false
   property var hyprSettings: ({})
+  property bool companionInstalled: true
+  property string companionInstallCmd: ""
+
+  property bool copyDone: false
 
   signal barHeightRequested(int px)
   signal iconSizeRequested(int px)
   signal barPositionRequested(string pos)
+  signal windowFilterRequested(string scope)
   signal twoLineClockToggled(bool enabled)
   signal showAppsButtonToggled(bool enabled)
   signal hyprOptionToggled(string key, bool enabled)
+  signal copyInstallCommandRequested()
+
+  onOpenChanged: if (!open) copyDone = false
 
   readonly property int maxIconPx: Math.max(16, root.barSize - 6)
   readonly property bool isAutoIcon: Number(root.configuredIconSize) <= 0
@@ -30,7 +39,7 @@ PopupCard {
 
   padding: Style.spacing.popupPadding
   contentWidth: root.fittedContentWidth(Style.space(320))
-  contentHeight: root.fittedContentHeight(Math.min(Style.space(520), settingsColumn.implicitHeight))
+  contentHeight: root.fittedContentHeight(Math.min(Style.space(560), settingsColumn.implicitHeight))
 
   Flickable {
     anchors.fill: parent
@@ -38,6 +47,12 @@ PopupCard {
     contentHeight: settingsColumn.implicitHeight
     clip: true
     boundsBehavior: Flickable.StopAtBounds
+
+    Timer {
+      id: copyResetTimer
+      interval: 1600
+      onTriggered: root.copyDone = false
+    }
 
     Column {
       id: settingsColumn
@@ -222,6 +237,33 @@ PopupCard {
         }
       }
 
+      // Taskbar window scope filter
+      Text {
+        width: parent.width
+        textFormat: Text.PlainText
+        text: root.strings.t("settings.windowFilter")
+        color: Commons.Color.popups.text
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        elide: Text.ElideRight
+      }
+
+      ButtonGroup {
+        width: parent.width
+        focusable: false
+        foreground: Commons.Color.popups.text
+        background: Commons.Color.popups.background
+        accent: Commons.Color.accent
+        fontSize: Style.font.caption
+        options: [
+          { value: "all", label: root.strings.t("settings.filterAll") },
+          { value: "workspace", label: root.strings.t("settings.filterWorkspace") },
+          { value: "monitor", label: root.strings.t("settings.filterMonitor") }
+        ]
+        value: root.windowFilter
+        onChanged: function(val) { root.windowFilterRequested(val) }
+      }
+
       SettingToggleRow {
         label: root.strings.t("settings.twoLineClock")
         checked: root.twoLineClock
@@ -244,20 +286,79 @@ PopupCard {
         foreground: Commons.Color.popups.text
       }
 
+      Rectangle {
+        visible: !root.companionInstalled
+        width: parent.width
+        implicitHeight: visible ? noticeCol.implicitHeight + Style.spacing.sm * 2 : 0
+        height: implicitHeight
+        radius: Math.max(Style.space(6), Style.cornerRadius)
+        color: Util.alpha(Commons.Color.accent, 0.1)
+        border.width: 1
+        border.color: Util.alpha(Commons.Color.accent, 0.4)
+
+        Column {
+          id: noticeCol
+          x: Style.spacing.sm
+          y: Style.spacing.sm
+          width: parent.width - Style.spacing.sm * 2
+          spacing: Style.spacing.xs
+
+          Text {
+            width: parent.width
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            text: root.strings.t("settings.companionMissing")
+            color: Commons.Color.popups.text
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+          }
+
+          Text {
+            width: parent.width
+            textFormat: Text.PlainText
+            elide: Text.ElideMiddle
+            text: root.companionInstallCmd
+            color: Commons.Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+          }
+
+          Button {
+            text: root.copyDone ? root.strings.t("settings.copied") : root.strings.t("settings.copyCommand")
+            bordered: true
+            focusable: false
+            foreground: Commons.Color.popups.text
+            background: Commons.Color.popups.background
+            accent: Commons.Color.accent
+            fontSize: Style.font.caption
+            horizontalPadding: Style.spacing.sm
+            verticalPadding: Style.space(2)
+            onClicked: {
+              root.copyInstallCommandRequested()
+              root.copyDone = true
+              copyResetTimer.restart()
+            }
+          }
+        }
+      }
+
       Repeater {
         model: [
           { key: "snap_layouts", labelKey: "settings.snapLayouts" },
+          { key: "snap_assist", labelKey: "settings.snapAssist" },
           { key: "aero_snap", labelKey: "settings.aeroSnap" },
           { key: "hover_scroll", labelKey: "settings.hoverScroll" },
           { key: "soft_maximize", labelKey: "settings.softMaximize" },
           { key: "auto_raise", labelKey: "settings.autoRaise" },
-          { key: "shortcuts", labelKey: "settings.shortcuts" }
+          { key: "shortcuts", labelKey: "settings.shortcuts" },
+          { key: "ultrawide_layout", labelKey: "settings.ultrawideLayout" }
         ]
 
         delegate: SettingToggleRow {
           required property var modelData
-          readonly property bool isEnabled: !root.hyprSettings || root.hyprSettings[modelData.key] !== false
+          readonly property bool isEnabled: Boolean(root.hyprSettings && root.hyprSettings[modelData.key])
 
+          rowEnabled: root.companionInstalled
           label: root.strings.t(modelData.labelKey)
           checked: isEnabled
           onToggled: root.hyprOptionToggled(modelData.key, !isEnabled)
@@ -271,12 +372,14 @@ PopupCard {
 
     property string label: ""
     property bool checked: false
+    property bool rowEnabled: true
     signal toggled()
 
     width: parent ? parent.width : 0
     height: Math.max(Style.space(28), Style.spacing.popupRowHeight)
     radius: Style.cornerRadius
-    color: rowMouse.containsMouse ? Style.hoverFill : "transparent"
+    opacity: rowEnabled ? 1.0 : 0.45
+    color: (rowEnabled && rowMouse.containsMouse) ? Style.hoverFill : "transparent"
 
     Text {
       anchors.verticalCenter: parent.verticalCenter
@@ -308,8 +411,9 @@ PopupCard {
     MouseArea {
       id: rowMouse
       anchors.fill: parent
+      enabled: toggleRow.rowEnabled
       hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
+      cursorShape: toggleRow.rowEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
       onClicked: toggleRow.toggled()
     }
   }
