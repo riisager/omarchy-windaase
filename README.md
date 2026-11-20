@@ -7,6 +7,7 @@
 *("Windåse" is Danish wordplay for Windows - literally "wind-can".)*
 
 [![Omarchy 4.5](https://img.shields.io/badge/Omarchy-4.5-111111?style=for-the-badge)](https://omarchy.org)
+[![Omarchy Marketplace](https://img.shields.io/badge/Omarchy_Marketplace-riisager.windaase-0ea5e9?style=for-the-badge)](https://plugins.omarchy.org/plugin.html?id=riisager.windaase)
 [![Hyprland + Quickshell](https://img.shields.io/badge/Hyprland_%2B_Quickshell-Plugin_%2B_Lua-2563eb?style=for-the-badge)](#architecture)
 [![i18n 50 Locales + RTL](https://img.shields.io/badge/i18n-50_Locales_%2B_RTL-10b981?style=for-the-badge)](#all-50-omarchy-locales-with-rtl)
 [![Zero System Edits](https://img.shields.io/badge/%2Fusr%2Fshare%2Fomarchy-0_Edits-8b5cf6?style=for-the-badge)](#why-omarchy-windåse)
@@ -38,7 +39,8 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow - yet
 
 ### In-Bar Taskbar & 3×3 Apps Launcher
 - **Pinned + active windows right inside the bar** (`BarWidget.qml`) alongside Omarchy's own 3×3 **Apps** launcher button (`Super + Alt + Space`).
-- **Smart click, hover preview & drag-and-drop reorder** - Left-click focuses or toggles minimize on single-window apps, hovering any running icon opens a live Wayland window thumbnail preview (`WindowPickerCard.qml`) with workspace badges (`W1`, etc.) and per-window close buttons (`hoverPreview: true`), right-click drag (or middle-click drag) reorders pinned apps or split windows directly in place while left-click drag still moves the whole bar widget, and middle-click spawns a new window.
+- **Live Hover Previews (`WindowPickerCard.qml`)** - Hover any running taskbar icon for live Wayland window thumbnails (`ScreencopyView`) with profile avatars, workspace badges (`W1`, etc.), and per-window close buttons (0% GPU/CPU cost when closed; configurable via `hoverPreview`).
+- **Smart click & drag-and-drop reorder** - Left-click focuses or toggles minimize on single-window apps (or pins a multi-window preview), middle-click opens a new window, and right-click or middle-click drag reorders pinned apps or split windows in place while left-click drag still moves the whole bar widget.
 - **Scales cleanly with tall bars** - Pair with a `40 px` bar height (`--bar-height 40` or in the Settings UI) to grow app icons without blowing up system tray icons, and switch Omarchy's clock to a two-line Windows 11 layout (`HH:mm` / `dd-MM-yyyy`).
 
 ![Omarchy-windåse taskbar positioned at the top](docs/screenshots/top-bar.png)
@@ -54,8 +56,9 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow - yet
 - **1-click *Split windows in taskbar* (`AppMenuCard.qml`)** - Right-click any taskbar icon to uncombine its windows into separate taskbar buttons with window-title tooltips (`uncombine`), persisted directly in `shell.json`.
 - **Live browser profiles** - Right-click **Chrome**, **Chromium**, **Brave**, **Vivaldi**, **Edge**, **Firefox**, or **Zen** to launch any profile directly from its `Local State` / `profiles.ini` metadata.
 - **Automatic multi-profile avatar badges** - Multi-profile Chrome, Chromium, Brave, Vivaldi, Edge, Firefox, and Zen windows automatically show profile badges directly on taskbar icons, tooltips, and the window preview (`windaase-config.py browser-window-profiles`).
+- **100% local & privacy-respecting** - Profile detection reads only local browser metadata (`Local State` / `Sessions` for Chromium-family browsers, `profiles.ini` + `/proc/<pid>` for Firefox and Zen), automatically skips Incognito / InPrivate / Private Browsing and single-profile setups, and never stores or transmits any data.
 
-### Windows 11 Snap Layouts, Snap Assist & Aero Snap
+### Windows 11 Snap Layouts, Snap Assist, Snap Resize & Aero Snap
 Drag any floating window to the top edge of any monitor - or press **`Super + Z`** - to trigger the native themed **Snap Layouts** overlay (`Service.qml` + `snap_layouts.lua`) with live drop-zone previews and pixel-accurate `hyprbars` inset compensation:
 
 ```text
@@ -111,7 +114,9 @@ cd omarchy-windaase
 > Want standard bar height (`26 px`) instead? Drop `--bar-height 40`.  
 > Prefer to keep your existing bar position, dock, and tiling defaults? Run `./install.sh` without `--full`.
 
-### Option B - Shell Plugin Only (via Omarchy CLI)
+### Option B - Shell Plugin Only (Omarchy Marketplace or CLI)
+
+Install directly from **Omarchy Setup → Plugins**, or via CLI:
 
 ```bash
 omarchy plugin add https://github.com/riisager/omarchy-windaase.git --enable
@@ -123,7 +128,7 @@ Or from a local clone:
 ./install.sh --shell-only
 ```
 
-*(Shell-only installs the taskbar widget, All-Apps grid, settings popup, and Snap Layouts overlay host; `hypr.windaase` handles drag-snap, Aero Snap, soft-maximize, auto-raise, hover-scroll, and `Super + D`/`Super + Z`. If you installed via `omarchy plugin add` or the Omarchy Marketplace, you can run `~/.config/omarchy/plugins/riisager.windaase/install.sh` anytime to add the Hyprland companion while preserving `omarchy plugin update`.)*
+*(Shell-only installs the taskbar widget, All-Apps grid, settings popup, and Snap Layouts/Assist/Resize overlay host; `hypr.windaase` handles drag-snap, Snap Assist, Snap Resize, Aero Snap, soft-maximize, auto-raise, hover-scroll, and `Super + D`/`Super + Z`. If you installed via `omarchy plugin add` or the Omarchy Marketplace, you can run `~/.config/omarchy/plugins/riisager.windaase/install.sh` anytime to add the Hyprland companion while preserving `omarchy plugin update`.)*
 
 ### Installer Flags
 
@@ -140,7 +145,7 @@ Or from a local clone:
 
 ## Shortcuts
 
-### Keyboard Shortcuts (`shortcuts = true`)
+### Keyboard Shortcuts
 
 | Shortcut | Floating Workspace / Window | Tiled Fallback / Action |
 | --- | --- | --- |
@@ -253,20 +258,20 @@ omarchy-windaase/
 ├── manifest.json            # Omarchy shell plugin manifest (service + bar-widget)
 ├── BarWidget.qml            # In-bar taskbar widget & 3×3 Apps launcher button
 ├── WindowPickerCard.qml     # Live window thumbnail preview & grouped-window picker
-├── AppMenuCard.qml          # Context menu (Chromium/Chrome/Brave profiles, actions & split toggle)
+├── AppMenuCard.qml          # Context menu (Chrome/Chromium/Brave/Vivaldi/Edge/Firefox/Zen profiles, actions & split toggle)
 ├── ProfileAvatar.qml        # Shared circular browser profile avatar with initial fallback
 ├── SettingsCard.qml         # Native Settings popup (bar height, filter, companion status & toggles)
 ├── SnapAssistCard.qml       # Windows 11-style Snap Assist window picker card
-├── Service.qml              # Snap Layouts + Snap Assist overlay host & ShellIpc (riisager.windaase)
+├── Service.qml              # Snap Layouts, Snap Assist & Snap Resize overlay host + ShellIpc (riisager.windaase)
 ├── AppGrid.qml              # Self-contained visual All-Apps launcher overlay
 ├── TaskbarModel.js          # Pure JS grouping, stable ordering, search, launch & config helpers
-├── windaase-config.py       # Atomic CLI writer for shell.toml, shell.json & windaase.json
+├── windaase-config.py       # Atomic CLI config writer, uninstall cleaner & local browser profile resolver
 ├── layouts.json             # Single source of truth for Snap Layouts geometry
 ├── i18n/*.json              # All 50 Omarchy locale catalogs (+ automatic RTL support)
 ├── hypr/
 │   ├── windaase.lua         # Public entry point: require("hypr.windaase").setup(opts)
 │   └── windaase/
-│       ├── geometry.lua     # JSON loader, monitor work-area math & frame/titlebar insets
+│       ├── geometry.lua     # JSON loader, monitor work-area math, seam solver & frame/titlebar insets
 │       ├── snap.lua         # Aero Snap, soft-maximize & auto-raise
 │       ├── snap_layouts.lua # Event-driven drag monitor (0% idle CPU) & Super+Z overlay
 │       ├── snap_resize.lua  # Coupled Snap Group divider resizing (mouse + Super+Alt+Arrows)
@@ -274,8 +279,8 @@ omarchy-windaase/
 │       └── show_desktop.lua # In-process Super+D workspace minimize/restore toggle
 ├── tests/
 │   ├── taskbar_model.test.js # JS model logic & full 50-locale key/placeholder parity checks
-│   ├── geometry_test.lua     # Snap zone math, frame inset & JSON decoder tests
-│   └── config_helper_test.py # Atomic TOML/JSON rewrite & validation tests
+│   ├── geometry_test.lua     # Snap zone math, Snap Resize seam solver, frame inset & JSON decoder tests
+│   └── config_helper_test.py # Atomic TOML/JSON rewrite, uninstall & multi-browser profile tests
 ├── docs/screenshots/        # README screenshots
 ├── install.sh               # Validated staging-swap installer (--shell-only / --full / --bar-height)
 ├── uninstall.sh             # Clean removal + optional --restore-stock
@@ -285,10 +290,11 @@ omarchy-windaase/
 <details>
 <summary><strong>How runtime coordination works (0% idle CPU)</strong></summary>
 
-1. **Hyprland → Quickshell IPC via `$XDG_RUNTIME_DIR`:** `snap_layouts.lua` wakes only on Hyprland window/drag events and writes `$XDG_RUNTIME_DIR/omarchy-windaase-snap.json` atomically (`rename`). `Service.qml` watches that file with `FileView` and renders the card overlay + live drop-zone highlight only while dragging near the top edge or after `Super + Z`.
+1. **Hyprland → Quickshell IPC via `$XDG_RUNTIME_DIR`:** `snap_layouts.lua` and `snap_resize.lua` wake only on Hyprland window/drag events and write `$XDG_RUNTIME_DIR/omarchy-windaase-snap.json` atomically (`rename`). `Service.qml` watches that file with `FileView` and renders the Snap Layouts card overlay, live drop-zone highlight, or click-through Snap Resize divider pill only while active.
 2. **Single-source geometry:** Both `Service.qml` (hit-test UI preview) and `hypr/windaase/geometry.lua` (cursor hit-test & final `hyprctl` target calculation) read `layouts.json`, accounting for `hyprbars` titlebars and border widths.
 3. **Atomic settings writes:** `SettingsCard.qml` invokes `windaase-config.py` with argv execution (`Util.execArgv`), updating `shell.toml`, `shell.json`, and `windaase.json` via temporary files + `os.replace` so theme changes or concurrent readers never observe partial files.
 4. **Zero-downtime reloads:** `install.sh` validates the staged bundle with `omarchy plugin validate` before atomically swapping `~/.config/omarchy/plugins/riisager.windaase`, preventing transient missing-file QML errors during live updates.
+5. **On-demand live thumbnails & local-only profile detection:** `ScreencopyView` is instantiated inside a `Loader` only while a preview card is open (and skipped for minimized windows), keeping idle GPU/CPU usage at 0%. Browser profile detection runs read-only locally with zero network access.
 
 </details>
 
