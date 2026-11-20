@@ -81,6 +81,7 @@ else
      "${SCRIPT_DIR}/BarWidget.qml" \
      "${SCRIPT_DIR}/WindowPickerCard.qml" \
      "${SCRIPT_DIR}/AppMenuCard.qml" \
+     "${SCRIPT_DIR}/ProfileAvatar.qml" \
      "${SCRIPT_DIR}/SettingsCard.qml" \
      "${SCRIPT_DIR}/SnapAssistCard.qml" \
      "${SCRIPT_DIR}/Service.qml" \

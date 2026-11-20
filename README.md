@@ -69,6 +69,7 @@ Drag any floating window to the top edge of any monitor - or press **`Super + Z`
 
 - **Full keyboard navigation (`Super + Z`):** Move across cards and zones with `Arrow` keys or `Tab`, jump straight to cards `1`–`7` with number keys, and press `Enter` to snap (`Esc` to cancel).
 - **Windows 11 Snap Assist (`SnapAssistCard.qml`):** When you snap a floating window to one side (via `Super + Left/Right`, edge drag, or Snap Layouts) while other windows are open on the same workspace, **Snap Assist** appears in the remaining half/column so one click or `Enter` fills the other side cleanly.
+- **Snap Resize (Coupled Divider Resizing):** Drag the shared border or gap between snapped windows with the mouse - or press **`Super + Alt + Arrow`** - to resize all adjacent panes simultaneously with zero overlap, zero gaps drift, and a live `% · %` divider indicator (`snap_resize.lua`).
 - **Optional Ultrawide `25 / 50 / 25` layout:** Enable *Ultrawide 25/50/25 layout* in Settings (or `ultrawide_layout = true`) to add a 7th centered wide-screen card.
 - **Multi-monitor aware** - Automatically mirrors onto whichever monitor your cursor enters, respecting each monitor's reserved bar margins and gaps.
 - **Aero Snap** - Drag floating windows to screen corners/edges or step cleanly between halves, quarters, maximize, and minimize via `Super + Arrow` keys (`snap.lua`).
@@ -148,6 +149,7 @@ Or from a local clone:
 | `Super + Left` / `Right` | Snap left/right half (or step from top/bottom/opposite snap) | Focus left / right |
 | `Super + Up` | Soft-maximize (or promote left/right half → top corner) | Focus up |
 | `Super + Down` | Un-maximize / un-snap step by step / minimize window | Focus down |
+| `Super + Alt + Left` / `Right` / `Up` / `Down` | Step shared divider ratio (`25 / 35 / 50 / 65 / 75%`) across snapped windows | Move window into group |
 | `Super + D` | Toggle **Show Desktop** (minimize / restore workspace) | Same |
 | `Super + E` | Open File Manager (`nautilus`) | Same |
 | `Alt + F4` | Close active window | Same |
@@ -226,6 +228,7 @@ require("hypr.windaase").setup({
   aero_snap = true,         -- Super + Arrow keys & edge-drag snap
   snap_layouts = true,      -- Top-edge drag Snap Layouts & Super + Z
   snap_assist = true,       -- Show Snap Assist picker after half/side snap
+  snap_resize = true,       -- Coupled mouse border & Super + Alt + Arrow divider resize
   ultrawide_layout = false, -- Add 7th 25/50/25 layout card in Snap Layouts
   soft_maximize = true,     -- Edge-to-edge maximize without fullscreen=1 click lock
   auto_raise = true,        -- Raise floating window to top on focus
@@ -249,6 +252,7 @@ omarchy-windaase/
 ├── BarWidget.qml            # In-bar taskbar widget & 3×3 Apps launcher button
 ├── WindowPickerCard.qml     # Upward grouped-window picker with workspace badges
 ├── AppMenuCard.qml          # Context menu (Chromium/Chrome/Brave profiles, actions & split toggle)
+├── ProfileAvatar.qml        # Shared circular browser profile avatar with initial fallback
 ├── SettingsCard.qml         # Native Settings popup (bar height, filter, companion status & toggles)
 ├── SnapAssistCard.qml       # Windows 11-style Snap Assist window picker card
 ├── Service.qml              # Snap Layouts + Snap Assist overlay host & ShellIpc (riisager.windaase)
@@ -263,6 +267,7 @@ omarchy-windaase/
 │       ├── geometry.lua     # JSON loader, monitor work-area math & frame/titlebar insets
 │       ├── snap.lua         # Aero Snap, soft-maximize & auto-raise
 │       ├── snap_layouts.lua # Event-driven drag monitor (0% idle CPU) & Super+Z overlay
+│       ├── snap_resize.lua  # Coupled Snap Group divider resizing (mouse + Super+Alt+Arrows)
 │       ├── focus.lua        # follow_mouse = 2 enforcement
 │       └── show_desktop.lua # In-process Super+D workspace minimize/restore toggle
 ├── tests/

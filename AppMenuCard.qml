@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
 import qs.Commons
 import qs.Commons as Commons
@@ -81,60 +80,14 @@ PopupCard {
             anchors.rightMargin: Style.spacing.sm
             spacing: Style.spacing.sm
 
-            Item {
+            ProfileAvatar {
               Layout.preferredWidth: Style.space(18)
               Layout.preferredHeight: Style.space(18)
-
-              Rectangle {
-                id: avatarMask
-                anchors.fill: parent
-                radius: width / 2
-                color: "white"
-                visible: false
-                layer.enabled: true
-              }
-
-              Item {
-                anchors.fill: parent
-                visible: avatarImg.status !== Image.Ready
-
-                Rectangle {
-                  anchors.fill: parent
-                  radius: width / 2
-                  color: Commons.Color.accent
-                  opacity: 0.25
-                }
-
-                Text {
-                  anchors.centerIn: parent
-                  textFormat: Text.PlainText
-                  text: profileRow.modelData.initial
-                  color: Commons.Color.popups.text
-                  font.family: Style.font.family
-                  font.pixelSize: Math.max(9, Style.font.caption)
-                  font.bold: true
-                }
-              }
-
-              Image {
-                id: avatarImg
-                anchors.fill: parent
-                source: profileRow.modelData.picturePath ? Util.fileUrl(profileRow.modelData.picturePath) : ""
-                sourceSize: Qt.size(Style.space(36), Style.space(36))
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                smooth: true
-                mipmap: true
-                visible: status === Image.Ready
-                layer.enabled: visible
-                layer.smooth: true
-                layer.effect: MultiEffect {
-                  maskEnabled: true
-                  maskSource: avatarMask
-                  maskThresholdMin: 0.3
-                  maskSpreadAtMin: 0.3
-                }
-              }
+              picturePath: profileRow.modelData.picturePath || ""
+              initial: profileRow.modelData.initial || "?"
+              fallbackOpacity: 0.25
+              initialColor: Commons.Color.popups.text
+              pixelSize: Math.max(9, Style.font.caption)
             }
 
             Text {

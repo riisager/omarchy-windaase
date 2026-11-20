@@ -3,6 +3,7 @@
 
 local geometry = require("hypr.windaase.geometry")
 local snap = require("hypr.windaase.snap")
+local snap_resize = require("hypr.windaase.snap_resize")
 
 local M = {}
 
@@ -40,7 +41,7 @@ local function write_snap_state(tbl)
     local uw_flag = (tbl.uw ~= nil) and tbl.uw or ultrawide_enabled
     local assist_flag = (tbl.assist ~= nil) and tbl.assist or snap_assist_enabled
     payload = string.format(
-      '{"open":true,"mode":"%s","monitor":"%s","card":%d,"zone":%d,"px":%d,"py":%d,"pw":%d,"ph":%d,"addr":"%s","border":%d,"titlebar":%d,"ws":%d,"uw":%s,"assist":%s,"go":%d,"gi":%d}\n',
+      '{"open":true,"mode":"%s","monitor":"%s","card":%d,"zone":%d,"px":%d,"py":%d,"pw":%d,"ph":%d,"addr":"%s","border":%d,"titlebar":%d,"ws":%d,"uw":%s,"assist":%s,"go":%d,"gi":%d,"axis":"%s","p1":%d,"p2":%d}\n',
       geometry.json_escape(tbl.mode or "drag"),
       geometry.json_escape(tbl.monitor or ""),
       tbl.card or -1,
@@ -56,12 +57,15 @@ local function write_snap_state(tbl)
       uw_flag and "true" or "false",
       assist_flag and "true" or "false",
       tbl.go or gap_out,
-      tbl.gi or gap_in
+      tbl.gi or gap_in,
+      geometry.json_escape(tbl.axis or "x"),
+      tbl.p1 or 50,
+      tbl.p2 or 50
     )
   end
 
-  local is_drag = tbl and tbl.open and (tbl.mode == nil or tbl.mode == "drag")
-  if is_drag and payload == last_snap_json then
+  local is_dedup_mode = tbl and tbl.open and (tbl.mode == nil or tbl.mode == "drag" or tbl.mode == "resize")
+  if is_dedup_mode and payload == last_snap_json then
     return
   end
   last_snap_json = payload
@@ -75,14 +79,17 @@ local function write_snap_state(tbl)
   end
 end
 
+M.write_state = write_snap_state
+
 function M.suppress(ticks)
   local n = tonumber(ticks) or 6
   if n > suppress_snap_ticks then
     suppress_snap_ticks = n
   end
   assist_seq = assist_seq + 1
+  snap_resize.clear_flash()
   local raw = read_snap_state_raw()
-  if raw:find('"open":true') and (raw:find('"mode":"assist"') or raw:find('"mode":"click"')) then
+  if raw:find('"open":true') and (raw:find('"mode":"assist"') or raw:find('"mode":"click"') or raw:find('"mode":"resize"')) then
     write_snap_state({ open = false })
   end
 end
@@ -173,15 +180,25 @@ local function tick(expected_token)
     return
   end
 
-  if suppress_snap_ticks > 0 then
-    suppress_snap_ticks = suppress_snap_ticks - 1
+  local cur = hl.get_active_window()
+  local c = hl.get_cursor_pos()
+
+  if snap_resize.is_active() then
+    snap_resize.tick_active_resize(c)
     prev_sample = nil
-    hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 120 })
+    hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 16 })
     return
   end
 
-  local cur = hl.get_active_window()
-  local c = hl.get_cursor_pos()
+  if suppress_snap_ticks > 0 then
+    suppress_snap_ticks = suppress_snap_ticks - 1
+    prev_sample = nil
+    if suppress_snap_ticks == 0 and cur and cur.floating and (cur.fullscreen or 0) == 0 then
+      snap_resize.snapshot_workspace(cur)
+    end
+    hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
+    return
+  end
 
   if mouse_drag_state then
     local st = mouse_drag_state
@@ -230,7 +247,7 @@ local function tick(expected_token)
         st.last_cy = c.y
         if st.detached_ticks >= 2 then
           finish_active_drag(cur, c)
-          hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 120 })
+          hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
           return
         end
       end
@@ -244,6 +261,12 @@ local function tick(expected_token)
   if not cur or not c or not cur.floating or (cur.fullscreen or 0) ~= 0 then
     prev_sample = nil
     monitor_running = false
+    return
+  end
+
+  if snap_resize.try_begin_mouse_resize(cur, c) then
+    prev_sample = nil
+    hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 16 })
     return
   end
 
@@ -279,6 +302,8 @@ local function tick(expected_token)
     end
   end
 
+  snap_resize.snapshot_workspace(cur)
+
   prev_sample = {
     addr = cur.address,
     x = cur.at.x,
@@ -289,7 +314,7 @@ local function tick(expected_token)
     cy = c.y,
   }
 
-  hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 120 })
+  hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
 end
 
 local function ensure_monitor_running()
@@ -339,6 +364,7 @@ function M.schedule_assist(window, m, snapped_zone)
   end
 
   assist_seq = assist_seq + 1
+  snap_resize.clear_flash()
   local seq = assist_seq
   local mon_name = m.name
   local area = geometry.get_work_area(m, gap_out, gap_in)
@@ -379,6 +405,7 @@ end
 
 function M.toggle_click_overlay()
   assist_seq = assist_seq + 1
+  snap_resize.clear_flash()
   local raw = read_snap_state_raw()
   if raw:find('"open":true') and (raw:find('"mode":"click"') or raw:find('"mode":"assist"')) then
     write_snap_state({ open = false })
@@ -438,6 +465,11 @@ function M.setup(opts)
     hl.on("monitor.focused", wake_later)
 
     hl.bind("mouse:272", function()
+      if snap_resize.is_active() then
+        snap_resize.finish_active_resize()
+        prev_sample = nil
+        return
+      end
       if not mouse_drag_state then
         return
       end
@@ -445,6 +477,15 @@ function M.setup(opts)
       local c = hl.get_cursor_pos()
       finish_active_drag(cur, c)
     end, { release = true, transparent = true, ignore_mods = true, non_consuming = true })
+
+    if opts.snap_resize ~= false and opts.aero_snap ~= false then
+      hl.bind("mouse:273", function()
+        if snap_resize.is_active() then
+          snap_resize.finish_active_resize()
+          prev_sample = nil
+        end
+      end, { release = true, transparent = true, ignore_mods = true, non_consuming = true })
+    end
   end
 
   if snap_layouts_enabled then

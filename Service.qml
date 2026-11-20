@@ -181,16 +181,19 @@ Item {
   }
 
   function emptyState() {
-    return { open: false, mode: "drag", monitor: "", card: -1, zone: -1, px: 0, py: 0, pw: 0, ph: 0, addr: "", border: 2, titlebar: 30, ws: -1, uw: null, assist: null, go: 8, gi: 8 }
+    return { open: false, mode: "drag", monitor: "", card: -1, zone: -1, px: 0, py: 0, pw: 0, ph: 0, addr: "", border: 2, titlebar: 30, ws: -1, uw: null, assist: null, go: 8, gi: 8, axis: "x", p1: 50, p2: 50 }
   }
 
   function parseState(raw) {
     try {
       var parsed = JSON.parse(String(raw || ""))
       if (parsed && typeof parsed === "object") {
+        var mode = parsed.mode === "assist"
+          ? "assist"
+          : (parsed.mode === "click" ? "click" : (parsed.mode === "resize" ? "resize" : "drag"))
         root.snapState = {
           open: !!parsed.open,
-          mode: parsed.mode === "assist" ? "assist" : (parsed.mode === "click" ? "click" : "drag"),
+          mode: mode,
           monitor: String(parsed.monitor || ""),
           card: typeof parsed.card === "number" ? parsed.card : -1,
           zone: typeof parsed.zone === "number" ? parsed.zone : -1,
@@ -205,7 +208,10 @@ Item {
           uw: typeof parsed.uw === "boolean" ? parsed.uw : null,
           assist: typeof parsed.assist === "boolean" ? parsed.assist : null,
           go: typeof parsed.go === "number" ? Math.max(0, Math.round(parsed.go)) : 8,
-          gi: typeof parsed.gi === "number" ? Math.max(0, Math.round(parsed.gi)) : 8
+          gi: typeof parsed.gi === "number" ? Math.max(0, Math.round(parsed.gi)) : 8,
+          axis: parsed.axis === "y" ? "y" : "x",
+          p1: typeof parsed.p1 === "number" ? Math.max(1, Math.min(99, Math.round(parsed.p1))) : 50,
+          p2: typeof parsed.p2 === "number" ? Math.max(1, Math.min(99, Math.round(parsed.p2))) : 50
         }
         return
       }
@@ -294,6 +300,7 @@ Item {
         readonly property bool activeOnScreen: root.snapState.open && root.snapState.monitor === monitorName
         readonly property bool isClick: activeOnScreen && root.snapState.mode === "click"
         readonly property bool isAssist: activeOnScreen && root.snapState.mode === "assist"
+        readonly property bool isResize: activeOnScreen && root.snapState.mode === "resize"
         readonly property bool isInteractive: isClick || isAssist
 
         property int clickSelectedCard: -1
@@ -441,7 +448,7 @@ Item {
         }
 
         readonly property var previewRect: {
-          if (!activeOnScreen) return { visible: false, x: 0, y: 0, w: 0, h: 0 }
+          if (!activeOnScreen || isResize) return { visible: false, x: 0, y: 0, w: 0, h: 0 }
           if (isClick) {
             if (clickSelectedCard >= 0 && clickSelectedZone >= 0 && root.layouts[clickSelectedCard] && root.layouts[clickSelectedCard][clickSelectedZone]) {
               var z = root.layouts[clickSelectedCard][clickSelectedZone]
@@ -596,10 +603,10 @@ Item {
             width: contentW + root.pillPadX * 2 + contentLeftInset + contentRightInset - padding * 2
             height: contentH + root.pillPadY * 2 + contentTopInset + contentBottomInset - padding * 2
             x: Math.round((win.width - width) / 2)
-            y: (win.activeOnScreen && !win.isAssist) ? root.topMargin : -height - 12
-            visible: (win.activeOnScreen && !win.isAssist) || opacity > 0
-            opacity: (win.activeOnScreen && !win.isAssist) ? 1 : 0
-            scale: (win.activeOnScreen && !win.isAssist) ? 1 : 0.96
+            y: (win.activeOnScreen && !win.isAssist && !win.isResize) ? root.topMargin : -height - 12
+            visible: (win.activeOnScreen && !win.isAssist && !win.isResize) || opacity > 0
+            opacity: (win.activeOnScreen && !win.isAssist && !win.isResize) ? 1 : 0
+            scale: (win.activeOnScreen && !win.isAssist && !win.isResize) ? 1 : 0.96
 
             radius: Math.max(Style.space(10), Style.cornerRadius)
             color: Commons.Color.popups.background
@@ -691,6 +698,93 @@ Item {
             onHoveredIndexChanged: function(idx) { win.assistSelectedIndex = idx }
             onWindowPicked: function(cand) { win.applyAssistWindow(cand) }
             onCloseRequested: root.closeState()
+          }
+
+          // Click-through Windows 11-style Snap Resize divider & live split ratio pill
+          Item {
+            id: resizeOverlay
+            anchors.fill: parent
+
+            property real divX: 0
+            property real divY: 0
+            property real divW: 8
+            property real divH: 100
+            property string divAxis: "x"
+            property int shownP1: 50
+            property int shownP2: 50
+
+            function syncFromState() {
+              if (!win.isResize) return
+              divX = root.snapState.px
+              divY = root.snapState.py
+              divW = Math.max(1, root.snapState.pw)
+              divH = Math.max(1, root.snapState.ph)
+              divAxis = root.snapState.axis === "y" ? "y" : "x"
+              shownP1 = root.snapState.p1
+              shownP2 = root.snapState.p2
+            }
+
+            Connections {
+              target: root
+              function onSnapStateChanged() { resizeOverlay.syncFromState() }
+            }
+            Component.onCompleted: syncFromState()
+
+            visible: win.isResize || opacity > 0
+            opacity: win.isResize ? 1 : 0
+
+            Behavior on opacity { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+
+            Rectangle {
+              readonly property bool isVert: resizeOverlay.divAxis !== "y"
+              readonly property real thick: Math.max(3, Math.min(isVert ? resizeOverlay.divW : resizeOverlay.divH, Style.space(4)))
+
+              x: isVert ? Math.round(resizeOverlay.divX + (resizeOverlay.divW - width) / 2) : Math.round(resizeOverlay.divX)
+              y: isVert ? Math.round(resizeOverlay.divY) : Math.round(resizeOverlay.divY + (resizeOverlay.divH - height) / 2)
+              width: isVert ? thick : Math.max(1, Math.round(resizeOverlay.divW))
+              height: isVert ? Math.max(1, Math.round(resizeOverlay.divH)) : thick
+              radius: Math.max(1, Math.round(thick / 2))
+              color: Util.alpha(Commons.Color.accent, 0.55)
+            }
+
+            Rectangle {
+              readonly property bool isVert: resizeOverlay.divAxis !== "y"
+
+              width: isVert ? Style.space(6) : Style.space(44)
+              height: isVert ? Style.space(44) : Style.space(6)
+              x: Math.round(resizeOverlay.divX + (resizeOverlay.divW - width) / 2)
+              y: Math.round(resizeOverlay.divY + (resizeOverlay.divH - height) / 2)
+              radius: Math.min(width, height) / 2
+              color: Commons.Color.accent
+            }
+
+            Rectangle {
+              readonly property bool isVert: resizeOverlay.divAxis !== "y"
+              readonly property real targetX: resizeOverlay.divX + (resizeOverlay.divW - width) / 2
+              readonly property real targetY: isVert
+                ? resizeOverlay.divY + resizeOverlay.divH / 2 - Style.space(22) - height - Style.space(8)
+                : resizeOverlay.divY + (resizeOverlay.divH - height) / 2 - Style.space(18) - height
+
+              width: ratioTxt.implicitWidth + Style.space(16)
+              height: ratioTxt.implicitHeight + Style.space(8)
+              x: Math.round(Math.max(Style.space(12), Math.min(win.width - width - Style.space(12), targetX)))
+              y: Math.round(Math.max(Style.space(12), Math.min(win.height - height - Style.space(12), targetY)))
+              radius: Math.max(Style.space(8), Style.cornerRadius)
+              color: Commons.Color.popups.background
+              border.width: Math.max(1, Style.normalBorderWidth)
+              border.color: Commons.Color.popups.border
+
+              Text {
+                id: ratioTxt
+                anchors.centerIn: parent
+                textFormat: Text.PlainText
+                text: Commons.I18n.formatNumber(resizeOverlay.shownP1) + "% · " + Commons.I18n.formatNumber(resizeOverlay.shownP2) + "%"
+                color: Commons.Color.popups.text
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                font.bold: true
+              }
+            }
           }
         }
       }

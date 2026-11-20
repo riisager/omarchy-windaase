@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
@@ -338,6 +337,7 @@ BarWidget {
     var toplevels = Hyprland.toplevels.values
     var browserWins = []
     var nextKnown = {}
+    var activeRetryKeys = {}
     var newAddrs = {}
 
     for (var i = 0; i < toplevels.length; i++) {
@@ -361,6 +361,7 @@ BarWidget {
       }
       browserWins.push(winObj)
       nextKnown[addr] = true
+      activeRetryKeys[addr + "|" + winObj.title] = true
       if (!root.knownBrowserAddrs[addr]) newAddrs[addr] = winObj
     }
 
@@ -400,9 +401,7 @@ BarWidget {
     var rKeys = Object.keys(root.profileProbeRetries || {})
     for (var r = 0; r < rKeys.length; r++) {
       var rk = rKeys[r]
-      var sep = rk.indexOf("|")
-      var rAddr = sep >= 0 ? rk.slice(0, sep) : rk
-      if (nextKnown[rAddr]) cleanedRetries[rk] = root.profileProbeRetries[rk]
+      if (activeRetryKeys[rk]) cleanedRetries[rk] = root.profileProbeRetries[rk]
     }
     root.profileProbeRetries = cleanedRetries
     root.knownBrowserAddrs = nextKnown
@@ -850,6 +849,21 @@ BarWidget {
 
       readonly property bool hovered: appsMouse.containsMouse
       property var registeredBar: null
+      property int heldButtons: Qt.NoButton
+      readonly property real pressScale: ((appsMouse.pressedButtons | appsSlot.heldButtons) & Qt.LeftButton) ? 0.9 : 1.0
+
+      function triggerPress(button) {
+        if (root.bar) root.bar.hideTooltip(appsSlot)
+        if (button === Qt.RightButton) {
+          if (root.settingsOpen) root.closePopouts()
+          else root.openSettings(appsSlot)
+          return
+        }
+        if (button === Qt.LeftButton) {
+          root.closePopouts()
+          root.toggleAppGrid()
+        }
+      }
 
       function syncClickRegistration() {
         if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(appsSlot)
@@ -861,6 +875,7 @@ BarWidget {
       Layout.preferredWidth: root.showAppsButton ? root.slotSize : 0
       Layout.preferredHeight: root.showAppsButton ? root.slotSize : 0
 
+      onVisibleChanged: if (!visible && root.bar) root.bar.hideTooltip(appsSlot)
       Connections {
         target: root
         function onBarChanged() { appsSlot.syncClickRegistration() }
@@ -886,7 +901,7 @@ BarWidget {
         width: root.appsIconSize
         height: root.appsIconSize
         opacity: appsSlot.hovered ? 1.0 : root.idleOpacity
-        scale: appsSlot.hovered ? 1.1 : 1.0
+        scale: (appsSlot.hovered ? 1.1 : 1.0) * appsSlot.pressScale
 
         Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
 
@@ -923,16 +938,7 @@ BarWidget {
           }
         }
         onExited: if (root.bar) root.bar.hideTooltip(appsSlot)
-        onClicked: function(event) {
-          if (root.bar) root.bar.hideTooltip(appsSlot)
-          if (event.button === Qt.RightButton) {
-            if (root.settingsOpen) root.closePopouts()
-            else root.openSettings(appsSlot)
-            return
-          }
-          root.closePopouts()
-          root.toggleAppGrid()
-        }
+        onClicked: function(event) { appsSlot.triggerPress(event.button) }
       }
     }
 
@@ -956,6 +962,36 @@ BarWidget {
         readonly property bool hovered: slotMouse.containsMouse && !root.draggingItem
 
         property var registeredBar: null
+        property int heldButtons: Qt.NoButton
+        readonly property real pressScale: (!taskSlot.lifted && ((slotMouse.pressedButtons | taskSlot.heldButtons) & Qt.LeftButton)) ? 0.9 : 1.0
+
+        function triggerPress(button) {
+          if (root.bar) root.bar.hideTooltip(taskSlot)
+          if (!taskSlot.modelData) return
+          if (button === Qt.RightButton) {
+            if (root.menuKey === taskSlot.key) root.closePopouts()
+            else root.openMenu(taskSlot.key, taskSlot)
+            return
+          }
+          if (button === Qt.MiddleButton) {
+            root.closePopouts()
+            root.launch(taskSlot.modelData)
+            return
+          }
+          if (button !== Qt.LeftButton) return
+          if (taskSlot.windowCount === 0) {
+            root.closePopouts()
+            root.launch(taskSlot.modelData)
+            return
+          }
+          if (taskSlot.windowCount === 1) {
+            root.closePopouts()
+            root.activateWindow(taskSlot.modelData.windows[0])
+            return
+          }
+          if (root.pickerKey === taskSlot.key) root.closePopouts()
+          else root.openPicker(taskSlot.key, taskSlot)
+        }
 
         function syncClickRegistration() {
           if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(taskSlot)
@@ -973,6 +1009,7 @@ BarWidget {
         }
         Component.onCompleted: syncClickRegistration()
         Component.onDestruction: {
+          if (taskSlot.lifted) root.endItemDrag()
           if (root.bar) root.bar.hideTooltip(taskSlot)
           if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(taskSlot)
         }
@@ -1029,7 +1066,7 @@ BarWidget {
             smooth: true
             mipmap: true
             opacity: taskSlot.windowCount > 0 ? (taskSlot.allMinimized ? 0.65 : 1.0) : root.idleOpacity
-            scale: taskSlot.hovered ? 1.1 : 1.0
+            scale: (taskSlot.hovered ? 1.1 : 1.0) * taskSlot.pressScale
 
             Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
           }
@@ -1074,58 +1111,13 @@ BarWidget {
             border.color: Util.alpha(Commons.Color.popups.border, 0.7)
             opacity: taskSlot.allMinimized ? 0.78 : 1.0
 
-            Item {
+            ProfileAvatar {
               anchors.centerIn: parent
               width: root.profileBadgeSize - 2
               height: root.profileBadgeSize - 2
-
-              Rectangle {
-                id: profileAvatarMask
-                anchors.fill: parent
-                radius: width / 2
-                color: "white"
-                visible: false
-                layer.enabled: true
-              }
-
-              Rectangle {
-                anchors.fill: parent
-                radius: width / 2
-                color: Commons.Color.accent
-                visible: profileAvatarImg.status !== Image.Ready
-
-                Text {
-                  anchors.centerIn: parent
-                  textFormat: Text.PlainText
-                  text: taskSlot.profileBadge ? (taskSlot.profileBadge.initial || "?") : ""
-                  color: Commons.Color.background
-                  font.family: Style.font.family
-                  font.pixelSize: Math.max(7, Math.round(root.profileBadgeSize * 0.58))
-                  font.bold: true
-                }
-              }
-
-              Image {
-                id: profileAvatarImg
-                anchors.fill: parent
-                source: (taskSlot.profileBadge && taskSlot.profileBadge.picturePath)
-                  ? Util.fileUrl(taskSlot.profileBadge.picturePath)
-                  : ""
-                sourceSize: Qt.size(Style.space(32), Style.space(32))
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                smooth: true
-                mipmap: true
-                visible: status === Image.Ready
-                layer.enabled: visible
-                layer.smooth: true
-                layer.effect: MultiEffect {
-                  maskEnabled: true
-                  maskSource: profileAvatarMask
-                  maskThresholdMin: 0.3
-                  maskSpreadAtMin: 0.3
-                }
-              }
+              picturePath: taskSlot.profileBadge ? (taskSlot.profileBadge.picturePath || "") : ""
+              initial: taskSlot.profileBadge ? (taskSlot.profileBadge.initial || "?") : ""
+              pixelSize: Math.max(7, Math.round(root.profileBadgeSize * 0.58))
             }
           }
 
@@ -1243,29 +1235,7 @@ BarWidget {
               slotMouse.didDrag = false
               return
             }
-            if (!taskSlot.modelData) return
-            if (event.button === Qt.RightButton) {
-              if (root.menuKey === taskSlot.key) root.closePopouts()
-              else root.openMenu(taskSlot.key, taskSlot)
-              return
-            }
-            if (event.button === Qt.MiddleButton) {
-              root.closePopouts()
-              root.launch(taskSlot.modelData)
-              return
-            }
-            if (taskSlot.windowCount === 0) {
-              root.closePopouts()
-              root.launch(taskSlot.modelData)
-              return
-            }
-            if (taskSlot.windowCount === 1) {
-              root.closePopouts()
-              root.activateWindow(taskSlot.modelData.windows[0])
-              return
-            }
-            if (root.pickerKey === taskSlot.key) root.closePopouts()
-            else root.openPicker(taskSlot.key, taskSlot)
+            taskSlot.triggerPress(event.button)
           }
         }
       }

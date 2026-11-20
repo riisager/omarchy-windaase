@@ -14,6 +14,7 @@ HYPR_OPTION_KEYS = (
     "aero_snap",
     "snap_layouts",
     "snap_assist",
+    "snap_resize",
     "ultrawide_layout",
     "soft_maximize",
     "auto_raise",

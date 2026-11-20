@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
@@ -74,65 +73,14 @@ PopupCard {
               opacity: pickerRow.modelData.minimized ? 0.35 : (pickerRow.isActive ? 1.0 : 0.7)
             }
 
-            Item {
+            ProfileAvatar {
               anchors.fill: parent
               visible: !!pickerRow.winProfile
-
-              Rectangle {
-                id: pickerAvatarMask
-                anchors.fill: parent
-                radius: width / 2
-                color: "white"
-                visible: false
-                layer.enabled: true
-              }
-
-              Rectangle {
-                anchors.fill: parent
-                radius: width / 2
-                color: Commons.Color.accent
-                visible: pickerAvatarImg.status !== Image.Ready
-
-                Text {
-                  anchors.centerIn: parent
-                  textFormat: Text.PlainText
-                  text: pickerRow.winProfile ? (pickerRow.winProfile.initial || "?") : ""
-                  color: Commons.Color.background
-                  font.family: Style.font.family
-                  font.pixelSize: Math.max(8, Math.round(Style.space(16) * 0.56))
-                  font.bold: true
-                }
-              }
-
-              Image {
-                id: pickerAvatarImg
-                anchors.fill: parent
-                source: (pickerRow.winProfile && pickerRow.winProfile.picturePath)
-                  ? Util.fileUrl(pickerRow.winProfile.picturePath)
-                  : ""
-                sourceSize: Qt.size(Style.space(32), Style.space(32))
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                smooth: true
-                mipmap: true
-                visible: status === Image.Ready
-                layer.enabled: visible
-                layer.smooth: true
-                layer.effect: MultiEffect {
-                  maskEnabled: true
-                  maskSource: pickerAvatarMask
-                  maskThresholdMin: 0.3
-                  maskSpreadAtMin: 0.3
-                }
-              }
-
-              Rectangle {
-                anchors.fill: parent
-                radius: width / 2
-                color: "transparent"
-                border.width: 1
-                border.color: pickerRow.isActive ? Commons.Color.accent : Commons.Color.popups.border
-              }
+              picturePath: pickerRow.winProfile ? (pickerRow.winProfile.picturePath || "") : ""
+              initial: pickerRow.winProfile ? (pickerRow.winProfile.initial || "?") : ""
+              pixelSize: Math.max(8, Math.round(Style.space(16) * 0.56))
+              borderWidth: 1
+              borderColor: pickerRow.isActive ? Commons.Color.accent : Commons.Color.popups.border
             }
           }
 

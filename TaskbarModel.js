@@ -749,6 +749,7 @@ function resolveIconSize(slotSize, configuredIconSize, minSize) {
 var HYPR_OPTION_KEYS = [
   "snap_layouts",
   "snap_assist",
+  "snap_resize",
   "aero_snap",
   "hover_scroll",
   "soft_maximize",
@@ -761,6 +762,7 @@ function defaultHyprSettings() {
   return {
     snap_layouts: true,
     snap_assist: true,
+    snap_resize: true,
     aero_snap: true,
     hover_scroll: true,
     soft_maximize: true,

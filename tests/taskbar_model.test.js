@@ -269,6 +269,7 @@ function run() {
   assert.deepStrictEqual(defaults, {
     snap_layouts: true,
     snap_assist: true,
+    snap_resize: true,
     aero_snap: true,
     hover_scroll: true,
     soft_maximize: true,
@@ -278,10 +279,11 @@ function run() {
   });
 
   assert.deepStrictEqual(
-    TaskbarModel.parseHyprSettings(JSON.stringify({ hover_scroll: false, ultrawide_layout: true, auto_raise: "nope", extra: false })),
+    TaskbarModel.parseHyprSettings(JSON.stringify({ hover_scroll: false, snap_resize: false, ultrawide_layout: true, auto_raise: "nope", extra: false })),
     {
       snap_layouts: true,
       snap_assist: true,
+      snap_resize: false,
       aero_snap: true,
       hover_scroll: false,
       soft_maximize: true,

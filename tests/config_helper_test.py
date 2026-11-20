@@ -106,6 +106,8 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stderr)
         res = self.run_helper("hypr-set", "snap_assist", "false", "--no-reload")
         self.assertEqual(res.returncode, 0, res.stderr)
+        res = self.run_helper("hypr-set", "snap_resize", "false", "--no-reload")
+        self.assertEqual(res.returncode, 0, res.stderr)
         res = self.run_helper("hypr-set", "ultrawide_layout", "true", "--no-reload")
         self.assertEqual(res.returncode, 0, res.stderr)
 
@@ -117,6 +119,7 @@ class ConfigHelperTests(unittest.TestCase):
                 "hover_scroll": False,
                 "auto_raise": True,
                 "snap_assist": False,
+                "snap_resize": False,
                 "ultrawide_layout": True,
             },
         )

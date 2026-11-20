@@ -5,6 +5,7 @@
 local geometry = require("hypr.windaase.geometry")
 local snap = require("hypr.windaase.snap")
 local snap_layouts = require("hypr.windaase.snap_layouts")
+local snap_resize = require("hypr.windaase.snap_resize")
 local focus = require("hypr.windaase.focus")
 local show_desktop = require("hypr.windaase.show_desktop")
 
@@ -14,6 +15,7 @@ local DEFAULTS = {
   aero_snap = true,
   snap_layouts = true,
   snap_assist = true,
+  snap_resize = true,
   ultrawide_layout = false,
   soft_maximize = true,
   auto_raise = true,
@@ -76,6 +78,7 @@ function M.setup(user_opts)
   )
 
   snap_layouts.setup(opts)
+  snap_resize.setup(opts, snap_layouts.write_state, snap_layouts.suppress)
 
   if opts.hover_scroll then
     focus.setup()
@@ -90,6 +93,7 @@ function M.setup(user_opts)
 end
 
 M.snap = snap.apply_snap
+M.snap_resize = snap_resize.resize_by_keyboard
 M.show_desktop = show_desktop.toggle
 M.toggle_snap_layouts = snap_layouts.toggle_click_overlay
 
