@@ -49,12 +49,21 @@ fi
 
 STAGING_DIR=""
 OLD_DIR=""
+OLD_MOVED=0
+SWAP_COMMITTED=0
 cleanup_temp_dirs() {
-  if [[ -n "${STAGING_DIR}" ]]; then
-    rm -rf "${STAGING_DIR}"
-  fi
-  if [[ -n "${OLD_DIR}" ]]; then
+  if [[ "${OLD_MOVED}" -eq 1 && "${SWAP_COMMITTED}" -eq 0 && -n "${OLD_DIR}" && ( -e "${OLD_DIR}" || -L "${OLD_DIR}" ) ]]; then
+    if [[ ! -e "${PLUGIN_DEST}" && ! -L "${PLUGIN_DEST}" ]] && mv "${OLD_DIR}" "${PLUGIN_DEST}" 2>/dev/null; then
+      echo "Warning: installation failed; restored previous plugin at ${PLUGIN_DEST}" >&2
+    else
+      echo "Warning: installation failed; previous plugin preserved at ${OLD_DIR}" >&2
+    fi
+  elif [[ "${SWAP_COMMITTED}" -eq 1 && -n "${OLD_DIR}" && ( -e "${OLD_DIR}" || -L "${OLD_DIR}" ) ]]; then
     rm -rf "${OLD_DIR}"
+  fi
+
+  if [[ -n "${STAGING_DIR}" && ( -e "${STAGING_DIR}" || -L "${STAGING_DIR}" ) ]]; then
+    rm -rf "${STAGING_DIR}"
   fi
 }
 trap cleanup_temp_dirs EXIT
@@ -96,11 +105,19 @@ else
   omarchy plugin validate "${STAGING_DIR}"
   echo "==> Validated plugin: ${PLUGIN_ID}"
 
-  if [[ -e "${PLUGIN_DEST}" ]]; then
+  if [[ -e "${PLUGIN_DEST}" || -L "${PLUGIN_DEST}" ]]; then
     mv "${PLUGIN_DEST}" "${OLD_DIR}"
+    OLD_MOVED=1
   fi
-  mv "${STAGING_DIR}" "${PLUGIN_DEST}"
-  rm -rf "${OLD_DIR}"
+  if ! mv "${STAGING_DIR}" "${PLUGIN_DEST}"; then
+    exit 1
+  fi
+  SWAP_COMMITTED=1
+  STAGING_DIR=""
+  if [[ "${OLD_MOVED}" -eq 1 && ( -e "${OLD_DIR}" || -L "${OLD_DIR}" ) ]]; then
+    rm -rf "${OLD_DIR}"
+    OLD_MOVED=0
+  fi
   echo "==> Installed Omarchy-windåse shell plugin to ${PLUGIN_DEST}"
 fi
 

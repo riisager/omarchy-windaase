@@ -793,6 +793,71 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(out["0x4441"]["name"], "Dev")
         self.assertTrue(out["0x4441"]["confident"])
 
+    def _run_install_with_mv_wrapper(self, fail_rollback=False):
+        stub_dir = self._make_stub_bin()
+        real_mv = shutil.which("mv")
+        self.assertTrue(real_mv, "Expected mv binary in PATH")
+
+        plugin_dest = os.path.join(self.omarchy_dir, "plugins", "riisager.windaase")
+        os.makedirs(plugin_dest, exist_ok=True)
+        with open(os.path.join(plugin_dest, "manifest.json"), "w", encoding="utf-8") as handle:
+            handle.write('{"id":"riisager.windaase"}\n')
+        marker = os.path.join(plugin_dest, "custom-local-note.txt")
+        with open(marker, "w", encoding="utf-8") as handle:
+            handle.write("keep-me\n")
+
+        mv_wrapper = os.path.join(stub_dir, "mv")
+        rollback_block = (
+            'if [[ "${fail_rollback}" == "1" && "${src}" == *.old.* && "${dst}" == */riisager.windaase ]]; then\n'
+            '  exit 1\n'
+            'fi\n'
+        )
+        with open(mv_wrapper, "w", encoding="utf-8") as handle:
+            handle.write(
+                "#!/bin/bash\n"
+                'src="${1:-}"\n'
+                'dst="${2:-}"\n'
+                f'fail_rollback="{1 if fail_rollback else 0}"\n'
+                'if [[ "${src}" == *.staging.* && "${dst}" == */riisager.windaase ]]; then\n'
+                '  exit 1\n'
+                'fi\n'
+                + rollback_block
+                + f'exec "{real_mv}" "$@"\n'
+            )
+        os.chmod(mv_wrapper, os.stat(mv_wrapper).st_mode | stat.S_IXUSR)
+
+        env = self.env.copy()
+        env["PATH"] = f"{stub_dir}:{env['PATH']}"
+        res = subprocess.run(
+            ["bash", INSTALL_SH, "--shell-only"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return res, plugin_dest, marker
+
+    def test_install_sh_restores_previous_plugin_when_staged_swap_fails(self):
+        res, plugin_dest, marker = self._run_install_with_mv_wrapper(fail_rollback=False)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("restored previous plugin", res.stderr)
+        self.assertTrue(os.path.exists(marker))
+        self.assertEqual(self.read_text(marker), "keep-me\n")
+        self.assertEqual(glob.glob(f"{plugin_dest}.staging.*"), [])
+        self.assertEqual(glob.glob(f"{plugin_dest}.old.*"), [])
+
+    def test_install_sh_preserves_recovery_dir_when_rollback_also_fails(self):
+        res, plugin_dest, marker = self._run_install_with_mv_wrapper(fail_rollback=True)
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("previous plugin preserved at", res.stderr)
+        self.assertFalse(os.path.exists(marker))
+        self.assertEqual(glob.glob(f"{plugin_dest}.staging.*"), [])
+        preserved_dirs = glob.glob(f"{plugin_dest}.old.*")
+        self.assertEqual(len(preserved_dirs), 1)
+        preserved_marker = os.path.join(preserved_dirs[0], "custom-local-note.txt")
+        self.assertTrue(os.path.exists(preserved_marker))
+        self.assertEqual(self.read_text(preserved_marker), "keep-me\n")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
