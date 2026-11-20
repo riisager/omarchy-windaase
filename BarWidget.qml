@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
@@ -21,6 +22,8 @@ BarWidget {
   readonly property int indicatorThickness: root.tallBar ? Style.space(3) : Style.space(2)
   readonly property int indicatorMargin: root.tallBar ? Style.space(2) : Style.space(1)
   readonly property int badgeSize: root.tallBar ? Style.space(13) : Style.space(10)
+  readonly property int profileBadgeSize: Math.max(Style.space(11), Math.min(Style.space(16), Math.round(root.iconSize * 0.52)))
+  readonly property real slotStride: root.slotSize + (root.tallBar ? Style.space(3) : Style.space(2))
   readonly property real idleOpacity: 0.85
   readonly property var uncombinedApps: root.setting("uncombine", [])
   readonly property bool showAppsButton: root.setting("showAppsButton", true)
@@ -39,7 +42,18 @@ BarWidget {
 
   property string activeBrowserDir: ""
   property var browserProfiles: []
+  property var windowProfiles: ({})
+  property var pendingProfileLaunch: null
+  property var knownBrowserAddrs: ({})
+  property var profileProbeRetries: ({})
+  property var pendingProbeBatch: []
+  property var lastProbedBatch: []
   property var windowOrderState: ({ seq: 0, byAddr: {} })
+  property int dragIndex: -1
+  property int dropIndex: -1
+  property real dragOffset: 0
+  readonly property bool draggingItem: dragIndex >= 0
+  property bool animateShifts: true
 
   property string pickerKey: ""
   property Item pickerAnchor: null
@@ -189,6 +203,7 @@ BarWidget {
       var toplevel = toplevels[i].wayland
       if (!toplevel || !toplevel.appId || toplevel.parent) continue
       var entry = root.entryForAppId(toplevel.appId)
+      var appKey = entry ? entry.id : toplevel.appId
       var workspace = toplevels[i].workspace
       var winMon = toplevels[i].monitor || (workspace ? workspace.monitor : null)
       var rawTags = toplevels[i].lastIpcObject && toplevels[i].lastIpcObject.tags ? toplevels[i].lastIpcObject.tags : []
@@ -196,8 +211,9 @@ BarWidget {
       for (var ti = 0; ti < rawTags.length; ti++) {
         cleanTags.push(String(rawTags[ti]))
       }
+      var normAddr = TaskbarModel.normalizeAddress(toplevels[i].address)
       windows.push({
-        key: entry ? entry.id : toplevel.appId,
+        key: appKey,
         hasEntry: !!entry && !entry.noDisplay,
         title: toplevel.title || (entry ? entry.name : toplevel.appId),
         activated: !!toplevel.activated,
@@ -206,6 +222,7 @@ BarWidget {
         minimized: !!workspace && TaskbarModel.isMinimizedWorkspace(workspace.name),
         address: toplevels[i].address,
         tags: cleanTags,
+        profile: normAddr ? TaskbarModel.lookupWindowProfile(normAddr, root.windowProfiles) : null,
         toplevel: toplevel
       })
     }
@@ -233,7 +250,31 @@ BarWidget {
 
   ListModel { id: itemModel }
 
-  onItemsChanged: syncItemModel()
+  Timer {
+    id: profileProbeTimer
+    interval: 300
+    onTriggered: root.runProfileProbe()
+  }
+
+  Timer {
+    id: profileRetryTimer
+    interval: 2500
+    onTriggered: root.runProfileProbe()
+  }
+
+  Process {
+    id: profileProbeProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.applyProfileProbeOutput(text)
+    }
+  }
+
+  onBarChanged: syncBrowserProfiles()
+  onItemsChanged: {
+    syncItemModel()
+    syncBrowserProfiles()
+  }
   Component.onCompleted: {
     var userRaw = userShellFile.text()
     root.defaultPinnedList = TaskbarModel.extractPinnedList(defaultShellFile.text()) || []
@@ -243,10 +284,224 @@ BarWidget {
     root.companionInstalled = String(companionLuaFile.text() || "").length > 0
     root.hasLocalInstaller = String(localInstallerFile.text() || "").length > 0
     syncItemModel()
+    syncBrowserProfiles()
+  }
+
+  function peerWidgets() {
+    if (root.bar && typeof root.bar.moduleWidgets === "function") {
+      var list = root.bar.moduleWidgets(root.moduleName)
+      if (Array.isArray(list) && list.length > 0) return list
+    }
+    return [root]
+  }
+
+  function isProfileLeader() {
+    var peers = root.peerWidgets()
+    return peers.length === 0 || peers[0] === root
+  }
+
+  function syncProfilesToPeers(nextMap) {
+    var peers = root.peerWidgets()
+    for (var i = 0; i < peers.length; i++) {
+      var peer = peers[i]
+      if (peer && peer.windowProfiles !== undefined) {
+        peer.windowProfiles = nextMap
+      }
+    }
+  }
+
+  function recordProfileLaunch(appKey, profileObj) {
+    if (!appKey || !profileObj || !profileObj.dir) return
+    root.pendingProfileLaunch = {
+      appKey: String(appKey).toLowerCase(),
+      dir: String(profileObj.dir),
+      name: String(profileObj.name || profileObj.dir),
+      initial: String(profileObj.initial || "?"),
+      picturePath: String(profileObj.picturePath || ""),
+      expiresAt: Date.now() + 12000
+    }
+  }
+
+  function syncBrowserProfiles() {
+    var peers = root.peerWidgets()
+    if (peers.length > 0 && peers[0] !== root) {
+      profileProbeTimer.stop()
+      profileRetryTimer.stop()
+      var leader = peers[0]
+      var leaderMap = (leader && leader.windowProfiles) ? leader.windowProfiles : ({})
+      if (JSON.stringify(leaderMap) !== JSON.stringify(root.windowProfiles || {})) {
+        root.windowProfiles = leaderMap
+      }
+      return
+    }
+
+    var toplevels = Hyprland.toplevels.values
+    var browserWins = []
+    var nextKnown = {}
+    var newAddrs = {}
+
+    for (var i = 0; i < toplevels.length; i++) {
+      var tl = toplevels[i]
+      var wl = tl ? tl.wayland : null
+      if (!wl || !wl.appId || wl.parent) continue
+      var entry = root.entryForAppId(wl.appId)
+      var rawKey = entry ? entry.id : wl.appId
+      var normKey = TaskbarModel.normalizeId(rawKey).toLowerCase()
+      if (TaskbarModel.browserProfileConfigDir(normKey, "x").length === 0) continue
+
+      var addr = TaskbarModel.normalizeAddress(tl.address).toLowerCase()
+      if (!addr) continue
+      var ipc = tl.lastIpcObject || {}
+      var winObj = {
+        address: addr,
+        appKey: normKey,
+        title: String(wl.title || ""),
+        initialTitle: String(ipc.initialTitle || ""),
+        activated: !!wl.activated
+      }
+      browserWins.push(winObj)
+      nextKnown[addr] = true
+      if (!root.knownBrowserAddrs[addr]) newAddrs[addr] = winObj
+    }
+
+    var nextProfiles = {}
+    var profilesDirty = false
+    var oldKeys = Object.keys(root.windowProfiles || {})
+    for (var k = 0; k < oldKeys.length; k++) {
+      var pk = oldKeys[k]
+      if (nextKnown[pk]) nextProfiles[pk] = root.windowProfiles[pk]
+      else profilesDirty = true
+    }
+
+    if (root.pendingProfileLaunch) {
+      if (Date.now() > root.pendingProfileLaunch.expiresAt) {
+        root.pendingProfileLaunch = null
+      } else {
+        var newKeys = Object.keys(newAddrs)
+        for (var n = 0; n < newKeys.length; n++) {
+          var nw = newAddrs[newKeys[n]]
+          if (nw.appKey === root.pendingProfileLaunch.appKey) {
+            nextProfiles[nw.address] = {
+              dir: root.pendingProfileLaunch.dir,
+              name: root.pendingProfileLaunch.name,
+              initial: root.pendingProfileLaunch.initial,
+              picturePath: root.pendingProfileLaunch.picturePath,
+              confident: true
+            }
+            root.pendingProfileLaunch = null
+            profilesDirty = true
+            break
+          }
+        }
+      }
+    }
+
+    var cleanedRetries = {}
+    var rKeys = Object.keys(root.profileProbeRetries || {})
+    for (var r = 0; r < rKeys.length; r++) {
+      var rk = rKeys[r]
+      var sep = rk.indexOf("|")
+      var rAddr = sep >= 0 ? rk.slice(0, sep) : rk
+      if (nextKnown[rAddr]) cleanedRetries[rk] = root.profileProbeRetries[rk]
+    }
+    root.profileProbeRetries = cleanedRetries
+    root.knownBrowserAddrs = nextKnown
+
+    if (profilesDirty) root.syncProfilesToPeers(nextProfiles)
+
+    var needProbe = []
+    for (var b = 0; b < browserWins.length; b++) {
+      var bw = browserWins[b]
+      var existing = nextProfiles[bw.address]
+      if (existing && existing.confident) continue
+      var retryKey = bw.address + "|" + bw.title
+      if ((root.profileProbeRetries[retryKey] || 0) < 3) {
+        needProbe.push(bw)
+      }
+    }
+
+    if (needProbe.length > 0) {
+      root.pendingProbeBatch = needProbe
+      if (!profileProbeTimer.running && !profileProbeProc.running) {
+        profileProbeTimer.restart()
+      }
+    } else {
+      root.pendingProbeBatch = []
+      profileProbeTimer.stop()
+      profileRetryTimer.stop()
+    }
+  }
+
+  function runProfileProbe() {
+    if (!root.isProfileLeader() || profileProbeProc.running || !root.configScriptPath) return
+    var src = root.pendingProbeBatch || []
+    var batch = []
+    var nextRetries = Object.assign({}, root.profileProbeRetries || {})
+    for (var i = 0; i < src.length; i++) {
+      var item = src[i]
+      var existing = root.windowProfiles ? root.windowProfiles[item.address] : null
+      if (existing && existing.confident) continue
+      var retryKey = item.address + "|" + item.title
+      var count = nextRetries[retryKey] || 0
+      if (count >= 3) continue
+      nextRetries[retryKey] = count + 1
+      batch.push(item)
+    }
+    root.profileProbeRetries = nextRetries
+    if (batch.length === 0) return
+    root.lastProbedBatch = batch
+    profileProbeProc.command = ["python3", root.configScriptPath, "browser-window-profiles", JSON.stringify(batch)]
+    profileProbeProc.running = true
+  }
+
+  function applyProfileProbeOutput(rawText) {
+    if (!root.isProfileLeader()) return
+    var parsed = null
+    try {
+      parsed = JSON.parse(String(rawText || "{}"))
+    } catch (e) {
+      parsed = null
+    }
+    var merged = Object.assign({}, root.windowProfiles || {})
+    var changed = false
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      var addrs = Object.keys(parsed)
+      for (var i = 0; i < addrs.length; i++) {
+        var norm = TaskbarModel.normalizeAddress(addrs[i]).toLowerCase()
+        var incoming = parsed[addrs[i]]
+        if (!norm || !incoming || typeof incoming !== "object" || !incoming.dir) continue
+        var cur = merged[norm]
+        if (cur && cur.confident) continue
+        if (!cur || cur.dir !== incoming.dir || cur.name !== incoming.name
+            || cur.picturePath !== incoming.picturePath || !!cur.confident !== !!incoming.confident) {
+          merged[norm] = incoming
+          changed = true
+        }
+      }
+    }
+    if (changed) root.syncProfilesToPeers(merged)
+
+    var batch = root.lastProbedBatch || []
+    for (var j = 0; j < batch.length; j++) {
+      var w = batch[j]
+      var entry = merged[w.address]
+      if ((!entry || !entry.confident) && (root.profileProbeRetries[w.address + "|" + w.title] || 0) < 3) {
+        profileRetryTimer.restart()
+        break
+      }
+    }
   }
 
   function syncItemModel() {
     var keys = root.items.map(function(item) { return item.key })
+    var same = itemModel.count === keys.length
+    if (same) {
+      for (var k = 0; k < keys.length; k++) {
+        if (itemModel.get(k).key !== keys[k]) { same = false; break }
+      }
+    }
+    if (same) return
+    if (root.draggingItem) root.endItemDrag()
     for (var i = 0; i < keys.length; i++) {
       if (i < itemModel.count && itemModel.get(i).key === keys[i]) continue
       var found = -1
@@ -320,6 +575,21 @@ BarWidget {
     if (!TaskbarModel.isValidProfileDir(dir)) return
     var bin = browserBinaryForItem(item)
     if (!bin) return
+    var appKey = item ? TaskbarModel.normalizeId(item.appKey || item.key).toLowerCase() : ""
+    var matched = null
+    for (var i = 0; i < root.browserProfiles.length; i++) {
+      if (root.browserProfiles[i].dir === dir) {
+        matched = root.browserProfiles[i]
+        break
+      }
+    }
+    if (appKey && matched) {
+      var peers = root.peerWidgets()
+      var leader = peers.length > 0 ? peers[0] : root
+      if (leader && typeof leader.recordProfileLaunch === "function") {
+        leader.recordProfileLaunch(appKey, matched)
+      }
+    }
     Util.execArgv(["uwsm-app", "--", bin, "--profile-directory=" + dir])
   }
 
@@ -422,6 +692,45 @@ BarWidget {
     var wins = item.windows.slice()
     for (var i = 0; i < wins.length; i++) {
       if (wins[i].toplevel) wins[i].toplevel.close()
+    }
+  }
+
+  function syncPinnedToPeers(nextPins) {
+    var peers = root.peerWidgets()
+    for (var i = 0; i < peers.length; i++) {
+      var peer = peers[i]
+      if (peer && peer.userPinnedList !== undefined) {
+        peer.userPinnedList = nextPins
+      }
+    }
+  }
+
+  function syncWindowOrderToPeers(nextOrder) {
+    var peers = root.peerWidgets()
+    for (var i = 0; i < peers.length; i++) {
+      var peer = peers[i]
+      if (peer && peer.windowOrderState !== undefined) {
+        peer.windowOrderState = nextOrder
+      }
+    }
+  }
+
+  function endItemDrag() {
+    root.animateShifts = false
+    root.dragIndex = -1
+    root.dropIndex = -1
+    root.dragOffset = 0
+    Qt.callLater(function() { root.animateShifts = true })
+  }
+
+  function moveTaskbarItem(fromIdx, toIdx) {
+    var res = TaskbarModel.reorderTaskbarItems(root.items, root.pinnedList, root.windowOrderState, fromIdx, toIdx)
+    if (!res) return
+    if (res.kind === "pins" && Array.isArray(res.pinned) && res.pinned.length > 0) {
+      root.syncPinnedToPeers(res.pinned)
+      Util.execArgv(["omarchy-dock", "pinned"].concat(res.pinned))
+    } else if (res.kind === "windows" && res.orderState) {
+      root.syncWindowOrderToPeers(res.orderState)
     }
   }
 
@@ -642,7 +951,9 @@ BarWidget {
         readonly property bool focused: root.isItemFocused(modelData)
         readonly property bool allMinimized: root.isItemAllMinimized(modelData)
         readonly property string appLabel: modelData ? root.labelFor(modelData) : key
-        readonly property bool hovered: slotMouse.containsMouse
+        readonly property var profileBadge: TaskbarModel.profileBadgeForItem(modelData, root.windowProfiles)
+        readonly property bool lifted: root.dragIndex === index
+        readonly property bool hovered: slotMouse.containsMouse && !root.draggingItem
 
         property var registeredBar: null
 
@@ -652,6 +963,7 @@ BarWidget {
           if (registeredBar && registeredBar.registerClickTarget) registeredBar.registerClickTarget(taskSlot)
         }
 
+        z: taskSlot.lifted ? 2 : 0
         Layout.preferredWidth: root.slotSize
         Layout.preferredHeight: root.slotSize
 
@@ -665,82 +977,182 @@ BarWidget {
           if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(taskSlot)
         }
 
-        Rectangle {
-          anchors.centerIn: parent
-          width: root.slotSize - root.pillInset
-          height: root.slotSize - root.pillInset
-          radius: Math.max(Style.space(4), Style.cornerRadius)
-          color: taskSlot.focused ? Style.selectedFill : (taskSlot.hovered ? Style.hoverFill : "transparent")
-          border.width: taskSlot.focused ? 1 : 0
-          border.color: taskSlot.focused ? Style.normalBorderColor : "transparent"
+        Item {
+          id: slotVisual
+          anchors.fill: parent
 
-          Behavior on color { ColorAnimation { duration: Style.duration(120) } }
-        }
+          readonly property real targetShift: !root.draggingItem
+            ? 0
+            : taskSlot.lifted
+              ? root.dragOffset
+              : (root.dragIndex < taskSlot.index && taskSlot.index <= root.dropIndex)
+                ? -root.slotStride
+                : (root.dropIndex <= taskSlot.index && taskSlot.index < root.dragIndex)
+                  ? root.slotStride
+                  : 0
+          property real displayedShift: targetShift
 
-        Image {
-          anchors.centerIn: parent
-          anchors.verticalCenterOffset: root.vertical ? 0 : (root.tallBar ? -1 : 0)
-          width: root.iconSize
-          height: root.iconSize
-          sourceSize: Qt.size(root.iconSize * 2, root.iconSize * 2)
-          source: taskSlot.modelData ? root.iconFor(taskSlot.modelData) : ""
-          fillMode: Image.PreserveAspectFit
-          asynchronous: true
-          smooth: true
-          mipmap: true
-          opacity: taskSlot.windowCount > 0 ? (taskSlot.allMinimized ? 0.65 : 1.0) : root.idleOpacity
-          scale: taskSlot.hovered ? 1.1 : 1.0
+          Behavior on displayedShift {
+            enabled: root.animateShifts && root.draggingItem && !taskSlot.lifted
+            NumberAnimation { duration: Style.duration(150); easing.type: Easing.OutCubic }
+          }
 
+          scale: taskSlot.lifted ? 1.08 : 1.0
           Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
-        }
 
-        // Windows 11-style active/open indicator bar
-        Rectangle {
-          readonly property int indicatorLength: taskSlot.focused
-            ? Math.round(root.slotSize * 0.42)
-            : (taskSlot.windowCount > 1 ? Math.round(root.slotSize * 0.28) : Math.round(root.slotSize * 0.16))
+          transform: Translate {
+            x: root.vertical ? 0 : slotVisual.displayedShift
+            y: root.vertical ? slotVisual.displayedShift : 0
+          }
 
-          visible: taskSlot.windowCount > 0
-          width: root.vertical ? root.indicatorThickness : indicatorLength
-          height: root.vertical ? indicatorLength : root.indicatorThickness
-          radius: Math.max(1, Math.round(root.indicatorThickness / 2))
-          color: taskSlot.focused ? Commons.Color.accent : (root.bar ? root.bar.barForeground : Commons.Color.bar.text)
-          opacity: taskSlot.focused ? 1.0 : (taskSlot.allMinimized ? 0.45 : 0.8)
-          anchors.horizontalCenter: root.vertical ? undefined : parent.horizontalCenter
-          anchors.bottom: root.vertical ? undefined : parent.bottom
-          anchors.bottomMargin: root.vertical ? 0 : root.indicatorMargin
-          anchors.verticalCenter: root.vertical ? parent.verticalCenter : undefined
-          anchors.left: (root.bar && root.bar.position === "left") ? parent.left : undefined
-          anchors.leftMargin: (root.bar && root.bar.position === "left") ? root.indicatorMargin : 0
-          anchors.right: (root.bar && root.bar.position === "right") ? parent.right : undefined
-          anchors.rightMargin: (root.bar && root.bar.position === "right") ? root.indicatorMargin : 0
-
-          Behavior on width { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
-        }
-
-        // Window count badge when 2+ windows are open
-        Rectangle {
-          visible: taskSlot.windowCount > 1
-          anchors.top: parent.top
-          anchors.right: parent.right
-          anchors.topMargin: root.tallBar ? Style.space(2) : Style.space(1)
-          anchors.rightMargin: root.tallBar ? Style.space(2) : Style.space(1)
-          width: Math.max(root.badgeSize, countTxt.implicitWidth + Style.space(4))
-          height: root.badgeSize
-          radius: height / 2
-          color: taskSlot.focused ? Commons.Color.accent : Commons.Color.popups.background
-          border.width: 1
-          border.color: Commons.Color.popups.border
-
-          Text {
-            id: countTxt
+          Rectangle {
             anchors.centerIn: parent
-            textFormat: Text.PlainText
-            text: Commons.I18n.formatNumber(taskSlot.windowCount)
-            color: taskSlot.focused ? Commons.Color.background : Commons.Color.popups.text
-            font.family: Style.font.family
-            font.pixelSize: root.tallBar ? Math.max(8, Style.font.caption - 1) : Math.max(7, Style.font.caption - 2)
-            font.bold: true
+            width: root.slotSize - root.pillInset
+            height: root.slotSize - root.pillInset
+            radius: Math.max(Style.space(4), Style.cornerRadius)
+            color: (taskSlot.focused || taskSlot.lifted) ? Style.selectedFill : (taskSlot.hovered ? Style.hoverFill : "transparent")
+            border.width: (taskSlot.focused || taskSlot.lifted) ? 1 : 0
+            border.color: taskSlot.lifted ? Commons.Color.accent : (taskSlot.focused ? Style.normalBorderColor : "transparent")
+
+            Behavior on color { ColorAnimation { duration: Style.duration(120) } }
+          }
+
+          Image {
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: root.vertical ? 0 : (root.tallBar ? -1 : 0)
+            width: root.iconSize
+            height: root.iconSize
+            sourceSize: Qt.size(root.iconSize * 2, root.iconSize * 2)
+            source: taskSlot.modelData ? root.iconFor(taskSlot.modelData) : ""
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+            smooth: true
+            mipmap: true
+            opacity: taskSlot.windowCount > 0 ? (taskSlot.allMinimized ? 0.65 : 1.0) : root.idleOpacity
+            scale: taskSlot.hovered ? 1.1 : 1.0
+
+            Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+          }
+
+          // Windows 11-style active/open indicator bar
+          Rectangle {
+            readonly property int indicatorLength: taskSlot.focused
+              ? Math.round(root.slotSize * 0.42)
+              : (taskSlot.windowCount > 1 ? Math.round(root.slotSize * 0.28) : Math.round(root.slotSize * 0.16))
+
+            visible: taskSlot.windowCount > 0
+            width: root.vertical ? root.indicatorThickness : indicatorLength
+            height: root.vertical ? indicatorLength : root.indicatorThickness
+            radius: Math.max(1, Math.round(root.indicatorThickness / 2))
+            color: taskSlot.focused ? Commons.Color.accent : (root.bar ? root.bar.barForeground : Commons.Color.bar.text)
+            opacity: taskSlot.focused ? 1.0 : (taskSlot.allMinimized ? 0.45 : 0.8)
+            anchors.horizontalCenter: root.vertical ? undefined : parent.horizontalCenter
+            anchors.bottom: root.vertical ? undefined : parent.bottom
+            anchors.bottomMargin: root.vertical ? 0 : root.indicatorMargin
+            anchors.verticalCenter: root.vertical ? parent.verticalCenter : undefined
+            anchors.left: (root.bar && root.bar.position === "left") ? parent.left : undefined
+            anchors.leftMargin: (root.bar && root.bar.position === "left") ? root.indicatorMargin : 0
+            anchors.right: (root.bar && root.bar.position === "right") ? parent.right : undefined
+            anchors.rightMargin: (root.bar && root.bar.position === "right") ? root.indicatorMargin : 0
+
+            Behavior on width { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+          }
+
+          // Browser profile avatar badge in bottom-right corner
+          Rectangle {
+            id: profileBadgeContainer
+            visible: !!taskSlot.profileBadge
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: root.tallBar ? Style.space(2) : Style.space(1)
+            anchors.bottomMargin: root.vertical ? Style.space(2) : (root.indicatorMargin + root.indicatorThickness + 1)
+            width: root.profileBadgeSize + 2
+            height: root.profileBadgeSize + 2
+            radius: width / 2
+            color: Commons.Color.bar.background
+            border.width: 1
+            border.color: Util.alpha(Commons.Color.popups.border, 0.7)
+            opacity: taskSlot.allMinimized ? 0.78 : 1.0
+
+            Item {
+              anchors.centerIn: parent
+              width: root.profileBadgeSize - 2
+              height: root.profileBadgeSize - 2
+
+              Rectangle {
+                id: profileAvatarMask
+                anchors.fill: parent
+                radius: width / 2
+                color: "white"
+                visible: false
+                layer.enabled: true
+              }
+
+              Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: Commons.Color.accent
+                visible: profileAvatarImg.status !== Image.Ready
+
+                Text {
+                  anchors.centerIn: parent
+                  textFormat: Text.PlainText
+                  text: taskSlot.profileBadge ? (taskSlot.profileBadge.initial || "?") : ""
+                  color: Commons.Color.background
+                  font.family: Style.font.family
+                  font.pixelSize: Math.max(7, Math.round(root.profileBadgeSize * 0.58))
+                  font.bold: true
+                }
+              }
+
+              Image {
+                id: profileAvatarImg
+                anchors.fill: parent
+                source: (taskSlot.profileBadge && taskSlot.profileBadge.picturePath)
+                  ? Util.fileUrl(taskSlot.profileBadge.picturePath)
+                  : ""
+                sourceSize: Qt.size(Style.space(32), Style.space(32))
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                smooth: true
+                mipmap: true
+                visible: status === Image.Ready
+                layer.enabled: visible
+                layer.smooth: true
+                layer.effect: MultiEffect {
+                  maskEnabled: true
+                  maskSource: profileAvatarMask
+                  maskThresholdMin: 0.3
+                  maskSpreadAtMin: 0.3
+                }
+              }
+            }
+          }
+
+          // Window count badge when 2+ windows are open
+          Rectangle {
+            visible: taskSlot.windowCount > 1
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: root.tallBar ? Style.space(2) : Style.space(1)
+            anchors.rightMargin: root.tallBar ? Style.space(2) : Style.space(1)
+            width: Math.max(root.badgeSize, countTxt.implicitWidth + Style.space(4))
+            height: root.badgeSize
+            radius: height / 2
+            color: taskSlot.focused ? Commons.Color.accent : Commons.Color.popups.background
+            border.width: 1
+            border.color: Commons.Color.popups.border
+
+            Text {
+              id: countTxt
+              anchors.centerIn: parent
+              textFormat: Text.PlainText
+              text: Commons.I18n.formatNumber(taskSlot.windowCount)
+              color: taskSlot.focused ? Commons.Color.background : Commons.Color.popups.text
+              font.family: Style.font.family
+              font.pixelSize: root.tallBar ? Math.max(8, Style.font.caption - 1) : Math.max(7, Style.font.caption - 2)
+              font.bold: true
+            }
           }
         }
 
@@ -748,33 +1160,89 @@ BarWidget {
           id: slotMouse
           anchors.fill: parent
           hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
+          preventStealing: true
+          cursorShape: taskSlot.lifted ? Qt.ClosedHandCursor : Qt.PointingHandCursor
           acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
 
+          property point pressPoint
+          property int dragButton: Qt.NoButton
+          property bool didDrag: false
+
           onEntered: {
-            if (root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0 && !root.settingsOpen) {
+            if (!root.draggingItem && root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0 && !root.settingsOpen) {
               var rawLabel = ""
               if (taskSlot.modelData && taskSlot.modelData.split && taskSlot.windowCount === 1) {
                 var w = taskSlot.modelData.windows[0]
-                var rawTitle = (w.toplevel && w.toplevel.title) ? w.toplevel.title : (w.title || taskSlot.appLabel)
+                var baseTitle = (w.toplevel && w.toplevel.title) ? w.toplevel.title : (w.title || taskSlot.appLabel)
+                var rawTitle = TaskbarModel.formatWindowTooltipWithProfile(baseTitle, taskSlot.profileBadge || w.profile)
                 rawLabel = w.minimized
                   ? TaskbarModel.formatTemplate(strings.t("taskbar.minimizedPrefix"), rawTitle)
                   : rawTitle
               } else {
-                rawLabel = taskSlot.windowCount > 1
+                var baseSummary = taskSlot.windowCount > 1
                   ? TaskbarModel.formatTemplate(
                       strings.t("taskbar.windowCount"),
                       taskSlot.appLabel,
                       Commons.I18n.formatNumber(taskSlot.windowCount)
                     )
                   : taskSlot.appLabel
+                rawLabel = TaskbarModel.formatWindowTooltipWithProfile(baseSummary, taskSlot.profileBadge)
               }
               root.bar.showTooltip(taskSlot, TaskbarModel.sanitizeTooltipText(rawLabel, 96))
             }
           }
           onExited: if (root.bar) root.bar.hideTooltip(taskSlot)
 
+          onPressed: function(event) {
+            slotMouse.didDrag = false
+            slotMouse.dragButton = Qt.NoButton
+            if (event.button === Qt.RightButton || event.button === Qt.MiddleButton) {
+              slotMouse.dragButton = event.button
+              slotMouse.pressPoint = taskSlot.mapToItem(layoutGrid, event.x, event.y)
+            }
+          }
+
+          onPositionChanged: function(event) {
+            if (slotMouse.dragButton === Qt.NoButton || !(slotMouse.pressedButtons & slotMouse.dragButton)) return
+            var pt = taskSlot.mapToItem(layoutGrid, event.x, event.y)
+            var delta = root.vertical ? (pt.y - slotMouse.pressPoint.y) : (pt.x - slotMouse.pressPoint.x)
+            if (!root.draggingItem) {
+              if (Math.abs(delta) < Style.space(6)) return
+              slotMouse.didDrag = true
+              if (root.bar) root.bar.hideTooltip(taskSlot)
+              root.closePopouts()
+              root.dropIndex = taskSlot.index
+              root.dragIndex = taskSlot.index
+            }
+            if (!taskSlot.lifted) return
+            var minOffset = -taskSlot.index * root.slotStride
+            var maxOffset = Math.max(0, itemRepeater.count - 1 - taskSlot.index) * root.slotStride
+            root.dragOffset = Math.max(minOffset, Math.min(maxOffset, delta))
+            root.dropIndex = TaskbarModel.computeDropIndex(taskSlot.index, root.dragOffset, root.slotStride, itemRepeater.count)
+          }
+
+          onReleased: function(event) {
+            slotMouse.dragButton = Qt.NoButton
+            if (!taskSlot.lifted) return
+            var from = root.dragIndex
+            var to = root.dropIndex
+            slotMouse.didDrag = true
+            Qt.callLater(function() { slotMouse.didDrag = false })
+            root.endItemDrag()
+            root.moveTaskbarItem(from, to)
+          }
+
+          onCanceled: {
+            slotMouse.dragButton = Qt.NoButton
+            slotMouse.didDrag = false
+            if (taskSlot.lifted) root.endItemDrag()
+          }
+
           onClicked: function(event) {
+            if (slotMouse.didDrag && event.button !== Qt.LeftButton) {
+              slotMouse.didDrag = false
+              return
+            }
             if (!taskSlot.modelData) return
             if (event.button === Qt.RightButton) {
               if (root.menuKey === taskSlot.key) root.closePopouts()

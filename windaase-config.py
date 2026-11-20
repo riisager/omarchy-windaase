@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Atomic configuration helper for Omarchy-windåse."""
 
+import glob
 import json
 import os
 import re
@@ -22,6 +23,27 @@ HYPR_OPTION_KEYS = (
 
 TWO_LINE_CLOCK_FORMAT = "HH:mm\ndd-MM-yyyy"
 DEFAULT_CLOCK_FORMAT = "dddd HH:mm"
+
+BROWSER_PROFILE_SUBDIRS = {
+    "google-chrome": os.path.join(".config", "google-chrome"),
+    "chromium": os.path.join(".config", "chromium"),
+    "brave-browser": os.path.join(".config", "BraveSoftware", "Brave-Browser"),
+    "brave": os.path.join(".config", "BraveSoftware", "Brave-Browser"),
+}
+MAX_SESSION_BYTES = 4 * 1024 * 1024
+INCOGNITO_RE = re.compile(r"\((?:incognito|inkognito|guest|gæst)\)", re.IGNORECASE)
+BROWSER_SUFFIX_RE = re.compile(r"\s+[-\u2013\u2014]\s+(?:Google Chrome|Chromium|Brave(?:\s+Browser)?)\s*$", re.IGNORECASE)
+UNREAD_PREFIX_RE = re.compile(r"^(?:\(\d+\)|[•●])\s+")
+GENERIC_BROWSER_TITLES = frozenset({
+    "new tab",
+    "ny fane",
+    "untitled",
+    "unavngivet",
+    "about:blank",
+    "google chrome",
+    "chromium",
+    "brave",
+})
 
 
 def atomic_write(path, content):
@@ -614,10 +636,241 @@ def cmd_strip_hyprland_loader(args):
         atomic_write(path, cleaned)
 
 
+def _normalize_address(raw_addr):
+    s = str(raw_addr or "").strip()
+    m = re.fullmatch(r"(?:0[xX])?([0-9a-fA-F]{1,20})", s)
+    return ("0x" + m.group(1).lower()) if m else ""
+
+
+def _is_valid_profile_dir(name):
+    if not isinstance(name, str):
+        return False
+    trimmed = name.strip()
+    if not trimmed or len(trimmed) > 64 or trimmed in (".", ".."):
+        return False
+    if re.search(r"[/\\\x00-\x1f\x7f]", name):
+        return False
+    return True
+
+
+def _browser_title_candidates(title, initial_title):
+    out = []
+    seen = set()
+
+    def add(val):
+        text = str(val or "").strip()
+        if len(text) < 3 or text.lower() in GENERIC_BROWSER_TITLES:
+            return
+        if text not in seen:
+            seen.add(text)
+            out.append(text)
+
+    clean_title = BROWSER_SUFFIX_RE.sub("", str(title or "")).strip()
+    add(clean_title)
+    unread_stripped = UNREAD_PREFIX_RE.sub("", clean_title).strip()
+    if unread_stripped != clean_title:
+        add(unread_stripped)
+    clean_initial = BROWSER_SUFFIX_RE.sub("", str(initial_title or "")).strip()
+    if clean_initial != clean_title:
+        add(clean_initial)
+    return out
+
+
+def _read_tail_bytes(path, max_bytes=MAX_SESSION_BYTES):
+    try:
+        with open(path, "rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            if size > max_bytes:
+                handle.seek(-max_bytes, os.SEEK_END)
+            else:
+                handle.seek(0)
+            return handle.read()
+    except OSError:
+        return b""
+
+
+def _load_browser_context(base_dir):
+    state_path = os.path.join(base_dir, "Local State")
+    if not os.path.isfile(state_path):
+        return None
+    try:
+        with open(state_path, "r", encoding="utf-8") as handle:
+            parsed = json.load(handle)
+    except (OSError, ValueError):
+        return None
+
+    prof_obj = parsed.get("profile") if isinstance(parsed, dict) else None
+    info_cache = prof_obj.get("info_cache") if isinstance(prof_obj, dict) else None
+    if not isinstance(info_cache, dict):
+        return None
+
+    profiles = {}
+    for pdir, info in info_cache.items():
+        if pdir in ("System Profile", "Guest Profile") or not _is_valid_profile_dir(pdir):
+            continue
+        if not isinstance(info, dict):
+            continue
+        if info.get("is_ephemeral") is True or info.get("is_omitted_from_profile_list") is True:
+            continue
+
+        raw_name = info.get("name") or info.get("shortcut_name") or info.get("gaia_name") or pdir
+        name = re.sub(r"[\r\n\t]+", " ", str(raw_name)).strip()[:64] or pdir
+        initial = (name[0].upper() if name else "?") or "?"
+
+        pic_file = str(info.get("gaia_picture_file_name") or "").strip()
+        picture_path = ""
+        if _is_valid_profile_dir(pic_file):
+            candidate_pic = os.path.join(base_dir, pdir, pic_file)
+            if os.path.isfile(candidate_pic):
+                picture_path = candidate_pic
+
+        try:
+            active_time = float(info.get("active_time") or 0.0)
+        except (TypeError, ValueError):
+            active_time = 0.0
+
+        profiles[pdir] = {
+            "dir": pdir,
+            "name": name,
+            "initial": initial,
+            "picturePath": picture_path,
+            "active_time": active_time,
+            "blobs": None,
+        }
+
+    # Only tag browsers when the user has 2+ configured profiles.
+    if len(profiles) < 2:
+        return None
+
+    last_used = str(prof_obj.get("last_used") or "")
+    raw_active = prof_obj.get("last_active_profiles")
+    active_list = [p for p in (raw_active if isinstance(raw_active, list) else []) if p in profiles]
+
+    return {
+        "base_dir": base_dir,
+        "profiles": profiles,
+        "active_list": active_list,
+        "active_set": set(active_list),
+        "last_used": last_used if last_used in profiles else "",
+    }
+
+
+def _profile_session_blobs(ctx, pdir):
+    prof = ctx["profiles"][pdir]
+    if prof["blobs"] is not None:
+        return prof["blobs"]
+    blobs = []
+    sessions_dir = os.path.join(ctx["base_dir"], pdir, "Sessions")
+    if os.path.isdir(sessions_dir):
+        for prefix in ("Session_*", "Tabs_*"):
+            try:
+                paths = glob.glob(os.path.join(sessions_dir, prefix))
+                paths.sort(key=os.path.getmtime, reverse=True)
+            except OSError:
+                paths = []
+            if paths:
+                data = _read_tail_bytes(paths[0])
+                if data:
+                    blobs.append(data)
+    prof["blobs"] = blobs
+    return blobs
+
+
+def _public_profile_payload(prof, confident):
+    return {
+        "dir": prof["dir"],
+        "name": prof["name"],
+        "initial": prof["initial"],
+        "picturePath": prof["picturePath"],
+        "confident": bool(confident),
+    }
+
+
+def resolve_browser_window_profiles(windows, home_dir=None):
+    """Map Chromium/Chrome/Brave window addresses to profile metadata for multi-profile setups."""
+    if not isinstance(windows, list):
+        return {}
+    home = os.path.expanduser(home_dir) if home_dir else os.path.expanduser("~")
+    contexts = {}
+    resolved = {}
+
+    for win in windows:
+        if not isinstance(win, dict):
+            continue
+        addr = _normalize_address(win.get("address"))
+        if not addr:
+            continue
+        raw_app = str(win.get("appKey") or "").strip().lower()
+        if raw_app.endswith(".desktop"):
+            raw_app = raw_app[:-8]
+        subdir = BROWSER_PROFILE_SUBDIRS.get(raw_app)
+        if not subdir:
+            continue
+
+        if subdir not in contexts:
+            contexts[subdir] = _load_browser_context(os.path.join(home, subdir))
+        ctx = contexts[subdir]
+        if ctx is None:
+            continue
+
+        title = str(win.get("title") or "")
+        initial_title = str(win.get("initialTitle") or "")
+        if INCOGNITO_RE.search(title) or INCOGNITO_RE.search(initial_title):
+            continue
+
+        profiles = ctx["profiles"]
+        best_prof = None
+        confident = False
+
+        candidates = _browser_title_candidates(title, initial_title)
+        for cand in candidates:
+            n16 = cand.encode("utf-16le", errors="ignore")
+            n8 = cand.encode("utf-8", errors="ignore")
+            hits = []
+            for pdir, prof in profiles.items():
+                best_pos = -1
+                for blob in _profile_session_blobs(ctx, pdir):
+                    pos = max(blob.rfind(n16) if n16 else -1, blob.rfind(n8) if n8 else -1)
+                    if pos > best_pos:
+                        best_pos = pos
+                if best_pos >= 0:
+                    hits.append((pdir in ctx["active_set"], best_pos, prof["active_time"], pdir))
+            if hits:
+                hits.sort(reverse=True)
+                best_prof = profiles[hits[0][3]]
+                confident = len(hits) == 1
+                break
+
+        if best_prof is None and len(ctx["active_list"]) == 1:
+            best_prof = profiles[ctx["active_list"][0]]
+            confident = True
+
+        if best_prof is None and win.get("activated") and ctx["last_used"]:
+            best_prof = profiles[ctx["last_used"]]
+            confident = False
+
+        if best_prof is not None:
+            resolved[addr] = _public_profile_payload(best_prof, confident)
+
+    return resolved
+
+
+def cmd_browser_window_profiles(args):
+    if len(args) != 1:
+        raise ValueError("Expected <windows_json> for browser-window-profiles")
+    try:
+        windows = json.loads(args[0])
+    except ValueError as exc:
+        raise ValueError(f"Invalid windows JSON: {exc}") from exc
+    result = resolve_browser_window_profiles(windows)
+    sys.stdout.write(json.dumps(result, separators=(",", ":")) + "\n")
+
+
 def main(argv):
     if len(argv) < 2:
         raise ValueError(
-            "Usage: windaase-config.py <bar-height|bar-height-reset|two-line-clock|hypr-set|strip-hyprland-loader> ..."
+            "Usage: windaase-config.py <bar-height|bar-height-reset|two-line-clock|hypr-set|strip-hyprland-loader|browser-window-profiles> ..."
         )
     cmd, rest = argv[1], argv[2:]
     if cmd == "bar-height":
@@ -630,6 +883,8 @@ def main(argv):
         cmd_hypr_set(rest)
     elif cmd == "strip-hyprland-loader":
         cmd_strip_hyprland_loader(rest)
+    elif cmd == "browser-window-profiles":
+        cmd_browser_window_profiles(rest)
     else:
         raise ValueError(f"Unknown subcommand: {cmd}")
 

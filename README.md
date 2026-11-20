@@ -38,7 +38,7 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow - yet
 
 ### In-Bar Taskbar & 3×3 Apps Launcher
 - **Pinned + active windows right inside the bar** (`BarWidget.qml`) alongside Omarchy's own 3×3 **Apps** launcher button (`Super + Alt + Space`).
-- **Smart click behavior** - Left-click focuses or toggles minimize on single-window apps, middle-click spawns a new window, and multi-window apps open an upward picker (`WindowPickerCard.qml`) with workspace badges (`W1`, etc.) and per-window close buttons.
+- **Smart click & drag-and-drop reorder** - Left-click focuses or toggles minimize on single-window apps, right-click drag (or middle-click drag) reorders pinned apps or split windows directly in place while left-click drag still moves the whole bar widget, middle-click spawns a new window, and multi-window apps open an upward picker (`WindowPickerCard.qml`) with workspace badges (`W1`, etc.) and per-window close buttons.
 - **Scales cleanly with tall bars** - Pair with a `40 px` bar height (`--bar-height 40` or in the Settings UI) to grow app icons without blowing up system tray icons, and switch Omarchy's clock to a two-line Windows 11 layout (`HH:mm` / `dd-MM-yyyy`).
 
 ![Omarchy-windåse taskbar positioned at the top](docs/screenshots/top-bar.png)
@@ -53,6 +53,7 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow - yet
 ### Per-Window Browser Splitting & Live Chromium Profiles
 - **1-click *Split windows in taskbar* (`AppMenuCard.qml`)** - Right-click any taskbar icon to uncombine its windows into separate taskbar buttons with window-title tooltips (`uncombine`), persisted directly in `shell.json`.
 - **Live browser profiles** - Right-click **Google Chrome**, **Chromium**, or **Brave** to launch any profile directly from its `Local State` metadata with profile avatars and account emails.
+- **Automatic multi-profile avatar badges** - Multi-profile Chrome, Chromium, and Brave windows automatically show circular profile badges directly on taskbar icons, tooltips, and the window picker (`windaase-config.py browser-window-profiles`).
 
 ### Windows 11 Snap Layouts, Snap Assist & Aero Snap
 Drag any floating window to the top edge of any monitor - or press **`Super + Z`** - to trigger the native themed **Snap Layouts** overlay (`Service.qml` + `snap_layouts.lua`) with live drop-zone previews and pixel-accurate `hyprbars` inset compensation:
@@ -156,6 +157,7 @@ Or from a local clone:
 | Input | Target | Action |
 | --- | --- | --- |
 | **Left-click** | Single-window / pinned app | Focus, minimize if already focused, or launch |
+| **Right-click / Middle-click drag** | Any taskbar app icon | Reorder pinned apps, split windows, or running icons in place (left-click drag moves the bar widget) |
 | **Left-click** | Multi-window grouped app | Open upward window picker with workspace badges & close buttons |
 | **Middle-click** | Any taskbar app icon | Open a new window (`gtk-launch` / entry command) |
 | **Right-click** | Any taskbar app icon | Open context menu (Chrome/Chromium/Brave profiles, Pin/Unpin, *Split windows in taskbar*, *Windåse settings*, Close all) |

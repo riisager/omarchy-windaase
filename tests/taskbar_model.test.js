@@ -67,6 +67,69 @@ function run() {
     ["chromium", "chromium", false, false, 2]
   ]);
 
+  // 3b. computeDropIndex & reorderTaskbarItems (drag-and-drop)
+  assert.strictEqual(TaskbarModel.computeDropIndex(0, 0, 42, 5), 0);
+  assert.strictEqual(TaskbarModel.computeDropIndex(0, 50, 42, 5), 1);
+  assert.strictEqual(TaskbarModel.computeDropIndex(1, -50, 42, 5), 0);
+  assert.strictEqual(TaskbarModel.computeDropIndex(3, 500, 42, 5), 4);
+  assert.strictEqual(TaskbarModel.computeDropIndex(1, -500, 42, 5), 0);
+
+  // Case 1: Split windows of same app reorder window ranks
+  const dragOrder = { seq: 4, byAddr: { "0x1": 1, "0x2": 2, "0x3": 3, "0x5": 4 } };
+  const splitReorder = TaskbarModel.reorderTaskbarItems(splitPinned, pinned, dragOrder, 2, 1);
+  assert.deepStrictEqual(splitReorder, {
+    kind: "windows",
+    orderState: { seq: 4, byAddr: { "0x1": 1, "0x2": 3, "0x3": 2, "0x5": 4 } }
+  });
+  assert.strictEqual(dragOrder.byAddr["0x2"], 2);
+
+  // Case 2a: Reorder pinned app right & left
+  assert.deepStrictEqual(
+    TaskbarModel.reorderTaskbarItems(splitPinned, pinned, dragOrder, 0, 3),
+    { kind: "pins", pinned: ["google-chrome", "foot", "org.gnome.Nautilus"] }
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.reorderTaskbarItems(splitPinned, pinned, dragOrder, 3, 0),
+    { kind: "pins", pinned: ["foot", "org.gnome.Nautilus", "google-chrome"] }
+  );
+
+  // Case 2b: Dragging pinned past unpinned moves to end of pins without unpinning
+  assert.deepStrictEqual(
+    TaskbarModel.reorderTaskbarItems(splitPinned, pinned, dragOrder, 0, 4),
+    { kind: "pins", pinned: ["google-chrome", "foot", "org.gnome.Nautilus"] }
+  );
+  assert.strictEqual(
+    TaskbarModel.reorderTaskbarItems(splitPinned, pinned, dragOrder, 3, 4),
+    null
+  );
+
+  // Case 2c: Dragging unpinned into pinned pins at exact slot
+  assert.deepStrictEqual(
+    TaskbarModel.reorderTaskbarItems(splitPinned, pinned, dragOrder, 4, 0),
+    { kind: "pins", pinned: ["chromium", "org.gnome.Nautilus", "google-chrome", "foot"] }
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.reorderTaskbarItems(splitPinned, pinned, dragOrder, 4, 3),
+    { kind: "pins", pinned: ["org.gnome.Nautilus", "google-chrome", "chromium", "foot"] }
+  );
+
+  // Case 3: Both unpinned reorder in window orderState
+  const unpinnedOrderInit = { seq: 4, byAddr: { "0x1": 1, "0x2": 2, "0x3": 3, "0x5": 4, "0x6": 5 } };
+  const unpinnedReordered = TaskbarModel.reorderTaskbarItems(unpinnedSplit, ["foot"], unpinnedOrderInit, 3, 1);
+  assert.strictEqual(unpinnedReordered.kind, "windows");
+  assert.deepStrictEqual(
+    TaskbarModel.stabilizeWindows(
+      [
+        { address: "0x2" },
+        { address: "0x3" },
+        { address: "0x5" },
+        { address: "0x6" }
+      ],
+      TaskbarModel.reorderTaskbarItems(unpinnedSplit, ["foot"], { seq: 5, byAddr: unpinnedOrderInit.byAddr }, 3, 1).orderState
+    ).map(w => w.address),
+    ["0x5", "0x6", "0x2", "0x3"]
+  );
+
   // 4. stabilizeWindows order preservation + pruning
   const state = { seq: 0, byAddr: {} };
   const s1 = TaskbarModel.stabilizeWindows([{ address: "0x10" }, { address: "0x20" }], state);
@@ -127,6 +190,32 @@ function run() {
   assert.strictEqual(parsed[0].initial, "M");
   assert.strictEqual(parsed[2].name, "Two Line");
   assert.strictEqual(parsed[2].picturePath, "");
+
+  // Browser profile badges & tooltip labels
+  const profA = { dir: "Default", name: "Personal", initial: "P", picturePath: "/tmp/p.png", confident: true };
+  const profB = { dir: "Profile 1", name: "Work", initial: "W", picturePath: "", confident: true };
+  const profMap = { "0xaa1": profA, "0xbb2": profB };
+
+  assert.deepStrictEqual(
+    TaskbarModel.profileBadgeForItem({ windows: [{ address: "0xAA1" }] }, profMap),
+    profA
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.profileBadgeForItem({ windows: [{ address: "0xaa1" }, { address: "0xaa1" }] }, profMap),
+    profA
+  );
+  assert.strictEqual(
+    TaskbarModel.profileBadgeForItem({ windows: [{ address: "0xaa1" }, { address: "0xbb2" }] }, profMap),
+    null
+  );
+  assert.strictEqual(
+    TaskbarModel.profileBadgeForItem({ windows: [{ address: "0xaa1" }, { address: "0xcc3" }] }, profMap),
+    null
+  );
+  assert.strictEqual(TaskbarModel.profileBadgeForItem({ windows: [] }, profMap), null);
+  assert.strictEqual(TaskbarModel.formatWindowTooltipWithProfile("Gmail", profA), "Personal \u00b7 Gmail");
+  assert.strictEqual(TaskbarModel.formatWindowTooltipWithProfile("", profA), "Personal");
+  assert.strictEqual(TaskbarModel.formatWindowTooltipWithProfile("Gmail", null), "Gmail");
 
   // 8. parseHiddenEntryIds, entryName & filterAndSortApps
   const hiddenMap = TaskbarModel.parseHiddenEntryIds("\n btop.desktop \navahi-discover\n\n");

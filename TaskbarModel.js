@@ -151,6 +151,152 @@ function buildItems(pinned, windows, uncombinedKeys) {
   return items
 }
 
+function computeDropIndex(fromIndex, delta, stride, count) {
+  if (!(count > 0)) return 0
+  var step = Math.round(Number(delta || 0) / Math.max(1, Number(stride) || 1))
+  return Math.max(0, Math.min(count - 1, Number(fromIndex || 0) + step))
+}
+
+function _cloneOrderState(orderState) {
+  var next = {
+    seq: (orderState && typeof orderState.seq === "number") ? orderState.seq : 0,
+    byAddr: {}
+  }
+  var src = (orderState && orderState.byAddr && typeof orderState.byAddr === "object") ? orderState.byAddr : {}
+  var keys = Object.keys(src)
+  for (var i = 0; i < keys.length; i++) {
+    next.byAddr[keys[i]] = src[keys[i]]
+  }
+  return next
+}
+
+function _reassignRanks(orderState, orderedAddrs) {
+  if (!orderedAddrs || orderedAddrs.length < 2) return null
+  var next = _cloneOrderState(orderState)
+  var ranks = []
+  var i
+  for (i = 0; i < orderedAddrs.length; i++) {
+    var a = orderedAddrs[i]
+    if (next.byAddr[a] === undefined) {
+      next.byAddr[a] = ++next.seq
+    }
+    ranks.push(next.byAddr[a])
+  }
+  ranks.sort(function(x, y) { return x - y })
+  for (i = 0; i < orderedAddrs.length; i++) {
+    next.byAddr[orderedAddrs[i]] = ranks[i]
+  }
+  return next
+}
+
+function _normalizedPins(pinnedList) {
+  var out = []
+  var seen = {}
+  var list = Array.isArray(pinnedList) ? pinnedList : []
+  for (var i = 0; i < list.length; i++) {
+    var id = normalizeId(list[i])
+    if (id && !seen[id]) {
+      seen[id] = true
+      out.push(id)
+    }
+  }
+  return out
+}
+
+function _arraysEqual(a, b) {
+  if (a.length !== b.length) return false
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+function reorderTaskbarItems(items, pinnedList, orderState, fromIndex, toIndex) {
+  if (!Array.isArray(items) || fromIndex < 0 || toIndex < 0
+      || fromIndex >= items.length || toIndex >= items.length || fromIndex === toIndex) {
+    return null
+  }
+  var fromItem = items[fromIndex]
+  var toItem = items[toIndex]
+  if (!fromItem || !toItem) return null
+
+  var fromApp = normalizeId(fromItem.appKey || fromItem.key)
+  var toApp = normalizeId(toItem.appKey || toItem.key)
+
+  // 1. Reorder split windows within the same uncombined app
+  if (fromItem.split && toItem.split && fromApp && fromApp === toApp) {
+    var splitAddrs = []
+    var sFrom = -1
+    var sTo = -1
+    for (var s = 0; s < items.length; s++) {
+      var si = items[s]
+      if (!si || !si.split || normalizeId(si.appKey || si.key) !== fromApp) continue
+      if (!si.windows || si.windows.length === 0) continue
+      var sAddr = String(si.windows[0].address || "")
+      if (!sAddr) continue
+      if (s === fromIndex) sFrom = splitAddrs.length
+      if (s === toIndex) sTo = splitAddrs.length
+      splitAddrs.push(sAddr)
+    }
+    if (sFrom >= 0 && sTo >= 0 && sFrom !== sTo) {
+      var movedSplit = splitAddrs.splice(sFrom, 1)[0]
+      splitAddrs.splice(sTo, 0, movedSplit)
+      var splitOrder = _reassignRanks(orderState, splitAddrs)
+      return splitOrder ? { kind: "windows", orderState: splitOrder } : null
+    }
+    return null
+  }
+
+  // 2. Reorder pinned apps or pin an unpinned app at the target slot
+  if (fromItem.pinned || toItem.pinned) {
+    if (!fromApp || (toItem.pinned && fromApp === toApp)) return null
+    var basePins = _normalizedPins(pinnedList)
+    var nextPins = []
+    for (var p = 0; p < basePins.length; p++) {
+      if (basePins[p] !== fromApp) nextPins.push(basePins[p])
+    }
+    if (!toItem.pinned) {
+      nextPins.push(fromApp)
+    } else {
+      var targetIdx = nextPins.indexOf(toApp)
+      if (targetIdx < 0) nextPins.push(fromApp)
+      else nextPins.splice(fromIndex < toIndex ? targetIdx + 1 : targetIdx, 0, fromApp)
+    }
+    if (_arraysEqual(basePins, nextPins)) return null
+    return { kind: "pins", pinned: nextPins }
+  }
+
+  // 3. Reorder unpinned running apps in current window order
+  var unpinnedGroups = []
+  var gFrom = -1
+  var gTo = -1
+  for (var u = 0; u < items.length; u++) {
+    var ui = items[u]
+    if (!ui || ui.pinned) continue
+    var addrs = []
+    var uWins = ui.windows || []
+    for (var w = 0; w < uWins.length; w++) {
+      var wa = String(uWins[w] && uWins[w].address ? uWins[w].address : "")
+      if (wa) addrs.push(wa)
+    }
+    if (addrs.length === 0) continue
+    if (u === fromIndex) gFrom = unpinnedGroups.length
+    if (u === toIndex) gTo = unpinnedGroups.length
+    unpinnedGroups.push(addrs)
+  }
+  if (gFrom < 0 || gTo < 0 || gFrom === gTo) return null
+  var movedGroup = unpinnedGroups.splice(gFrom, 1)[0]
+  unpinnedGroups.splice(gTo, 0, movedGroup)
+  var flatAddrs = []
+  for (var f = 0; f < unpinnedGroups.length; f++) {
+    for (var k = 0; k < unpinnedGroups[f].length; k++) {
+      flatAddrs.push(unpinnedGroups[f][k])
+    }
+  }
+  var unpinnedOrder = _reassignRanks(orderState, flatAddrs)
+  return unpinnedOrder ? { kind: "windows", orderState: unpinnedOrder } : null
+}
+
 function normalizeWindowFilter(value) {
   var v = String(value === undefined || value === null ? "" : value).trim().toLowerCase()
   if (v === "workspace" || v === "monitor") return v
@@ -438,6 +584,31 @@ function parseChromeProfiles(rawJson, browserDirPath) {
   })
 
   return profiles.slice(0, 32)
+}
+
+function lookupWindowProfile(address, windowProfiles) {
+  if (!windowProfiles || typeof windowProfiles !== "object") return null
+  var norm = normalizeAddress(address)
+  if (!norm) return null
+  return windowProfiles[norm.toLowerCase()] || windowProfiles[norm] || null
+}
+
+function profileBadgeForItem(item, windowProfiles) {
+  if (!item || !Array.isArray(item.windows) || item.windows.length === 0) return null
+  var first = lookupWindowProfile(item.windows[0].address, windowProfiles) || item.windows[0].profile || null
+  if (!first || !first.dir) return null
+  for (var i = 1; i < item.windows.length; i++) {
+    var cur = lookupWindowProfile(item.windows[i].address, windowProfiles) || item.windows[i].profile || null
+    if (!cur || cur.dir !== first.dir) return null
+  }
+  return first
+}
+
+function formatWindowTooltipWithProfile(title, profile) {
+  var t = String(title === undefined || title === null ? "" : title)
+  var pName = profile && profile.name ? String(profile.name).trim() : ""
+  if (!pName) return t
+  return t ? (pName + " \u00b7 " + t) : pName
 }
 
 function parseHiddenEntryIds(rawText) {
@@ -755,6 +926,8 @@ if (typeof module !== "undefined") {
     claimingEntryId: claimingEntryId,
     stabilizeWindows: stabilizeWindows,
     buildItems: buildItems,
+    computeDropIndex: computeDropIndex,
+    reorderTaskbarItems: reorderTaskbarItems,
     normalizeWindowFilter: normalizeWindowFilter,
     minimizedOriginWorkspaceId: minimizedOriginWorkspaceId,
     filterWindowsByScope: filterWindowsByScope,
@@ -766,6 +939,9 @@ if (typeof module !== "undefined") {
     sanitizeTooltipText: sanitizeTooltipText,
     browserProfileConfigDir: browserProfileConfigDir,
     parseChromeProfiles: parseChromeProfiles,
+    lookupWindowProfile: lookupWindowProfile,
+    profileBadgeForItem: profileBadgeForItem,
+    formatWindowTooltipWithProfile: formatWindowTooltipWithProfile,
     parseHiddenEntryIds: parseHiddenEntryIds,
     entryName: entryName,
     filterAndSortApps: filterAndSortApps,

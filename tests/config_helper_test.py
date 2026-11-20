@@ -541,6 +541,112 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertIn('require("hypr.windaase").setup()', lua_content)
         self._luac_ok(lua_content)
 
+    def test_browser_window_profiles_resolution(self):
+        chrome_dir = os.path.join(self.home, ".config", "google-chrome")
+        os.makedirs(os.path.join(chrome_dir, "Default", "Sessions"), exist_ok=True)
+        os.makedirs(os.path.join(chrome_dir, "Profile 1", "Sessions"), exist_ok=True)
+
+        pic_default = os.path.join(chrome_dir, "Default", "Google Profile Picture.png")
+        with open(pic_default, "wb") as handle:
+            handle.write(b"png")
+
+        with open(os.path.join(chrome_dir, "Default", "Sessions", "Session_100"), "wb") as handle:
+            handle.write(b"hdr" + "Inbox - Personal".encode("utf-16le") + b"tail")
+        with open(os.path.join(chrome_dir, "Profile 1", "Sessions", "Session_200"), "wb") as handle:
+            handle.write(b"hdr" + "Admin Dashboard".encode("utf-16le") + b"tail")
+
+        local_state = {
+            "profile": {
+                "last_used": "Default",
+                "last_active_profiles": ["Default", "Profile 1"],
+                "info_cache": {
+                    "Default": {
+                        "name": "Personal",
+                        "gaia_picture_file_name": "Google Profile Picture.png",
+                        "active_time": 200.0,
+                    },
+                    "Profile 1": {
+                        "name": "Work",
+                        "gaia_picture_file_name": "../escaped.png",
+                        "active_time": 100.0,
+                    },
+                    "../evil": {
+                        "name": "Evil",
+                        "active_time": 999.0,
+                    },
+                    "Guest Profile": {
+                        "name": "Guest",
+                    },
+                },
+            }
+        }
+        with open(os.path.join(chrome_dir, "Local State"), "w", encoding="utf-8") as handle:
+            json.dump(local_state, handle)
+
+        # Brave with only 1 profile must be skipped completely
+        brave_dir = os.path.join(self.home, ".config", "BraveSoftware", "Brave-Browser")
+        os.makedirs(brave_dir, exist_ok=True)
+        with open(os.path.join(brave_dir, "Local State"), "w", encoding="utf-8") as handle:
+            json.dump({"profile": {"info_cache": {"Default": {"name": "Only"}}}}, handle)
+
+        # Chromium with 2 configured profiles but only 1 active profile
+        chromium_dir = os.path.join(self.home, ".config", "chromium")
+        os.makedirs(chromium_dir, exist_ok=True)
+        with open(os.path.join(chromium_dir, "Local State"), "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "profile": {
+                        "last_used": "Default",
+                        "last_active_profiles": ["Default"],
+                        "info_cache": {
+                            "Default": {"name": "Main", "active_time": 10.0},
+                            "Profile 1": {"name": "Alt", "active_time": 5.0},
+                        },
+                    }
+                },
+                handle,
+            )
+
+        payload = [
+            {"address": "0xAAA1", "appKey": "google-chrome", "title": "(3) Inbox - Personal – Google Chrome", "initialTitle": "", "activated": False},
+            {"address": "0xAAA2", "appKey": "google-chrome", "title": "Admin Dashboard – Google Chrome", "initialTitle": "", "activated": False},
+            {"address": "0xAAA3", "appKey": "google-chrome", "title": "Admin Dashboard (Incognito) – Google Chrome", "initialTitle": "", "activated": True},
+            {"address": "0xAAA4", "appKey": "google-chrome", "title": "Ny fane – Google Chrome", "initialTitle": "", "activated": False},
+            {"address": "0xAAA5", "appKey": "google-chrome", "title": "Ny fane – Google Chrome", "initialTitle": "", "activated": True},
+            {"address": "0xBBB1", "appKey": "chromium", "title": "Waiting tab – Chromium", "initialTitle": "", "activated": False},
+            {"address": "0xBBB2", "appKey": "chromium", "title": "Private (Guest) – Chromium", "initialTitle": "", "activated": True},
+            {"address": "0xCCC1", "appKey": "brave-browser", "title": "Docs – Brave", "initialTitle": "", "activated": True},
+        ]
+
+        res = self.run_helper("browser-window-profiles", json.dumps(payload))
+        self.assertEqual(res.returncode, 0, res.stderr)
+        out = json.loads(res.stdout)
+
+        self.assertEqual(out["0xaaa1"]["dir"], "Default")
+        self.assertEqual(out["0xaaa1"]["name"], "Personal")
+        self.assertEqual(out["0xaaa1"]["picturePath"], pic_default)
+        self.assertTrue(out["0xaaa1"]["confident"])
+
+        # Path traversal in gaia_picture_file_name must resolve to empty string
+        self.assertEqual(out["0xaaa2"]["dir"], "Profile 1")
+        self.assertEqual(out["0xaaa2"]["picturePath"], "")
+        self.assertTrue(out["0xaaa2"]["confident"])
+
+        # Incognito skipped; unfocused generic Ny fane skipped; focused Ny fane gets fallback
+        self.assertNotIn("0xaaa3", out)
+        self.assertNotIn("0xaaa4", out)
+        self.assertEqual(out["0xaaa5"]["dir"], "Default")
+        self.assertFalse(out["0xaaa5"]["confident"])
+
+        # Chromium single active profile fallback succeeds (and Guest window skipped)
+        self.assertEqual(out["0xbbb1"]["dir"], "Default")
+        self.assertEqual(out["0xbbb1"]["name"], "Main")
+        self.assertTrue(out["0xbbb1"]["confident"])
+        self.assertNotIn("0xbbb2", out)
+
+        # Single-profile Brave is skipped
+        self.assertNotIn("0xccc1", out)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
