@@ -27,6 +27,7 @@ BarWidget {
   readonly property var uncombinedApps: root.setting("uncombine", [])
   readonly property bool showAppsButton: root.setting("showAppsButton", true)
   readonly property string windowFilter: TaskbarModel.normalizeWindowFilter(root.setting("windowFilter", "all"))
+  readonly property bool hoverPreview: root.setting("hoverPreview", true)
   readonly property var barMonitor: {
     var win = root.QsWindow ? root.QsWindow.window : null
     var scr = win ? win.screen : null
@@ -53,9 +54,14 @@ BarWidget {
   property real dragOffset: 0
   readonly property bool draggingItem: dragIndex >= 0
   property bool animateShifts: true
+  onDraggingItemChanged: if (draggingItem) root.closePopouts()
 
   property string pickerKey: ""
   property Item pickerAnchor: null
+  property string pickerTriggerMode: "click"
+  property string hoveredSlotKey: ""
+  property string hoverPreviewPendingKey: ""
+  property Item hoverPreviewPendingAnchor: null
   property string menuKey: ""
   property Item menuAnchor: null
   property bool settingsOpen: false
@@ -259,6 +265,33 @@ BarWidget {
     id: profileRetryTimer
     interval: 2500
     onTriggered: root.runProfileProbe()
+  }
+
+  Timer {
+    id: hoverOpenTimer
+    interval: (root.pickerKey.length > 0 && root.pickerTriggerMode === "hover") ? 70 : 300
+    onTriggered: {
+      if (!root.hoverPreview || root.draggingItem || root.menuKey.length > 0 || root.settingsOpen) return
+      if (root.pickerKey.length > 0 && root.pickerTriggerMode !== "hover") return
+      if (root.bar && root.bar.activePopout && root.bar.activePopout !== pickerOwner) return
+      var key = root.hoverPreviewPendingKey
+      var anchor = root.hoverPreviewPendingAnchor
+      if (!key || !anchor) return
+      var item = root.itemFor(key)
+      if (!item || !item.windows || item.windows.length === 0) return
+      root.openPicker(key, anchor, "hover")
+    }
+  }
+
+  Timer {
+    id: hoverCloseTimer
+    interval: 260
+    onTriggered: {
+      if (root.pickerKey.length > 0 && root.pickerTriggerMode === "hover" && !pickerCard.containsMouse && root.hoveredSlotKey !== root.pickerKey) {
+        root.pickerKey = ""
+        root.pickerTriggerMode = "click"
+      }
+    }
   }
 
   Process {
@@ -738,8 +771,39 @@ BarWidget {
     Util.execArgv(["omarchy-dock", pinned ? "pin" : "unpin", String(key)])
   }
 
+  function cancelHoverPreview() {
+    hoverOpenTimer.stop()
+    hoverCloseTimer.stop()
+    root.hoverPreviewPendingKey = ""
+    root.hoverPreviewPendingAnchor = null
+  }
+
+  function scheduleHoverPreview(key, slot) {
+    if (!root.hoverPreview || root.draggingItem || root.menuKey.length > 0 || root.settingsOpen) return
+    if (root.pickerKey.length > 0 && root.pickerTriggerMode !== "hover") return
+    if (root.bar && root.bar.activePopout && root.bar.activePopout !== pickerOwner) return
+    hoverCloseTimer.stop()
+    if (root.pickerKey === key && root.pickerTriggerMode === "hover") {
+      hoverOpenTimer.stop()
+      root.hoverPreviewPendingKey = ""
+      root.hoverPreviewPendingAnchor = null
+      return
+    }
+    root.hoverPreviewPendingKey = key
+    root.hoverPreviewPendingAnchor = slot
+    hoverOpenTimer.restart()
+  }
+
+  function scheduleHoverClose() {
+    if (root.pickerKey.length === 0 || root.pickerTriggerMode !== "hover") return
+    if (pickerCard.containsMouse || root.hoveredSlotKey === root.pickerKey) return
+    hoverCloseTimer.restart()
+  }
+
   function closePopouts() {
+    root.cancelHoverPreview()
     root.pickerKey = ""
+    root.pickerTriggerMode = "click"
     root.menuKey = ""
     root.settingsOpen = false
   }
@@ -758,7 +822,9 @@ BarWidget {
   }
 
   function openSettings(slot) {
+    root.cancelHoverPreview()
     root.pickerKey = ""
+    root.pickerTriggerMode = "click"
     root.menuKey = ""
     companionLuaFile.reload()
     localInstallerFile.reload()
@@ -787,15 +853,21 @@ BarWidget {
     }
   }
 
-  function openPicker(key, slot) {
+  function openPicker(key, slot, mode) {
+    hoverOpenTimer.stop()
+    hoverCloseTimer.stop()
+    root.hoverPreviewPendingKey = ""
+    root.hoverPreviewPendingAnchor = null
     root.settingsOpen = false
     root.menuKey = ""
+    root.pickerTriggerMode = (mode === "hover") ? "hover" : "click"
     root.pickerKey = key
     root.pickerAnchor = slot
     if (root.bar) root.bar.hideTooltip(slot)
   }
 
   function openMenu(key, slot) {
+    root.cancelHoverPreview()
     var targetItem = root.itemFor(key)
     var appKey = targetItem ? (targetItem.appKey || targetItem.key) : ""
     var dir = TaskbarModel.browserProfileConfigDir(appKey, Commons.Color.home)
@@ -809,6 +881,7 @@ BarWidget {
     }
     root.settingsOpen = false
     root.pickerKey = ""
+    root.pickerTriggerMode = "click"
     root.menuKey = key
     root.menuAnchor = slot
     if (root.bar) root.bar.hideTooltip(slot)
@@ -933,6 +1006,9 @@ BarWidget {
         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
         onEntered: {
+          if (root.pickerKey.length > 0 && root.pickerTriggerMode === "hover") {
+            root.closePopouts()
+          }
           if (root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0 && !root.settingsOpen) {
             root.bar.showTooltip(appsSlot, TaskbarModel.sanitizeTooltipText(strings.t("taskbar.apps"), 96))
           }
@@ -963,6 +1039,7 @@ BarWidget {
 
         property var registeredBar: null
         property int heldButtons: Qt.NoButton
+        onHeldButtonsChanged: if (heldButtons !== Qt.NoButton) root.cancelHoverPreview()
         readonly property real pressScale: (!taskSlot.lifted && ((slotMouse.pressedButtons | taskSlot.heldButtons) & Qt.LeftButton)) ? 0.9 : 1.0
 
         function triggerPress(button) {
@@ -989,8 +1066,8 @@ BarWidget {
             root.activateWindow(taskSlot.modelData.windows[0])
             return
           }
-          if (root.pickerKey === taskSlot.key) root.closePopouts()
-          else root.openPicker(taskSlot.key, taskSlot)
+          if (root.pickerKey === taskSlot.key && root.pickerTriggerMode === "click") root.closePopouts()
+          else root.openPicker(taskSlot.key, taskSlot, "click")
         }
 
         function syncClickRegistration() {
@@ -1009,6 +1086,13 @@ BarWidget {
         }
         Component.onCompleted: syncClickRegistration()
         Component.onDestruction: {
+          if (root.hoveredSlotKey === taskSlot.key) root.hoveredSlotKey = ""
+          if (root.hoverPreviewPendingAnchor === taskSlot) root.cancelHoverPreview()
+          if (root.pickerAnchor === taskSlot) {
+            root.pickerKey = ""
+            root.pickerAnchor = null
+            root.pickerTriggerMode = "click"
+          }
           if (taskSlot.lifted) root.endItemDrag()
           if (root.bar) root.bar.hideTooltip(taskSlot)
           if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(taskSlot)
@@ -1161,7 +1245,13 @@ BarWidget {
           property bool didDrag: false
 
           onEntered: {
-            if (!root.draggingItem && root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0 && !root.settingsOpen) {
+            root.hoveredSlotKey = taskSlot.key
+            if (root.hoverPreview && taskSlot.windowCount > 0) {
+              root.scheduleHoverPreview(taskSlot.key, taskSlot)
+            } else if (root.pickerKey.length > 0 && root.pickerTriggerMode === "hover") {
+              root.closePopouts()
+            }
+            if ((!root.hoverPreview || taskSlot.windowCount === 0) && !root.draggingItem && root.bar && root.pickerKey.length === 0 && root.menuKey.length === 0 && !root.settingsOpen) {
               var rawLabel = ""
               if (taskSlot.modelData && taskSlot.modelData.split && taskSlot.windowCount === 1) {
                 var w = taskSlot.modelData.windows[0]
@@ -1183,7 +1273,16 @@ BarWidget {
               root.bar.showTooltip(taskSlot, TaskbarModel.sanitizeTooltipText(rawLabel, 96))
             }
           }
-          onExited: if (root.bar) root.bar.hideTooltip(taskSlot)
+          onExited: {
+            if (root.hoveredSlotKey === taskSlot.key) root.hoveredSlotKey = ""
+            if (root.hoverPreviewPendingKey === taskSlot.key) {
+              hoverOpenTimer.stop()
+              root.hoverPreviewPendingKey = ""
+              root.hoverPreviewPendingAnchor = null
+            }
+            root.scheduleHoverClose()
+            if (root.bar) root.bar.hideTooltip(taskSlot)
+          }
 
           onPressed: function(event) {
             slotMouse.didDrag = false
@@ -1244,7 +1343,11 @@ BarWidget {
 
   QtObject {
     id: pickerOwner
-    function close() { root.pickerKey = "" }
+    function close() {
+      root.cancelHoverPreview()
+      root.pickerKey = ""
+      root.pickerTriggerMode = "click"
+    }
   }
 
   QtObject {
@@ -1260,11 +1363,17 @@ BarWidget {
     anchorItem: root.pickerAnchor || root
     owner: pickerOwner
     bar: root.bar
+    triggerMode: root.pickerTriggerMode
     open: root.pickerKey.length > 0 && !!targetItem && targetItem.windows.length > 0
     strings: strings
     item: targetItem
     fallbackLabel: targetItem ? root.labelFor(targetItem) : ""
+    appIconSource: targetItem ? root.iconFor(targetItem) : ""
 
+    onContainsMouseChanged: {
+      if (containsMouse) hoverCloseTimer.stop()
+      else root.scheduleHoverClose()
+    }
     onWindowActivated: function(win) { root.activateWindow(win) }
     onWindowClosed: function(win) { root.closeWindow(win) }
   }

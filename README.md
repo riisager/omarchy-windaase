@@ -38,7 +38,7 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow - yet
 
 ### In-Bar Taskbar & 3×3 Apps Launcher
 - **Pinned + active windows right inside the bar** (`BarWidget.qml`) alongside Omarchy's own 3×3 **Apps** launcher button (`Super + Alt + Space`).
-- **Smart click & drag-and-drop reorder** - Left-click focuses or toggles minimize on single-window apps, right-click drag (or middle-click drag) reorders pinned apps or split windows directly in place while left-click drag still moves the whole bar widget, middle-click spawns a new window, and multi-window apps open an upward picker (`WindowPickerCard.qml`) with workspace badges (`W1`, etc.) and per-window close buttons.
+- **Smart click, hover preview & drag-and-drop reorder** - Left-click focuses or toggles minimize on single-window apps, hovering any running icon opens a live Wayland window thumbnail preview (`WindowPickerCard.qml`) with workspace badges (`W1`, etc.) and per-window close buttons (`hoverPreview: true`), right-click drag (or middle-click drag) reorders pinned apps or split windows directly in place while left-click drag still moves the whole bar widget, and middle-click spawns a new window.
 - **Scales cleanly with tall bars** - Pair with a `40 px` bar height (`--bar-height 40` or in the Settings UI) to grow app icons without blowing up system tray icons, and switch Omarchy's clock to a two-line Windows 11 layout (`HH:mm` / `dd-MM-yyyy`).
 
 ![Omarchy-windåse taskbar positioned at the top](docs/screenshots/top-bar.png)
@@ -158,9 +158,10 @@ Or from a local clone:
 
 | Input | Target | Action |
 | --- | --- | --- |
+| **Hover** | Running taskbar app icon | Open upward live thumbnail preview (`ScreencopyView`) with title, workspace badge & close button (`hoverPreview: true`) |
 | **Left-click** | Single-window / pinned app | Focus, minimize if already focused, or launch |
 | **Right-click / Middle-click drag** | Any taskbar app icon | Reorder pinned apps, split windows, or running icons in place (left-click drag moves the bar widget) |
-| **Left-click** | Multi-window grouped app | Open upward window picker with workspace badges & close buttons |
+| **Left-click** | Multi-window grouped app | Pin open upward window preview / picker (`WindowPickerCard.qml`) |
 | **Middle-click** | Any taskbar app icon | Open a new window (`gtk-launch` / entry command) |
 | **Right-click** | Any taskbar app icon | Open context menu (Chrome/Chromium/Brave profiles, Pin/Unpin, *Split windows in taskbar*, *Windåse settings*, Close all) |
 | **Right-click** | 3×3 **Apps** button | Open **Omarchy-windåse** Settings popup |
@@ -183,7 +184,7 @@ Most users never need to touch a config file:
 
 ### Taskbar Options in `~/.config/omarchy/shell.json`
 
-Configure placement in `bar.layout`, override icon size (`0` = automatic scaling with bar height), filter shown windows via `windowFilter` (`"all"`, `"workspace"`, or `"monitor"`), toggle the 3×3 Apps button (`showAppsButton`), or pre-configure uncombined desktop IDs:
+Configure placement in `bar.layout`, override icon size (`0` = automatic scaling with bar height), filter shown windows via `windowFilter` (`"all"`, `"workspace"`, or `"monitor"`), toggle hover thumbnails (`hoverPreview`), toggle the 3×3 Apps button (`showAppsButton`), or pre-configure uncombined desktop IDs:
 
 ```json
 {
@@ -196,6 +197,7 @@ Configure placement in `bar.layout`, override icon size (`0` = automatic scaling
         {
           "id": "riisager.windaase",
           "showAppsButton": true,
+          "hoverPreview": true,
           "iconSize": 0,
           "windowFilter": "all",
           "uncombine": ["google-chrome"]
@@ -250,7 +252,7 @@ Edit [`layouts.json`](layouts.json) to adjust card dimensions (`cardW`, `cardH`,
 omarchy-windaase/
 ├── manifest.json            # Omarchy shell plugin manifest (service + bar-widget)
 ├── BarWidget.qml            # In-bar taskbar widget & 3×3 Apps launcher button
-├── WindowPickerCard.qml     # Upward grouped-window picker with workspace badges
+├── WindowPickerCard.qml     # Live window thumbnail preview & grouped-window picker
 ├── AppMenuCard.qml          # Context menu (Chromium/Chrome/Brave profiles, actions & split toggle)
 ├── ProfileAvatar.qml        # Shared circular browser profile avatar with initial fallback
 ├── SettingsCard.qml         # Native Settings popup (bar height, filter, companion status & toggles)
