@@ -148,11 +148,36 @@ function run() {
     '<img src="https://example.invalid/x"> Page'
   );
 
-  // 6. browserProfileConfigDir & isValidProfileDir
+  // 6. browserProfileSpec, browserProfileConfigDir & isValidProfileDir
   assert.strictEqual(TaskbarModel.browserProfileConfigDir("google-chrome", "/home/alice/"), "/home/alice/.config/google-chrome");
   assert.strictEqual(TaskbarModel.browserProfileConfigDir("chromium.desktop", "/home/alice"), "/home/alice/.config/chromium");
   assert.strictEqual(TaskbarModel.browserProfileConfigDir("brave-browser", "/home/alice"), "/home/alice/.config/BraveSoftware/Brave-Browser");
-  assert.strictEqual(TaskbarModel.browserProfileConfigDir("firefox", "/home/alice"), "");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("vivaldi-stable", "/home/alice"), "/home/alice/.config/vivaldi");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("vivaldi-snapshot", "/home/alice"), "/home/alice/.config/vivaldi-snapshot");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("microsoft-edge", "/home/alice"), "/home/alice/.config/microsoft-edge");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("microsoft-edge-beta", "/home/alice"), "/home/alice/.config/microsoft-edge-beta");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("microsoft-edge-dev", "/home/alice"), "/home/alice/.config/microsoft-edge-dev");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("firefox", "/home/alice"), "/home/alice/.mozilla/firefox");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("org.mozilla.firefox.desktop", "/home/alice"), "/home/alice/.mozilla/firefox");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("firefox-developer-edition", "/home/alice"), "/home/alice/.mozilla/firefox");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("zen-browser", "/home/alice"), "/home/alice/.zen");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("app.zen_browser.zen", "/home/alice"), "/home/alice/.zen");
+  assert.strictEqual(TaskbarModel.browserProfileConfigDir("foot", "/home/alice"), "");
+
+  const edgeSpec = TaskbarModel.browserProfileSpec("microsoft-edge-stable", "/home/alice");
+  assert.deepStrictEqual(edgeSpec, {
+    family: "chromium",
+    dir: "/home/alice/.config/microsoft-edge",
+    stateFile: "/home/alice/.config/microsoft-edge/Local State",
+    defaultBin: "microsoft-edge-stable"
+  });
+  const zenSpec = TaskbarModel.browserProfileSpec("zen", "/home/alice");
+  assert.deepStrictEqual(zenSpec, {
+    family: "gecko",
+    dir: "/home/alice/.zen",
+    stateFile: "/home/alice/.zen/profiles.ini",
+    defaultBin: "zen-browser"
+  });
 
   assert.strictEqual(TaskbarModel.isValidProfileDir("Profile 1"), true);
   assert.strictEqual(TaskbarModel.isValidProfileDir(".."), false);
@@ -160,7 +185,7 @@ function run() {
   assert.strictEqual(TaskbarModel.isValidProfileDir("foo/bar"), false);
   assert.strictEqual(TaskbarModel.isValidProfileDir("bad\nname"), false);
 
-  // 7. parseChromeProfiles
+  // 7. parseChromeProfiles, parseGeckoProfiles & browserProfileLaunchArgv
   assert.deepStrictEqual(TaskbarModel.parseChromeProfiles("{not json", "/tmp"), []);
   const synth = {
     profile: {
@@ -173,7 +198,7 @@ function run() {
         "Profile 4": { name: "Four", user_name: "four@example.com" },
         "Profile 5": { name: "Five", user_name: "five@example.com" },
         "Profile 6": { name: "Six", user_name: "six@example.com" },
-        "CustomDir": { name: "Work", user_name: "work@example.com" },
+        "CustomDir": { name: "Work", user_name: "work@example.com", edge_picture_file_name: "Edge Profile Picture.png" },
         "Guest Profile": { name: "Guest" },
         "System Profile": { name: "System" },
         "Profile 99": { name: "Eph", is_ephemeral: true },
@@ -190,6 +215,60 @@ function run() {
   assert.strictEqual(parsed[0].initial, "M");
   assert.strictEqual(parsed[2].name, "Two Line");
   assert.strictEqual(parsed[2].picturePath, "");
+  assert.strictEqual(parsed[8].picturePath, "/home/test/.config/google-chrome/CustomDir/Edge Profile Picture.png");
+
+  const geckoIni = [
+    "; comment",
+    "[Install4F96D1932A9F858E]",
+    "Default=abc123.work",
+    "Locked=1",
+    "",
+    "[Profile2]",
+    "Name=Alpha",
+    "IsRelative=1",
+    "Path=zzz.alpha",
+    "",
+    "[Profile0]",
+    "Name=default-release",
+    "IsRelative=1",
+    "Path=def.default",
+    "",
+    "[Profile1]",
+    "Name=Work",
+    "IsRelative=1",
+    "Path=abc123.work",
+    "",
+    "[Profile3]",
+    "Name=Work",
+    "IsRelative=1",
+    "Path=dup.work",
+    "",
+    "[Profile4]",
+    "Name=-flag-injection",
+    "IsRelative=1",
+    "Path=bad.flag",
+    "",
+    "[Profile5]",
+    "Name=Traversal",
+    "IsRelative=1",
+    "Path=../outside"
+  ].join("\n");
+  const geckoParsed = TaskbarModel.parseBrowserProfiles(geckoIni, zenSpec);
+  assert.deepStrictEqual(geckoParsed, [
+    { dir: "Work", name: "Work", email: "", picturePath: "", initial: "W" },
+    { dir: "Alpha", name: "Alpha", email: "", picturePath: "", initial: "A" },
+    { dir: "default-release", name: "default-release", email: "", picturePath: "", initial: "D" }
+  ]);
+  assert.deepStrictEqual(
+    TaskbarModel.browserProfileLaunchArgv("microsoft-edge-stable", "Profile 1", edgeSpec),
+    ["uwsm-app", "--", "microsoft-edge-stable", "--profile-directory=Profile 1"]
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.browserProfileLaunchArgv("firefox", "Work", { family: "gecko" }),
+    ["uwsm-app", "--", "firefox", "-P", "Work"]
+  );
+  assert.deepStrictEqual(TaskbarModel.browserProfileLaunchArgv("firefox", "-evil", zenSpec), []);
+  assert.deepStrictEqual(TaskbarModel.browserProfileLaunchArgv("firefox", "../evil", zenSpec), []);
 
   // Browser profile badges & tooltip labels
   const profA = { dir: "Default", name: "Personal", initial: "P", picturePath: "/tmp/p.png", confident: true };

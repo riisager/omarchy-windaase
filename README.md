@@ -50,10 +50,10 @@ If you like Hyprland and Omarchy's speed, aesthetic, and keyboard workflow - yet
 - Instant **type-to-filter** search across app names and desktop keywords.
 - Full keyboard navigation (`Arrow keys`, `Enter`, `Delete`, `Esc`) plus right-click actions (*Open*, *Pin/Unpin*, *Uninstall*).
 
-### Per-Window Browser Splitting & Live Chromium Profiles
+### Per-Window Browser Splitting & Live Browser Profiles
 - **1-click *Split windows in taskbar* (`AppMenuCard.qml`)** - Right-click any taskbar icon to uncombine its windows into separate taskbar buttons with window-title tooltips (`uncombine`), persisted directly in `shell.json`.
-- **Live browser profiles** - Right-click **Google Chrome**, **Chromium**, or **Brave** to launch any profile directly from its `Local State` metadata with profile avatars and account emails.
-- **Automatic multi-profile avatar badges** - Multi-profile Chrome, Chromium, and Brave windows automatically show circular profile badges directly on taskbar icons, tooltips, and the window picker (`windaase-config.py browser-window-profiles`).
+- **Live browser profiles** - Right-click **Chrome**, **Chromium**, **Brave**, **Vivaldi**, **Edge**, **Firefox**, or **Zen** to launch any profile directly from its `Local State` / `profiles.ini` metadata.
+- **Automatic multi-profile avatar badges** - Multi-profile Chrome, Chromium, Brave, Vivaldi, Edge, Firefox, and Zen windows automatically show profile badges directly on taskbar icons, tooltips, and the window preview (`windaase-config.py browser-window-profiles`).
 
 ### Windows 11 Snap Layouts, Snap Assist & Aero Snap
 Drag any floating window to the top edge of any monitor - or press **`Super + Z`** - to trigger the native themed **Snap Layouts** overlay (`Service.qml` + `snap_layouts.lua`) with live drop-zone previews and pixel-accurate `hyprbars` inset compensation:
@@ -163,7 +163,7 @@ Or from a local clone:
 | **Right-click / Middle-click drag** | Any taskbar app icon | Reorder pinned apps, split windows, or running icons in place (left-click drag moves the bar widget) |
 | **Left-click** | Multi-window grouped app | Pin open upward window preview / picker (`WindowPickerCard.qml`) |
 | **Middle-click** | Any taskbar app icon | Open a new window (`gtk-launch` / entry command) |
-| **Right-click** | Any taskbar app icon | Open context menu (Chrome/Chromium/Brave profiles, Pin/Unpin, *Split windows in taskbar*, *Windåse settings*, Close all) |
+| **Right-click** | Any taskbar app icon | Open context menu (Chrome/Chromium/Brave/Vivaldi/Edge/Firefox/Zen profiles, Pin/Unpin, *Split windows in taskbar*, *Windåse settings*, Close all) |
 | **Right-click** | 3×3 **Apps** button | Open **Omarchy-windåse** Settings popup |
 
 ### Shell IPC

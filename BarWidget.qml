@@ -40,7 +40,7 @@ BarWidget {
   property var userPinnedList: null
   readonly property var pinnedList: root.userPinnedList !== null ? root.userPinnedList : root.defaultPinnedList
 
-  property string activeBrowserDir: ""
+  property var activeBrowserSpec: null
   property var browserProfiles: []
   property var windowProfiles: ({})
   property var pendingProfileLaunch: null
@@ -145,13 +145,13 @@ BarWidget {
 
   FileView {
     id: browserStateFile
-    path: root.activeBrowserDir ? (root.activeBrowserDir + "/Local State") : ""
+    path: root.activeBrowserSpec ? root.activeBrowserSpec.stateFile : ""
     watchChanges: false
     blockLoading: true
     printErrors: false
     onLoaded: {
-      if (root.activeBrowserDir) {
-        root.browserProfiles = TaskbarModel.parseChromeProfiles(text(), root.activeBrowserDir)
+      if (root.activeBrowserSpec) {
+        root.browserProfiles = TaskbarModel.parseBrowserProfiles(text(), root.activeBrowserSpec)
       }
     }
     onLoadFailed: root.browserProfiles = []
@@ -388,6 +388,7 @@ BarWidget {
       var winObj = {
         address: addr,
         appKey: normKey,
+        pid: ipc.pid ? Number(ipc.pid) : 0,
         title: String(wl.title || ""),
         initialTitle: String(ipc.initialTitle || ""),
         activated: !!wl.activated
@@ -596,18 +597,18 @@ BarWidget {
       var bin = String(entry.command[0] || "").trim()
       if (bin) return bin
     }
-    if (appKey === "google-chrome") return "/usr/bin/google-chrome-stable"
-    if (appKey === "chromium") return "chromium"
-    if (appKey === "brave-browser" || appKey === "brave") return "brave"
-    return ""
+    var spec = TaskbarModel.browserProfileSpec(appKey, "x")
+    return spec ? spec.defaultBin : ""
   }
 
   function launchBrowserProfile(item, profileDir) {
     var dir = String(profileDir || "").trim()
-    if (!TaskbarModel.isValidProfileDir(dir)) return
     var bin = browserBinaryForItem(item)
     if (!bin) return
     var appKey = item ? TaskbarModel.normalizeId(item.appKey || item.key).toLowerCase() : ""
+    var spec = TaskbarModel.browserProfileSpec(appKey, Commons.Color.home)
+    var argv = TaskbarModel.browserProfileLaunchArgv(bin, dir, spec)
+    if (argv.length === 0) return
     var matched = null
     for (var i = 0; i < root.browserProfiles.length; i++) {
       if (root.browserProfiles[i].dir === dir) {
@@ -622,7 +623,7 @@ BarWidget {
         leader.recordProfileLaunch(appKey, matched)
       }
     }
-    Util.execArgv(["uwsm-app", "--", bin, "--profile-directory=" + dir])
+    Util.execArgv(argv)
   }
 
   function bringForward(window) {
@@ -870,13 +871,13 @@ BarWidget {
     root.cancelHoverPreview()
     var targetItem = root.itemFor(key)
     var appKey = targetItem ? (targetItem.appKey || targetItem.key) : ""
-    var dir = TaskbarModel.browserProfileConfigDir(appKey, Commons.Color.home)
-    if (dir) {
-      root.activeBrowserDir = dir
+    var spec = TaskbarModel.browserProfileSpec(appKey, Commons.Color.home)
+    if (spec) {
+      root.activeBrowserSpec = spec
       browserStateFile.reload()
-      root.browserProfiles = TaskbarModel.parseChromeProfiles(browserStateFile.text(), dir)
+      root.browserProfiles = TaskbarModel.parseBrowserProfiles(browserStateFile.text(), spec)
     } else {
-      root.activeBrowserDir = ""
+      root.activeBrowserSpec = null
       root.browserProfiles = []
     }
     root.settingsOpen = false
@@ -1383,7 +1384,7 @@ BarWidget {
 
     readonly property var targetItem: root.menuKey.length > 0 ? root.itemFor(root.menuKey) : null
     readonly property string targetAppKey: targetItem ? (targetItem.appKey || targetItem.key) : ""
-    readonly property bool isBrowser: TaskbarModel.browserProfileConfigDir(targetAppKey, Commons.Color.home).length > 0
+    readonly property bool isBrowser: !!TaskbarModel.browserProfileSpec(targetAppKey, Commons.Color.home)
 
     anchorItem: root.menuAnchor || root
     owner: menuOwner

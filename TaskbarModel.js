@@ -512,14 +512,61 @@ function sanitizeTooltipText(value, maxLen) {
   return clean
 }
 
-function browserProfileConfigDir(appKey, homeDir) {
+function browserProfileSpec(appKey, homeDir) {
   var home = String(homeDir || "").replace(/\/+$/, "")
-  if (!home) return ""
   var key = normalizeId(appKey).toLowerCase()
-  if (key === "google-chrome") return home + "/.config/google-chrome"
-  if (key === "chromium") return home + "/.config/chromium"
-  if (key === "brave-browser" || key === "brave") return home + "/.config/BraveSoftware/Brave-Browser"
-  return ""
+  if (!home || !key) return null
+
+  var chromiumMap = {
+    "google-chrome": { dir: home + "/.config/google-chrome", defaultBin: "/usr/bin/google-chrome-stable" },
+    "chromium": { dir: home + "/.config/chromium", defaultBin: "chromium" },
+    "brave-browser": { dir: home + "/.config/BraveSoftware/Brave-Browser", defaultBin: "brave" },
+    "brave": { dir: home + "/.config/BraveSoftware/Brave-Browser", defaultBin: "brave" },
+    "vivaldi-stable": { dir: home + "/.config/vivaldi", defaultBin: "vivaldi-stable" },
+    "vivaldi": { dir: home + "/.config/vivaldi", defaultBin: "vivaldi-stable" },
+    "vivaldi-snapshot": { dir: home + "/.config/vivaldi-snapshot", defaultBin: "vivaldi-snapshot" },
+    "microsoft-edge": { dir: home + "/.config/microsoft-edge", defaultBin: "microsoft-edge-stable" },
+    "microsoft-edge-stable": { dir: home + "/.config/microsoft-edge", defaultBin: "microsoft-edge-stable" },
+    "microsoft-edge-beta": { dir: home + "/.config/microsoft-edge-beta", defaultBin: "microsoft-edge-beta" },
+    "microsoft-edge-dev": { dir: home + "/.config/microsoft-edge-dev", defaultBin: "microsoft-edge-dev" }
+  }
+  if (chromiumMap[key]) {
+    return {
+      family: "chromium",
+      dir: chromiumMap[key].dir,
+      stateFile: chromiumMap[key].dir + "/Local State",
+      defaultBin: chromiumMap[key].defaultBin
+    }
+  }
+
+  var geckoMap = {
+    "firefox": { dir: home + "/.mozilla/firefox", defaultBin: "firefox" },
+    "org.mozilla.firefox": { dir: home + "/.mozilla/firefox", defaultBin: "firefox" },
+    "firefox-developer-edition": { dir: home + "/.mozilla/firefox", defaultBin: "firefox-developer-edition" },
+    "firefox-nightly": { dir: home + "/.mozilla/firefox", defaultBin: "firefox-nightly" },
+    "zen": { dir: home + "/.zen", defaultBin: "zen-browser" },
+    "zen-browser": { dir: home + "/.zen", defaultBin: "zen-browser" },
+    "zen-beta": { dir: home + "/.zen", defaultBin: "zen-browser" },
+    "zen-alpha": { dir: home + "/.zen", defaultBin: "zen-browser" },
+    "zen-twilight": { dir: home + "/.zen", defaultBin: "zen-browser" },
+    "app.zen_browser.zen": { dir: home + "/.zen", defaultBin: "zen-browser" },
+    "io.github.zen_browser.zen": { dir: home + "/.zen", defaultBin: "zen-browser" }
+  }
+  if (geckoMap[key]) {
+    return {
+      family: "gecko",
+      dir: geckoMap[key].dir,
+      stateFile: geckoMap[key].dir + "/profiles.ini",
+      defaultBin: geckoMap[key].defaultBin
+    }
+  }
+
+  return null
+}
+
+function browserProfileConfigDir(appKey, homeDir) {
+  var spec = browserProfileSpec(appKey, homeDir)
+  return spec ? spec.dir : ""
 }
 
 function parseChromeProfiles(rawJson, browserDirPath) {
@@ -552,7 +599,7 @@ function parseChromeProfiles(rawJson, browserDirPath) {
       .replace(/[\r\n\t]+/g, " ")
       .trim()
       .slice(0, 96)
-    var picFile = String(info.gaia_picture_file_name || "").trim()
+    var picFile = String(info.gaia_picture_file_name || info.edge_picture_file_name || info.avatar_picture_file_name || "").trim()
     var picturePath = (baseDir && isValidProfileDir(picFile))
       ? (baseDir + "/" + dir + "/" + picFile)
       : ""
@@ -584,6 +631,109 @@ function parseChromeProfiles(rawJson, browserDirPath) {
   })
 
   return profiles.slice(0, 32)
+}
+
+function parseGeckoProfiles(rawIni, browserDirPath) {
+  var lines = String(rawIni || "").split(/\r?\n/)
+  var current = ""
+  var sections = {}
+  var sectionOrder = []
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim()
+    if (!line || line.charAt(0) === "#" || line.charAt(0) === ";") continue
+    var secMatch = /^\[([^\]]+)\]$/.exec(line)
+    if (secMatch) {
+      current = secMatch[1].trim()
+      if (!sections[current]) {
+        sections[current] = {}
+        sectionOrder.push(current)
+      }
+      continue
+    }
+    if (!current) continue
+    var eq = line.indexOf("=")
+    if (eq <= 0) continue
+    var k = line.slice(0, eq).trim().toLowerCase()
+    var v = line.slice(eq + 1).trim()
+    sections[current][k] = v
+  }
+
+  var installDefaults = {}
+  for (var s = 0; s < sectionOrder.length; s++) {
+    var secName = sectionOrder[s]
+    if (/^install/i.test(secName) && sections[secName]["default"]) {
+      installDefaults[sections[secName]["default"]] = true
+    }
+  }
+
+  var profiles = []
+  var seenNames = {}
+  for (var p = 0; p < sectionOrder.length; p++) {
+    var pName = sectionOrder[p]
+    if (!/^profile\d*$/i.test(pName)) continue
+    var sec = sections[pName]
+    var rawName = String(sec.name || "").replace(/[\r\n\t]+/g, " ").trim()
+    var rawPath = String(sec.path || "").replace(/[\r\n\t]+/g, "").trim()
+    if (!rawName || !rawPath || /[\x00-\x1f\x7f]/.test(rawPath)) continue
+    if (!isValidProfileDir(rawName) || rawName.charAt(0) === "-") continue
+
+    var isRelative = sec.isrelative === undefined ? "1" : String(sec.isrelative).trim()
+    if (isRelative !== "0") {
+      if (rawPath.charAt(0) === "/" || /[\\]/.test(rawPath) || /(?:^|\/)\.\.(?:\/|$)/.test(rawPath)) continue
+    } else if (/(?:^|[\\/])\.\.(?:[\\/]|$)/.test(rawPath)) {
+      continue
+    }
+
+    var cleanName = rawName.slice(0, 64)
+    var dedupKey = cleanName.toLowerCase()
+    if (seenNames[dedupKey]) continue
+    seenNames[dedupKey] = true
+
+    profiles.push({
+      dir: cleanName,
+      name: cleanName,
+      email: "",
+      picturePath: "",
+      initial: cleanName.charAt(0).toUpperCase() || "?",
+      _isDefault: !!installDefaults[rawPath] || sec["default"] === "1"
+    })
+  }
+
+  profiles.sort(function(a, b) {
+    if (a._isDefault !== b._isDefault) return a._isDefault ? -1 : 1
+    var la = a.name.toLowerCase()
+    var lb = b.name.toLowerCase()
+    if (la !== lb) return la < lb ? -1 : 1
+    return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)
+  })
+
+  return profiles.slice(0, 32).map(function(prof) {
+    return {
+      dir: prof.dir,
+      name: prof.name,
+      email: prof.email,
+      picturePath: prof.picturePath,
+      initial: prof.initial
+    }
+  })
+}
+
+function parseBrowserProfiles(rawText, spec) {
+  if (!spec || typeof spec !== "object") return []
+  if (spec.family === "gecko") return parseGeckoProfiles(rawText, spec.dir)
+  return parseChromeProfiles(rawText, spec.dir)
+}
+
+function browserProfileLaunchArgv(bin, profileId, spec) {
+  var cmd = String(bin || "").trim()
+  var prof = String(profileId || "").trim()
+  if (!cmd || !isValidProfileDir(prof)) return []
+  if (spec && spec.family === "gecko") {
+    if (prof.charAt(0) === "-") return []
+    return ["uwsm-app", "--", cmd, "-P", prof]
+  }
+  return ["uwsm-app", "--", cmd, "--profile-directory=" + prof]
 }
 
 function lookupWindowProfile(address, windowProfiles) {
@@ -939,8 +1089,12 @@ if (typeof module !== "undefined") {
     filterSnapAssistCandidates: filterSnapAssistCandidates,
     isValidProfileDir: isValidProfileDir,
     sanitizeTooltipText: sanitizeTooltipText,
+    browserProfileSpec: browserProfileSpec,
     browserProfileConfigDir: browserProfileConfigDir,
     parseChromeProfiles: parseChromeProfiles,
+    parseGeckoProfiles: parseGeckoProfiles,
+    parseBrowserProfiles: parseBrowserProfiles,
+    browserProfileLaunchArgv: browserProfileLaunchArgv,
     lookupWindowProfile: lookupWindowProfile,
     profileBadgeForItem: profileBadgeForItem,
     formatWindowTooltipWithProfile: formatWindowTooltipWithProfile,

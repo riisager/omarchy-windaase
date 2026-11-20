@@ -650,6 +650,147 @@ class ConfigHelperTests(unittest.TestCase):
         # Single-profile Brave is skipped
         self.assertNotIn("0xccc1", out)
 
+    def test_vivaldi_edge_firefox_and_zen_window_profiles(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("windaase_config", SCRIPT_PATH)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        # Vivaldi (2 profiles, session match)
+        vivaldi_dir = os.path.join(self.home, ".config", "vivaldi")
+        os.makedirs(os.path.join(vivaldi_dir, "Default", "Sessions"), exist_ok=True)
+        os.makedirs(os.path.join(vivaldi_dir, "Profile 1", "Sessions"), exist_ok=True)
+        with open(os.path.join(vivaldi_dir, "Default", "Sessions", "Session_1"), "wb") as h:
+            h.write(b"v" + "Home Feed".encode("utf-16le"))
+        with open(os.path.join(vivaldi_dir, "Profile 1", "Sessions", "Session_2"), "wb") as h:
+            h.write(b"v" + "Sprint Board".encode("utf-16le"))
+        with open(os.path.join(vivaldi_dir, "Local State"), "w", encoding="utf-8") as h:
+            json.dump(
+                {
+                    "profile": {
+                        "last_used": "Default",
+                        "last_active_profiles": ["Default", "Profile 1"],
+                        "info_cache": {
+                            "Default": {"name": "Home", "active_time": 20.0},
+                            "Profile 1": {"name": "Office", "active_time": 10.0},
+                        },
+                    }
+                },
+                h,
+            )
+
+        # Microsoft Edge (2 profiles, Edge Profile Picture.png fallback + title segment + InPrivate)
+        edge_dir = os.path.join(self.home, ".config", "microsoft-edge")
+        os.makedirs(os.path.join(edge_dir, "Default", "Sessions"), exist_ok=True)
+        os.makedirs(os.path.join(edge_dir, "Profile 1", "Sessions"), exist_ok=True)
+        edge_pic = os.path.join(edge_dir, "Profile 1", "Edge Profile Picture.png")
+        with open(edge_pic, "wb") as h:
+            h.write(b"png")
+        with open(os.path.join(edge_dir, "Local State"), "w", encoding="utf-8") as h:
+            json.dump(
+                {
+                    "profile": {
+                        "last_used": "Default",
+                        "last_active_profiles": ["Default", "Profile 1"],
+                        "info_cache": {
+                            "Default": {"name": "Personal", "active_time": 10.0},
+                            "Profile 1": {"name": "Work", "active_time": 30.0},
+                        },
+                    }
+                },
+                h,
+            )
+
+        # Firefox (~/.mozilla/firefox/profiles.ini + fake /proc cmdline & fd symlinks)
+        ff_dir = os.path.join(self.home, ".mozilla", "firefox")
+        ff_p1 = os.path.join(ff_dir, "aaa111.default")
+        ff_p2 = os.path.join(ff_dir, "bbb222.work")
+        os.makedirs(ff_p1, exist_ok=True)
+        os.makedirs(ff_p2, exist_ok=True)
+        with open(os.path.join(ff_dir, "profiles.ini"), "w", encoding="utf-8") as h:
+            h.write(
+                "[Install123]\n"
+                "Default=aaa111.default\n\n"
+                "[Profile0]\n"
+                "Name=default-release\n"
+                "IsRelative=1\n"
+                "Path=aaa111.default\n\n"
+                "[Profile1]\n"
+                "Name=Work\n"
+                "IsRelative=1\n"
+                "Path=bbb222.work\n\n"
+                "[Profile2]\n"
+                "Name=BadTraversal\n"
+                "IsRelative=1\n"
+                "Path=../../etc\n"
+            )
+
+        # Zen Browser (~/.zen/profiles.ini)
+        zen_dir = os.path.join(self.home, ".zen")
+        zen_p1 = os.path.join(zen_dir, "111.main")
+        zen_p2 = os.path.join(zen_dir, "222.dev")
+        os.makedirs(zen_p1, exist_ok=True)
+        os.makedirs(zen_p2, exist_ok=True)
+        with open(os.path.join(zen_dir, "profiles.ini"), "w", encoding="utf-8") as h:
+            h.write(
+                "[Profile0]\n"
+                "Name=Main\n"
+                "IsRelative=1\n"
+                "Path=111.main\n"
+                "Default=1\n\n"
+                "[Profile1]\n"
+                "Name=Dev\n"
+                "IsRelative=1\n"
+                "Path=222.dev\n"
+            )
+
+        proc_root = os.path.join(self.home, "fakeproc")
+        # pid 1001: Firefox launched with -P Work
+        os.makedirs(os.path.join(proc_root, "1001", "fd"), exist_ok=True)
+        with open(os.path.join(proc_root, "1001", "cmdline"), "wb") as h:
+            h.write(b"firefox\x00-P\x00Work\x00")
+        # pid 1002: Firefox default instance detected via fd symlink
+        os.makedirs(os.path.join(proc_root, "1002", "fd"), exist_ok=True)
+        with open(os.path.join(proc_root, "1002", "cmdline"), "wb") as h:
+            h.write(b"firefox\x00")
+        os.symlink(os.path.join(ff_p1, "places.sqlite"), os.path.join(proc_root, "1002", "fd", "7"))
+        # pid 2001: Zen launched with --profile <zen_p2>
+        os.makedirs(os.path.join(proc_root, "2001", "fd"), exist_ok=True)
+        with open(os.path.join(proc_root, "2001", "cmdline"), "wb") as h:
+            h.write(b"zen-browser\x00--profile=" + zen_p2.encode("utf-8") + b"\x00")
+
+        payload = [
+            {"address": "0x1111", "appKey": "vivaldi-stable", "title": "Sprint Board - Vivaldi", "initialTitle": "", "activated": False},
+            {"address": "0x2221", "appKey": "microsoft-edge", "title": "Docs and 3 more pages - Work - Microsoft\u200b Edge", "initialTitle": "", "activated": False},
+            {"address": "0x2222", "appKey": "microsoft-edge", "title": "New tab - InPrivate - Microsoft\u200b Edge", "initialTitle": "", "activated": True},
+            {"address": "0x3331", "appKey": "firefox", "pid": 1001, "title": "PR Review — Mozilla Firefox", "initialTitle": "", "activated": False},
+            {"address": "0x3332", "appKey": "firefox", "pid": 1002, "title": "News — Mozilla Firefox", "initialTitle": "", "activated": True},
+            {"address": "0x3333", "appKey": "firefox", "pid": 1001, "title": "Docs — Mozilla Firefox Private Browsing", "initialTitle": "", "activated": True},
+            {"address": "0x4441", "appKey": "zen-browser", "pid": 2001, "title": "Repo — Zen Browser", "initialTitle": "", "activated": True},
+        ]
+
+        out = mod.resolve_browser_window_profiles(payload, home_dir=self.home, proc_root=proc_root)
+        self.assertEqual(out["0x1111"]["dir"], "Profile 1")
+        self.assertEqual(out["0x1111"]["name"], "Office")
+        self.assertTrue(out["0x1111"]["confident"])
+
+        self.assertEqual(out["0x2221"]["dir"], "Profile 1")
+        self.assertEqual(out["0x2221"]["name"], "Work")
+        self.assertEqual(out["0x2221"]["picturePath"], edge_pic)
+        self.assertTrue(out["0x2221"]["confident"])
+        self.assertNotIn("0x2222", out)
+
+        self.assertEqual(out["0x3331"]["name"], "Work")
+        self.assertEqual(out["0x3331"]["initial"], "W")
+        self.assertTrue(out["0x3331"]["confident"])
+        self.assertEqual(out["0x3332"]["name"], "default-release")
+        self.assertTrue(out["0x3332"]["confident"])
+        self.assertNotIn("0x3333", out)
+
+        self.assertEqual(out["0x4441"]["name"], "Dev")
+        self.assertTrue(out["0x4441"]["confident"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
