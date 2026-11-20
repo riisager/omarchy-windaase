@@ -535,10 +535,12 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(plugin_dir, "install.sh")))
         self.assertTrue(os.path.exists(os.path.join(plugin_dir, "hypr", "windaase.lua")))
         self.assertTrue(os.path.exists(os.path.join(plugin_dir, "SnapAssistCard.qml")))
+        self.assertTrue(os.path.exists(os.path.join(plugin_dir, "ProfileAvatar.qml")))
 
         # Hyprland companion must be installed and wired into hyprland.lua
         self.assertTrue(os.path.exists(os.path.join(hypr_dir, "windaase.lua")))
         self.assertTrue(os.path.exists(os.path.join(hypr_dir, "windaase", "snap.lua")))
+        self.assertTrue(os.path.exists(os.path.join(hypr_dir, "windaase", "snap_resize.lua")))
         self.assertTrue(os.path.exists(os.path.join(hypr_dir, "windaase", "layouts.json")))
         lua_content = self.read_text(hyprland_lua)
         self.assertIn('require("hypr.windaase").setup()', lua_content)

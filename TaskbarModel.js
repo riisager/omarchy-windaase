@@ -535,28 +535,31 @@ function browserProfileSpec(appKey, homeDir) {
       family: "chromium",
       dir: chromiumMap[key].dir,
       stateFile: chromiumMap[key].dir + "/Local State",
+      fallbackStateFile: "",
       defaultBin: chromiumMap[key].defaultBin
     }
   }
 
+  var firefoxFallback = home + "/.config/mozilla/firefox/profiles.ini"
   var geckoMap = {
-    "firefox": { dir: home + "/.mozilla/firefox", defaultBin: "firefox" },
-    "org.mozilla.firefox": { dir: home + "/.mozilla/firefox", defaultBin: "firefox" },
-    "firefox-developer-edition": { dir: home + "/.mozilla/firefox", defaultBin: "firefox-developer-edition" },
-    "firefox-nightly": { dir: home + "/.mozilla/firefox", defaultBin: "firefox-nightly" },
-    "zen": { dir: home + "/.zen", defaultBin: "zen-browser" },
-    "zen-browser": { dir: home + "/.zen", defaultBin: "zen-browser" },
-    "zen-beta": { dir: home + "/.zen", defaultBin: "zen-browser" },
-    "zen-alpha": { dir: home + "/.zen", defaultBin: "zen-browser" },
-    "zen-twilight": { dir: home + "/.zen", defaultBin: "zen-browser" },
-    "app.zen_browser.zen": { dir: home + "/.zen", defaultBin: "zen-browser" },
-    "io.github.zen_browser.zen": { dir: home + "/.zen", defaultBin: "zen-browser" }
+    "firefox": { dir: home + "/.mozilla/firefox", fallbackStateFile: firefoxFallback, defaultBin: "firefox" },
+    "org.mozilla.firefox": { dir: home + "/.mozilla/firefox", fallbackStateFile: firefoxFallback, defaultBin: "firefox" },
+    "firefox-developer-edition": { dir: home + "/.mozilla/firefox", fallbackStateFile: firefoxFallback, defaultBin: "firefox-developer-edition" },
+    "firefox-nightly": { dir: home + "/.mozilla/firefox", fallbackStateFile: firefoxFallback, defaultBin: "firefox-nightly" },
+    "zen": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
+    "zen-browser": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
+    "zen-beta": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
+    "zen-alpha": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
+    "zen-twilight": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
+    "app.zen_browser.zen": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
+    "io.github.zen_browser.zen": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" }
   }
   if (geckoMap[key]) {
     return {
       family: "gecko",
       dir: geckoMap[key].dir,
       stateFile: geckoMap[key].dir + "/profiles.ini",
+      fallbackStateFile: geckoMap[key].fallbackStateFile,
       defaultBin: geckoMap[key].defaultBin
     }
   }

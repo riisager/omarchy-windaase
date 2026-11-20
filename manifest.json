@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "riisager.windaase",
   "name": "Omarchy-windåse",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "riisager",
   "license": "MIT",
-  "description": "Windows-style taskbar inside the Omarchy bar, Windows 11 Snap Layouts, and floating desktop ergonomics.",
+  "description": "Windows 11-style in-bar taskbar with live window previews, multi-browser profiles, Snap Layouts, Snap Assist, and Snap Resize.",
   "kinds": [
     "service",
     "bar-widget"
@@ -17,7 +17,7 @@
   },
   "barWidget": {
     "displayName": "Windåse Taskbar",
-    "description": "Windows-style pinned and running apps in the bar with click-to-minimize, window picker, and Chromium profile launcher.",
+    "description": "Windows-style pinned and running apps in the bar with live hover previews, click-to-minimize, drag reordering, and browser profile launcher.",
     "category": "Compositor",
     "allowMultiple": false,
     "defaultSection": "left"

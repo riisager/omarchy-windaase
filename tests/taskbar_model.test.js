@@ -169,6 +169,7 @@ function run() {
     family: "chromium",
     dir: "/home/alice/.config/microsoft-edge",
     stateFile: "/home/alice/.config/microsoft-edge/Local State",
+    fallbackStateFile: "",
     defaultBin: "microsoft-edge-stable"
   });
   const zenSpec = TaskbarModel.browserProfileSpec("zen", "/home/alice");
@@ -176,8 +177,13 @@ function run() {
     family: "gecko",
     dir: "/home/alice/.zen",
     stateFile: "/home/alice/.zen/profiles.ini",
+    fallbackStateFile: "",
     defaultBin: "zen-browser"
   });
+  assert.strictEqual(
+    TaskbarModel.browserProfileSpec("firefox", "/home/alice").fallbackStateFile,
+    "/home/alice/.config/mozilla/firefox/profiles.ini"
+  );
 
   assert.strictEqual(TaskbarModel.isValidProfileDir("Profile 1"), true);
   assert.strictEqual(TaskbarModel.isValidProfileDir(".."), false);

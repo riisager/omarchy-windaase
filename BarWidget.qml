@@ -41,6 +41,7 @@ BarWidget {
   readonly property var pinnedList: root.userPinnedList !== null ? root.userPinnedList : root.defaultPinnedList
 
   property var activeBrowserSpec: null
+  property string activeBrowserStateFile: ""
   property var browserProfiles: []
   property var windowProfiles: ({})
   property var pendingProfileLaunch: null
@@ -145,7 +146,7 @@ BarWidget {
 
   FileView {
     id: browserStateFile
-    path: root.activeBrowserSpec ? root.activeBrowserSpec.stateFile : ""
+    path: root.activeBrowserStateFile
     watchChanges: false
     blockLoading: true
     printErrors: false
@@ -154,7 +155,15 @@ BarWidget {
         root.browserProfiles = TaskbarModel.parseBrowserProfiles(text(), root.activeBrowserSpec)
       }
     }
-    onLoadFailed: root.browserProfiles = []
+    onLoadFailed: {
+      if (root.activeBrowserSpec && root.activeBrowserSpec.fallbackStateFile
+          && root.activeBrowserStateFile !== root.activeBrowserSpec.fallbackStateFile) {
+        root.activeBrowserStateFile = root.activeBrowserSpec.fallbackStateFile
+        browserStateFile.reload()
+        return
+      }
+      root.browserProfiles = []
+    }
   }
 
   Connections {
@@ -515,11 +524,24 @@ BarWidget {
     if (changed) root.syncProfilesToPeers(merged)
 
     var batch = root.lastProbedBatch || []
+    var probedAddrs = {}
     for (var j = 0; j < batch.length; j++) {
       var w = batch[j]
+      probedAddrs[w.address] = true
       var entry = merged[w.address]
       if ((!entry || !entry.confident) && (root.profileProbeRetries[w.address + "|" + w.title] || 0) < 3) {
         profileRetryTimer.restart()
+        break
+      }
+    }
+    for (var k = 0; k < batch.length; k++) probedAddrs[batch[k].address] = true
+    var pending = root.pendingProbeBatch || []
+    for (var q = 0; q < pending.length; q++) {
+      var pw = pending[q]
+      if (probedAddrs[pw.address]) continue
+      var pEntry = merged[pw.address]
+      if ((!pEntry || !pEntry.confident) && (root.profileProbeRetries[pw.address + "|" + pw.title] || 0) < 3) {
+        if (!profileProbeTimer.running) profileProbeTimer.restart()
         break
       }
     }
@@ -874,10 +896,18 @@ BarWidget {
     var spec = TaskbarModel.browserProfileSpec(appKey, Commons.Color.home)
     if (spec) {
       root.activeBrowserSpec = spec
+      root.activeBrowserStateFile = spec.stateFile
       browserStateFile.reload()
-      root.browserProfiles = TaskbarModel.parseBrowserProfiles(browserStateFile.text(), spec)
+      var raw = browserStateFile.text()
+      if (!raw && spec.fallbackStateFile) {
+        root.activeBrowserStateFile = spec.fallbackStateFile
+        browserStateFile.reload()
+        raw = browserStateFile.text()
+      }
+      root.browserProfiles = TaskbarModel.parseBrowserProfiles(raw, spec)
     } else {
       root.activeBrowserSpec = null
+      root.activeBrowserStateFile = ""
       root.browserProfiles = []
     }
     root.settingsOpen = false
