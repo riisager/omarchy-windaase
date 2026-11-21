@@ -62,5 +62,6 @@
   "appGrid.files": "Αρχεία",
   "appGrid.settings": "Ρυθμίσεις",
   "appGrid.lock": "Κλείδωμα",
-  "appGrid.power": "Τροφοδοσία"
+  "appGrid.power": "Τροφοδοσία",
+  "taskbar.alwaysOnTop": "Πάντα στην κορυφή"
 }

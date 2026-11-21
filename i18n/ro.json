@@ -62,5 +62,6 @@
   "appGrid.files": "Fișiere",
   "appGrid.settings": "Setări",
   "appGrid.lock": "Blochează",
-  "appGrid.power": "Alimentare"
+  "appGrid.power": "Alimentare",
+  "taskbar.alwaysOnTop": "Întotdeauna deasupra"
 }

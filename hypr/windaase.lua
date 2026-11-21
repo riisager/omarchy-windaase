@@ -89,12 +89,35 @@ function M.setup(user_opts)
     o.bind("SUPER + D", "Show desktop", show_desktop.toggle)
     o.bind("SUPER + E", "File manager", { omarchy = "nautilus" })
     o.rebind("SUPER + ALT + SPACE", "Apps", "omarchy-shell riisager.windaase apps")
+    o.rebind("SUPER + Home", "Minimize other windows (or restore tiled width)", function()
+      local w = hl.get_active_window()
+      if w and w.floating then
+        show_desktop.toggle_minimize_others()
+      else
+        hl.exec_cmd("omarchy-hyprland-window-width restore")
+      end
+    end)
+    o.bind("SUPER + ALT + P", "Toggle always on top", function()
+      local w = hl.get_active_window()
+      if not w then
+        return
+      end
+      if not w.floating and not w.pinned then
+        hl.dispatch(hl.dsp.window.float({ action = "on", window = w }))
+      end
+      hl.dispatch(hl.dsp.window.pin({ window = w }))
+      if not w.pinned then
+        hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = w }))
+      end
+    end)
   end
 end
 
 M.snap = snap.apply_snap
 M.snap_resize = snap_resize.resize_by_keyboard
+M.move_to_monitor = snap.move_to_monitor
 M.show_desktop = show_desktop.toggle
+M.minimize_others = show_desktop.toggle_minimize_others
 M.toggle_snap_layouts = snap_layouts.toggle_click_overlay
 
 return M

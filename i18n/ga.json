@@ -62,5 +62,6 @@
   "appGrid.files": "Comhaid",
   "appGrid.settings": "Socruithe",
   "appGrid.lock": "Glasáil",
-  "appGrid.power": "Cumhacht"
+  "appGrid.power": "Cumhacht",
+  "taskbar.alwaysOnTop": "I gcónaí ar bharr"
 }

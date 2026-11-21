@@ -62,5 +62,6 @@
   "appGrid.files": "Файли",
   "appGrid.settings": "Налаштування",
   "appGrid.lock": "Заблокувати",
-  "appGrid.power": "Живлення"
+  "appGrid.power": "Живлення",
+  "taskbar.alwaysOnTop": "Завжди зверху"
 }

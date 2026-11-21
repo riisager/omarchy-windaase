@@ -14,6 +14,8 @@ PopupCard {
   property bool hasEntry: false
   property bool running: false
   property bool allMinimized: false
+  property bool canTogglePin: false
+  property bool isPinnedOnTop: false
   property bool splitWindows: false
   property bool showProfiles: false
   property var browserProfiles: []
@@ -22,6 +24,7 @@ PopupCard {
   signal newWindowRequested()
   signal minimizeRequested()
   signal restoreRequested()
+  signal pinOnTopToggled()
   signal pinToggled(bool pinned)
   signal splitWindowsToggled()
   signal closeRequested()
@@ -160,6 +163,13 @@ PopupCard {
         visible: root.running && root.allMinimized
         text: root.strings.t("taskbar.restore")
         onTriggered: root.restoreRequested()
+      }
+
+      TaskMenuRow {
+        visible: root.canTogglePin
+        text: root.strings.t("taskbar.alwaysOnTop")
+        checked: root.isPinnedOnTop
+        onTriggered: root.pinOnTopToggled()
       }
 
       TaskMenuRow {

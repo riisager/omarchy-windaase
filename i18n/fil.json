@@ -62,5 +62,6 @@
   "appGrid.files": "Mga File",
   "appGrid.settings": "Mga Setting",
   "appGrid.lock": "I-lock",
-  "appGrid.power": "Power"
+  "appGrid.power": "Power",
+  "taskbar.alwaysOnTop": "Palaging nasa ibabaw"
 }

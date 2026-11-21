@@ -62,5 +62,6 @@
   "appGrid.files": "ගොනු",
   "appGrid.settings": "සැකසුම්",
   "appGrid.lock": "අගුලු දාන්න",
-  "appGrid.power": "බලය"
+  "appGrid.power": "බලය",
+  "taskbar.alwaysOnTop": "සැමවිටම ඉහළින්"
 }

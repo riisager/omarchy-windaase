@@ -62,5 +62,6 @@
   "appGrid.files": "파일",
   "appGrid.settings": "설정",
   "appGrid.lock": "잠금",
-  "appGrid.power": "전원"
+  "appGrid.power": "전원",
+  "taskbar.alwaysOnTop": "항상 위에 표시"
 }

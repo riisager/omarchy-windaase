@@ -62,5 +62,6 @@
   "appGrid.files": "Ficheiros",
   "appGrid.settings": "Definições",
   "appGrid.lock": "Bloquear",
-  "appGrid.power": "Energia"
+  "appGrid.power": "Energia",
+  "taskbar.alwaysOnTop": "Sempre no topo"
 }

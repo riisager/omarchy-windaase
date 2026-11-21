@@ -62,5 +62,6 @@
   "appGrid.files": "Fichiers",
   "appGrid.settings": "Paramètres",
   "appGrid.lock": "Verrouiller",
-  "appGrid.power": "Alimentation"
+  "appGrid.power": "Alimentation",
+  "taskbar.alwaysOnTop": "Toujours au premier plan"
 }

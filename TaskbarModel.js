@@ -1071,6 +1071,84 @@ function formatTemplate(template, arg1, arg2) {
   return text
 }
 
+function _cloneBoolMap(src) {
+  var out = {}
+  if (!src || typeof src !== "object" || Array.isArray(src)) return out
+  var keys = Object.keys(src)
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i]
+    if (src[k]) out[k] = true
+  }
+  return out
+}
+
+function markWindowUrgent(urgentMap, rawAddr, activeAddr) {
+  var next = _cloneBoolMap(urgentMap)
+  var addr = normalizeAddress(rawAddr).toLowerCase()
+  var active = normalizeAddress(activeAddr).toLowerCase()
+  if (addr && addr !== active) {
+    next[addr] = true
+  }
+  return next
+}
+
+function clearWindowUrgent(urgentMap, rawAddr) {
+  var next = _cloneBoolMap(urgentMap)
+  var addr = normalizeAddress(rawAddr).toLowerCase()
+  if (addr && next[addr]) {
+    delete next[addr]
+  }
+  return next
+}
+
+function pruneUrgentWindows(urgentMap, windows) {
+  var src = _cloneBoolMap(urgentMap)
+  var keys = Object.keys(src)
+  if (keys.length === 0) return {}
+  var byAddr = {}
+  var list = Array.isArray(windows) ? windows : []
+  for (var i = 0; i < list.length; i++) {
+    var w = list[i]
+    if (!w) continue
+    var addr = normalizeAddress(w.address).toLowerCase()
+    if (addr) byAddr[addr] = w
+  }
+  var next = {}
+  for (var k = 0; k < keys.length; k++) {
+    var key = keys[k]
+    var win = byAddr[key]
+    if (win && !(win.activated && !win.minimized)) {
+      next[key] = true
+    }
+  }
+  return next
+}
+
+function isItemUrgent(item, urgentMap) {
+  if (!item || !Array.isArray(item.windows)) return false
+  for (var i = 0; i < item.windows.length; i++) {
+    var win = item.windows[i]
+    if (!win) continue
+    if (win.activated && !win.minimized) continue
+    if (win.urgent === true) return true
+    var addr = normalizeAddress(win.address).toLowerCase()
+    if (addr && urgentMap && urgentMap[addr]) return true
+  }
+  return false
+}
+
+function targetWindowForPin(item) {
+  if (!item || !Array.isArray(item.windows)) return null
+  var firstVisible = null
+  for (var i = 0; i < item.windows.length; i++) {
+    var win = item.windows[i]
+    if (!win || win.minimized) continue
+    if (!firstVisible) firstVisible = win
+    if ((win.toplevel && win.toplevel.activated) || win.activated === true) return win
+  }
+  return firstVisible
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     MINIMIZED_WORKSPACE: MINIMIZED_WORKSPACE,
@@ -1114,6 +1192,11 @@ if (typeof module !== "undefined") {
     isTwoLineClockFormat: isTwoLineClockFormat,
     extractPinnedList: extractPinnedList,
     launchArgvForEntry: launchArgvForEntry,
-    formatTemplate: formatTemplate
+    formatTemplate: formatTemplate,
+    markWindowUrgent: markWindowUrgent,
+    clearWindowUrgent: clearWindowUrgent,
+    pruneUrgentWindows: pruneUrgentWindows,
+    isItemUrgent: isItemUrgent,
+    targetWindowForPin: targetWindowForPin
   }
 }

@@ -62,5 +62,6 @@
   "appGrid.files": "Датотеке",
   "appGrid.settings": "Подешавања",
   "appGrid.lock": "Закључај",
-  "appGrid.power": "Напајање"
+  "appGrid.power": "Напајање",
+  "taskbar.alwaysOnTop": "Увек на врху"
 }

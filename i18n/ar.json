@@ -62,5 +62,6 @@
   "appGrid.files": "الملفات",
   "appGrid.settings": "الإعدادات",
   "appGrid.lock": "قفل",
-  "appGrid.power": "الطاقة"
+  "appGrid.power": "الطاقة",
+  "taskbar.alwaysOnTop": "في المقدمة دائمًا"
 }

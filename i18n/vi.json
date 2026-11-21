@@ -62,5 +62,6 @@
   "appGrid.files": "Tệp",
   "appGrid.settings": "Cài đặt",
   "appGrid.lock": "Khóa",
-  "appGrid.power": "Nguồn"
+  "appGrid.power": "Nguồn",
+  "taskbar.alwaysOnTop": "Luôn ở trên cùng"
 }

@@ -62,5 +62,6 @@
   "appGrid.files": "Dateien",
   "appGrid.settings": "Einstellungen",
   "appGrid.lock": "Sperren",
-  "appGrid.power": "Ein/Aus"
+  "appGrid.power": "Ein/Aus",
+  "taskbar.alwaysOnTop": "Immer im Vordergrund"
 }

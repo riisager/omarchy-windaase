@@ -62,5 +62,6 @@
   "appGrid.files": "Dosyalar",
   "appGrid.settings": "Ayarlar",
   "appGrid.lock": "Kilitle",
-  "appGrid.power": "Güç"
+  "appGrid.power": "Güç",
+  "taskbar.alwaysOnTop": "Her zaman üstte"
 }

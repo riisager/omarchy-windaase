@@ -62,5 +62,6 @@
   "appGrid.files": "File",
   "appGrid.settings": "Impostazioni",
   "appGrid.lock": "Blocca",
-  "appGrid.power": "Alimentazione"
+  "appGrid.power": "Alimentazione",
+  "taskbar.alwaysOnTop": "Sempre in primo piano"
 }

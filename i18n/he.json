@@ -62,5 +62,6 @@
   "appGrid.files": "קבצים",
   "appGrid.settings": "הגדרות",
   "appGrid.lock": "נעילה",
-  "appGrid.power": "הפעלה/כיבוי"
+  "appGrid.power": "הפעלה/כיבוי",
+  "taskbar.alwaysOnTop": "תמיד מעל כולם"
 }

@@ -62,5 +62,6 @@
   "appGrid.files": "檔案",
   "appGrid.settings": "設定",
   "appGrid.lock": "鎖定",
-  "appGrid.power": "電源"
+  "appGrid.power": "電源",
+  "taskbar.alwaysOnTop": "最上層顯示"
 }

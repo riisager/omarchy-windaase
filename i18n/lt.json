@@ -62,5 +62,6 @@
   "appGrid.files": "Failai",
   "appGrid.settings": "Nustatymai",
   "appGrid.lock": "Užrakinti",
-  "appGrid.power": "Maitinimas"
+  "appGrid.power": "Maitinimas",
+  "taskbar.alwaysOnTop": "Visada viršuje"
 }

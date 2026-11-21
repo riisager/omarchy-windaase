@@ -62,5 +62,6 @@
   "appGrid.files": "Archivos",
   "appGrid.settings": "Configuración",
   "appGrid.lock": "Bloquear",
-  "appGrid.power": "Apagado"
+  "appGrid.power": "Apagado",
+  "taskbar.alwaysOnTop": "Siempre visible"
 }

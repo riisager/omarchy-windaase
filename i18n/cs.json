@@ -62,5 +62,6 @@
   "appGrid.files": "Soubory",
   "appGrid.settings": "Nastavení",
   "appGrid.lock": "Zamknout",
-  "appGrid.power": "Napájení"
+  "appGrid.power": "Napájení",
+  "taskbar.alwaysOnTop": "Vždy navrchu"
 }

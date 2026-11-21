@@ -62,5 +62,6 @@
   "appGrid.files": "Файлове",
   "appGrid.settings": "Настройки",
   "appGrid.lock": "Заключи",
-  "appGrid.power": "Захранване"
+  "appGrid.power": "Захранване",
+  "taskbar.alwaysOnTop": "Винаги отгоре"
 }

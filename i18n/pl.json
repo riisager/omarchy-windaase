@@ -62,5 +62,6 @@
   "appGrid.files": "Pliki",
   "appGrid.settings": "Ustawienia",
   "appGrid.lock": "Zablokuj",
-  "appGrid.power": "Zasilanie"
+  "appGrid.power": "Zasilanie",
+  "taskbar.alwaysOnTop": "Zawsze na wierzchu"
 }

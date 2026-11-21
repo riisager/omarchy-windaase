@@ -62,5 +62,6 @@
   "appGrid.files": "Bestanden",
   "appGrid.settings": "Instellingen",
   "appGrid.lock": "Vergrendelen",
-  "appGrid.power": "Energie"
+  "appGrid.power": "Energie",
+  "taskbar.alwaysOnTop": "Altijd op voorgrond"
 }

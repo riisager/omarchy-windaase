@@ -62,5 +62,6 @@
   "appGrid.files": "Datoteke",
   "appGrid.settings": "Nastavitve",
   "appGrid.lock": "Zakleni",
-  "appGrid.power": "Napajanje"
+  "appGrid.power": "Napajanje",
+  "taskbar.alwaysOnTop": "Vedno na vrhu"
 }

@@ -62,5 +62,6 @@
   "appGrid.files": "Skrár",
   "appGrid.settings": "Stillingar",
   "appGrid.lock": "Læsa",
-  "appGrid.power": "Orka"
+  "appGrid.power": "Orka",
+  "taskbar.alwaysOnTop": "Alltaf efst"
 }

@@ -62,5 +62,6 @@
   "appGrid.files": "Fitxers",
   "appGrid.settings": "Configuració",
   "appGrid.lock": "Bloqueja",
-  "appGrid.power": "Energia"
+  "appGrid.power": "Energia",
+  "taskbar.alwaysOnTop": "Sempre a sobre"
 }

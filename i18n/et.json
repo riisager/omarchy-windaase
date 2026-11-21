@@ -62,5 +62,6 @@
   "appGrid.files": "Failid",
   "appGrid.settings": "Seaded",
   "appGrid.lock": "Lukusta",
-  "appGrid.power": "Toide"
+  "appGrid.power": "Toide",
+  "taskbar.alwaysOnTop": "Alati pealmine"
 }

@@ -62,5 +62,6 @@
   "appGrid.files": "फ़ाइलें",
   "appGrid.settings": "सेटिंग्स",
   "appGrid.lock": "लॉक करें",
-  "appGrid.power": "पावर"
+  "appGrid.power": "पावर",
+  "taskbar.alwaysOnTop": "हमेशा सबसे ऊपर"
 }

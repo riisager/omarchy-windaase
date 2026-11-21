@@ -7,6 +7,7 @@ local M = {}
 
 local snap_restore_geom = {}
 local snap_current_zone = {}
+local snap_custom_zone = {}
 local last_normal_geom = {}
 
 local options = {
@@ -55,6 +56,7 @@ end
 function M.clear_restore_state(addr)
   if addr then
     snap_current_zone[addr] = nil
+    snap_custom_zone[addr] = nil
     snap_restore_geom[addr] = nil
   end
 end
@@ -95,6 +97,7 @@ function M.apply_snap(window, zone)
     end
 
     snap_current_zone[addr] = "maximize"
+    snap_custom_zone[addr] = nil
     return true
   end
 
@@ -117,6 +120,7 @@ function M.apply_snap(window, zone)
     end
     snap_restore_geom[addr] = nil
     snap_current_zone[addr] = nil
+    snap_custom_zone[addr] = nil
     hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
     return true
   end
@@ -158,6 +162,7 @@ function M.apply_snap(window, zone)
   geometry.place_window_in_outer_rect(window, tx, ty, tw, th)
   hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
   snap_current_zone[addr] = zone
+  snap_custom_zone[addr] = nil
   if on_after_snap and (zone == "left" or zone == "right") then
     local zone_spec = zone == "left"
       and { rx = 0, ry = 0, rw = 0.5, rh = 1.0, max = false }
@@ -195,6 +200,7 @@ function M.apply_snap_zone(window, m, z, orig_geom)
       hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "set", window = window }))
     end
     snap_current_zone[addr] = "maximize"
+    snap_custom_zone[addr] = nil
     return true
   end
 
@@ -206,6 +212,7 @@ function M.apply_snap_zone(window, m, z, orig_geom)
   geometry.place_window_in_outer_rect(window, rect.x, rect.y, rect.w, rect.h)
   hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
   snap_current_zone[addr] = "custom"
+  snap_custom_zone[addr] = { rx = z.rx, ry = z.ry, rw = z.rw, rh = z.rh, max = z.max == true }
   if on_after_snap then
     on_after_snap(window, m, z)
   end
@@ -290,6 +297,89 @@ local function convert_native_maximize(addr)
   end
 end
 
+function M.move_to_monitor(window, direction)
+  if not window or not window.floating then
+    return false
+  end
+
+  local src_mon = window.monitor or hl.get_active_monitor()
+  local dst_mon = geometry.pick_adjacent_monitor(hl.get_monitors(), src_mon and src_mon.name, direction)
+  if not dst_mon or (src_mon and dst_mon.name == src_mon.name) then
+    return false
+  end
+
+  if on_before_snap then
+    on_before_snap(6)
+  end
+
+  local addr = window.address
+  if (window.fullscreen or 0) == 2 then
+    hl.dispatch(hl.dsp.window.move({ monitor = dst_mon.name, window = window }))
+    return true
+  end
+
+  local src_area = geometry.get_work_area(src_mon, options.gap_out, options.gap_in)
+  local dst_area = geometry.get_work_area(dst_mon, options.gap_out, options.gap_in)
+  if not src_area or not dst_area then
+    return false
+  end
+
+  local border, titlebar = geometry.get_window_frame_insets(window)
+  local outer = geometry.window_outer_rect(window, border, titlebar)
+  local zone_name = snap_current_zone[addr]
+  if not zone_name and (M.is_soft_maximized(window, src_area) or (window.fullscreen or 0) == 1) then
+    zone_name = "maximize"
+  end
+  local custom_zone = snap_custom_zone[addr]
+
+  local dst_rect = geometry.map_rect_between_areas(outer, src_area, dst_area, zone_name, custom_zone)
+  if not dst_rect then
+    return false
+  end
+
+  if snap_restore_geom[addr] then
+    local saved = snap_restore_geom[addr]
+    local saved_outer = {
+      x = saved.x - border,
+      y = saved.y - border - titlebar,
+      w = saved.w + border * 2,
+      h = saved.h + border * 2 + titlebar,
+    }
+    local remapped_outer = geometry.map_rect_between_areas(saved_outer, src_area, dst_area, nil, nil)
+    if remapped_outer then
+      snap_restore_geom[addr] = {
+        x = remapped_outer.x + border,
+        y = remapped_outer.y + border + titlebar,
+        w = math.max(120, remapped_outer.w - border * 2),
+        h = math.max(120, remapped_outer.h - border * 2 - titlebar),
+      }
+    end
+  end
+
+  if (window.fullscreen or 0) == 1 then
+    hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "unset", window = window }))
+  end
+
+  hl.dispatch(hl.dsp.window.move({ monitor = dst_mon.name, window = window }))
+  local moved = (addr and hl.get_window("address:" .. addr)) or window
+  geometry.place_window_in_outer_rect(moved, dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h)
+  hl.dispatch(hl.dsp.focus({ window = moved }))
+  hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = moved }))
+
+  if dst_rect.mode == "maximize" then
+    snap_current_zone[addr] = "maximize"
+    snap_custom_zone[addr] = nil
+  elseif dst_rect.mode == "float" then
+    last_normal_geom[addr] = {
+      x = dst_rect.x + border,
+      y = dst_rect.y + border + titlebar,
+      w = math.max(120, dst_rect.w - border * 2),
+      h = math.max(120, dst_rect.h - border * 2 - titlebar),
+    }
+  end
+  return true
+end
+
 function M.setup(opts, before_snap_cb, after_snap_cb)
   options.aero_snap = opts.aero_snap ~= false
   options.soft_maximize = opts.soft_maximize ~= false
@@ -305,6 +395,7 @@ function M.setup(opts, before_snap_cb, after_snap_cb)
     end
     snap_restore_geom[window.address] = nil
     snap_current_zone[window.address] = nil
+    snap_custom_zone[window.address] = nil
     last_normal_geom[window.address] = nil
   end)
 
@@ -421,6 +512,24 @@ function M.setup(opts, before_snap_cb, after_snap_cb)
       end
     else
       hl.dispatch(hl.dsp.focus({ direction = "d" }))
+    end
+  end)
+
+  o.rebind("SUPER + SHIFT + LEFT", "Move window to left monitor (or swap left)", function()
+    local w = hl.get_active_window()
+    if w and w.floating then
+      M.move_to_monitor(w, "l")
+    else
+      hl.dispatch(hl.dsp.window.swap({ direction = "l" }))
+    end
+  end)
+
+  o.rebind("SUPER + SHIFT + RIGHT", "Move window to right monitor (or swap right)", function()
+    local w = hl.get_active_window()
+    if w and w.floating then
+      M.move_to_monitor(w, "r")
+    else
+      hl.dispatch(hl.dsp.window.swap({ direction = "r" }))
     end
   end)
 end

@@ -62,5 +62,6 @@
   "appGrid.files": "ไฟล์",
   "appGrid.settings": "การตั้งค่า",
   "appGrid.lock": "ล็อก",
-  "appGrid.power": "พลังงาน"
+  "appGrid.power": "พลังงาน",
+  "taskbar.alwaysOnTop": "อยู่ด้านบนเสมอ"
 }

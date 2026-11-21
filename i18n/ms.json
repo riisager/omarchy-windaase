@@ -62,5 +62,6 @@
   "appGrid.files": "Fail",
   "appGrid.settings": "Tetapan",
   "appGrid.lock": "Kunci",
-  "appGrid.power": "Kuasa"
+  "appGrid.power": "Kuasa",
+  "taskbar.alwaysOnTop": "Sentiasa di atas"
 }

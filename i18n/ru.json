@@ -62,5 +62,6 @@
   "appGrid.files": "Файлы",
   "appGrid.settings": "Настройки",
   "appGrid.lock": "Блокировка",
-  "appGrid.power": "Питание"
+  "appGrid.power": "Питание",
+  "taskbar.alwaysOnTop": "Поверх всех окон"
 }

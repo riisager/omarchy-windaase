@@ -49,6 +49,7 @@ BarWidget {
   property var profileProbeRetries: ({})
   property var pendingProbeBatch: []
   property var lastProbedBatch: []
+  property var urgentAddresses: ({})
   property var windowOrderState: ({ seq: 0, byAddr: {} })
   property int dragIndex: -1
   property int dropIndex: -1
@@ -182,11 +183,30 @@ BarWidget {
     target: Hyprland
     function onRawEvent(event) {
       var name = event ? String(event.name) : ""
-      if (name === "fullscreen" || name === "configreloaded") {
+      var dataFirst = event && event.data ? String(event.data).split(",")[0] : ""
+      if (name === "fullscreen" || name === "configreloaded" || name === "pin") {
         Hyprland.refreshToplevels()
       }
       if (name === "configreloaded") {
         companionLuaFile.reload()
+      }
+      if (name === "urgent") {
+        var activeAddr = ""
+        var toplevels = Hyprland.toplevels.values
+        for (var i = 0; i < toplevels.length; i++) {
+          var tl = toplevels[i]
+          if (tl && tl.wayland && tl.wayland.activated) {
+            var ws = tl.workspace
+            var isMin = !!ws && TaskbarModel.isMinimizedWorkspace(ws.name)
+            if (!isMin) {
+              activeAddr = tl.address || ""
+              break
+            }
+          }
+        }
+        root.urgentAddresses = TaskbarModel.markWindowUrgent(root.urgentAddresses, dataFirst, activeAddr)
+      } else if (name === "activewindowv2" || name === "closewindow") {
+        root.urgentAddresses = TaskbarModel.clearWindowUrgent(root.urgentAddresses, dataFirst)
       }
     }
   }
@@ -232,12 +252,15 @@ BarWidget {
       var appKey = entry ? entry.id : toplevel.appId
       var workspace = toplevels[i].workspace
       var winMon = toplevels[i].monitor || (workspace ? workspace.monitor : null)
-      var rawTags = toplevels[i].lastIpcObject && toplevels[i].lastIpcObject.tags ? toplevels[i].lastIpcObject.tags : []
+      var ipc = toplevels[i].lastIpcObject || {}
+      var rawTags = ipc.tags ? ipc.tags : []
       var cleanTags = []
       for (var ti = 0; ti < rawTags.length; ti++) {
         cleanTags.push(String(rawTags[ti]))
       }
       var normAddr = TaskbarModel.normalizeAddress(toplevels[i].address)
+      var isMin = !!workspace && TaskbarModel.isMinimizedWorkspace(workspace.name)
+      var isUrgent = !!(normAddr && root.urgentAddresses[normAddr.toLowerCase()] && !(toplevel.activated && !isMin))
       windows.push({
         key: appKey,
         hasEntry: !!entry && !entry.noDisplay,
@@ -245,7 +268,10 @@ BarWidget {
         activated: !!toplevel.activated,
         workspaceId: workspace ? workspace.id : -1,
         monitorName: winMon && winMon.name ? String(winMon.name) : "",
-        minimized: !!workspace && TaskbarModel.isMinimizedWorkspace(workspace.name),
+        minimized: isMin,
+        pinned: !!ipc.pinned,
+        floating: ipc.floating !== undefined ? !!ipc.floating : false,
+        urgent: isUrgent,
         address: toplevels[i].address,
         tags: cleanTags,
         profile: normAddr ? TaskbarModel.lookupWindowProfile(normAddr, root.windowProfiles) : null,
@@ -323,10 +349,34 @@ BarWidget {
     }
   }
 
+  function syncUrgentAddresses() {
+    var existing = root.urgentAddresses || {}
+    var existingKeys = Object.keys(existing).sort()
+    if (existingKeys.length === 0) return
+    var allWins = []
+    var toplevels = Hyprland.toplevels.values
+    for (var i = 0; i < toplevels.length; i++) {
+      var tl = toplevels[i]
+      if (!tl || !tl.wayland) continue
+      var ws = tl.workspace
+      allWins.push({
+        address: tl.address,
+        activated: !!tl.wayland.activated,
+        minimized: !!ws && TaskbarModel.isMinimizedWorkspace(ws.name)
+      })
+    }
+    var pruned = TaskbarModel.pruneUrgentWindows(existing, allWins)
+    var nextKeys = Object.keys(pruned).sort()
+    if (nextKeys.join(",") !== existingKeys.join(",")) {
+      root.urgentAddresses = pruned
+    }
+  }
+
   onBarChanged: syncBrowserProfiles()
   onItemsChanged: {
     syncItemModel()
     syncBrowserProfiles()
+    syncUrgentAddresses()
   }
   Component.onCompleted: {
     var userRaw = userShellFile.text()
@@ -678,7 +728,7 @@ BarWidget {
       var tags = window.tags || []
       for (var i = 0; i < tags.length; i++) {
         var tag = String(tags[i] || "")
-        if (/^omarchy-(minimized-from|showdesktop)-[0-9]+$/.test(tag)) {
+        if (/^omarchy-(minimized-from|showdesktop|minimize-others)-[0-9]+$/.test(tag)) {
           steps.push("hl.dsp.window.tag({ tag = \"-" + tag + "\", " + target + " })")
         }
       }
@@ -753,6 +803,23 @@ BarWidget {
 
   function closeWindow(window) {
     if (window && window.toplevel) window.toplevel.close()
+  }
+
+  function togglePinWindow(window) {
+    if (!window) return
+    var address = TaskbarModel.normalizeAddress(window.address)
+    if (!address) return
+    var target = "window = \"address:" + address + "\""
+    var steps = []
+    if (!window.floating && !window.pinned) {
+      steps.push("hl.dsp.window.float({ action = \"on\", " + target + " })")
+    }
+    steps.push("hl.dsp.window.pin({ " + target + " })")
+    if (!window.pinned) {
+      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + target + " })")
+    }
+    var command = steps.map(function(step) { return "hyprctl dispatch " + Util.shellQuote(step) }).join(" && ")
+    Util.execDetached(command)
   }
 
   function quitItem(item) {
@@ -1076,6 +1143,7 @@ BarWidget {
         readonly property var modelData: root.itemFor(key)
         readonly property int windowCount: modelData ? modelData.windows.length : 0
         readonly property bool focused: root.isItemFocused(modelData)
+        readonly property bool urgent: !focused && TaskbarModel.isItemUrgent(modelData, root.urgentAddresses)
         readonly property bool allMinimized: root.isItemAllMinimized(modelData)
         readonly property string appLabel: modelData ? root.labelFor(modelData) : key
         readonly property var profileBadge: TaskbarModel.profileBadgeForItem(modelData, root.windowProfiles)
@@ -1176,11 +1244,19 @@ BarWidget {
             width: root.slotSize - root.pillInset
             height: root.slotSize - root.pillInset
             radius: Math.max(Style.space(4), Style.cornerRadius)
-            color: (taskSlot.focused || taskSlot.lifted) ? Style.selectedFill : (taskSlot.hovered ? Style.hoverFill : "transparent")
-            border.width: (taskSlot.focused || taskSlot.lifted) ? 1 : 0
-            border.color: taskSlot.lifted ? Commons.Color.accent : (taskSlot.focused ? Style.normalBorderColor : "transparent")
+            color: (taskSlot.focused || taskSlot.lifted)
+              ? Style.selectedFill
+              : (taskSlot.urgent
+                ? Util.alpha(Commons.Color.urgent, 0.24)
+                : (taskSlot.hovered ? Style.hoverFill : "transparent"))
+            border.width: (taskSlot.focused || taskSlot.lifted || taskSlot.urgent) ? 1 : 0
+            border.color: taskSlot.lifted
+              ? Commons.Color.accent
+              : (taskSlot.urgent
+                ? Commons.Color.urgent
+                : (taskSlot.focused ? Style.normalBorderColor : "transparent"))
 
-            Behavior on color { ColorAnimation { duration: Style.duration(120) } }
+            Behavior on color { ColorAnimation { duration: Style.duration(150) } }
           }
 
           Image {
@@ -1200,9 +1276,9 @@ BarWidget {
             Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
           }
 
-          // Windows 11-style active/open indicator bar
+          // Windows 11-style active/open/urgent indicator bar
           Rectangle {
-            readonly property int indicatorLength: taskSlot.focused
+            readonly property int indicatorLength: (taskSlot.focused || taskSlot.urgent)
               ? Math.round(root.slotSize * 0.42)
               : (taskSlot.windowCount > 1 ? Math.round(root.slotSize * 0.28) : Math.round(root.slotSize * 0.16))
 
@@ -1210,8 +1286,10 @@ BarWidget {
             width: root.vertical ? root.indicatorThickness : indicatorLength
             height: root.vertical ? indicatorLength : root.indicatorThickness
             radius: Math.max(1, Math.round(root.indicatorThickness / 2))
-            color: taskSlot.focused ? Commons.Color.accent : (root.bar ? root.bar.barForeground : Commons.Color.bar.text)
-            opacity: taskSlot.focused ? 1.0 : (taskSlot.allMinimized ? 0.45 : 0.8)
+            color: taskSlot.urgent
+              ? Commons.Color.urgent
+              : (taskSlot.focused ? Commons.Color.accent : (root.bar ? root.bar.barForeground : Commons.Color.bar.text))
+            opacity: (taskSlot.focused || taskSlot.urgent) ? 1.0 : (taskSlot.allMinimized ? 0.45 : 0.8)
             anchors.horizontalCenter: root.vertical ? undefined : parent.horizontalCenter
             anchors.bottom: root.vertical ? undefined : parent.bottom
             anchors.bottomMargin: root.vertical ? 0 : root.indicatorMargin
@@ -1274,6 +1352,19 @@ BarWidget {
               font.pixelSize: root.tallBar ? Math.max(8, Style.font.caption - 1) : Math.max(7, Style.font.caption - 2)
               font.bold: true
             }
+          }
+
+          // Urgency notification dot in top-left corner
+          Rectangle {
+            visible: taskSlot.urgent
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.topMargin: Style.space(2)
+            anchors.leftMargin: Style.space(2)
+            width: Style.space(6)
+            height: Style.space(6)
+            radius: width / 2
+            color: Commons.Color.urgent
           }
         }
 
@@ -1421,6 +1512,7 @@ BarWidget {
     }
     onWindowActivated: function(win) { root.activateWindow(win) }
     onWindowClosed: function(win) { root.closeWindow(win) }
+    onWindowPinToggled: function(win) { root.togglePinWindow(win) }
   }
 
   AppMenuCard {
@@ -1429,6 +1521,7 @@ BarWidget {
     readonly property var targetItem: root.menuKey.length > 0 ? root.itemFor(root.menuKey) : null
     readonly property string targetAppKey: targetItem ? (targetItem.appKey || targetItem.key) : ""
     readonly property bool isBrowser: !!TaskbarModel.browserProfileSpec(targetAppKey, Commons.Color.home)
+    readonly property var pinTarget: TaskbarModel.targetWindowForPin(targetItem)
 
     anchorItem: root.menuAnchor || root
     owner: menuOwner
@@ -1440,6 +1533,8 @@ BarWidget {
     hasEntry: !!targetItem && !!root.entryFor(targetItem)
     running: !!targetItem && targetItem.windows.length > 0
     allMinimized: root.isItemAllMinimized(targetItem)
+    canTogglePin: !!pinTarget
+    isPinnedOnTop: !!(pinTarget && pinTarget.pinned)
     splitWindows: TaskbarModel.isAppUncombined(root.uncombinedApps, targetAppKey)
     showProfiles: isBrowser && root.browserProfiles.length > 0
     browserProfiles: root.browserProfiles
@@ -1448,6 +1543,9 @@ BarWidget {
     onNewWindowRequested: root.launch(targetItem)
     onMinimizeRequested: root.minimizeAll(targetItem)
     onRestoreRequested: root.restoreAll(targetItem)
+    onPinOnTopToggled: {
+      if (pinTarget) root.togglePinWindow(pinTarget)
+    }
     onPinToggled: function(pinned) { root.setPinned(targetAppKey, pinned) }
     onSplitWindowsToggled: root.updateWidgetSettings({
       uncombine: TaskbarModel.toggleUncombineApp(root.uncombinedApps, targetAppKey)

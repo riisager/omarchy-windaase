@@ -62,5 +62,6 @@
   "appGrid.files": "فایل‌ها",
   "appGrid.settings": "تنظیمات",
   "appGrid.lock": "قفل",
-  "appGrid.power": "برق"
+  "appGrid.power": "برق",
+  "taskbar.alwaysOnTop": "همیشه در بالا"
 }

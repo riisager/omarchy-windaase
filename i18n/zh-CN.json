@@ -62,5 +62,6 @@
   "appGrid.files": "文件",
   "appGrid.settings": "设置",
   "appGrid.lock": "锁定",
-  "appGrid.power": "电源"
+  "appGrid.power": "电源",
+  "taskbar.alwaysOnTop": "窗口置顶"
 }

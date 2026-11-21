@@ -238,4 +238,52 @@ local free_kb = geometry.resolve_keyboard_snap_resize(
 )
 assert(free_kb == nil, "kb free-floating window must return nil")
 
+-- 11. named_zone_spec, pick_adjacent_monitor, and map_rect_between_areas
+local left_spec = geometry.named_zone_spec("left")
+assert(left_spec and left_spec.rx == 0 and left_spec.rw == 0.5 and left_spec.rh == 1.0 and not left_spec.max, "left zone spec mismatch")
+local max_spec = geometry.named_zone_spec("maximize")
+assert(max_spec and max_spec.max == true, "maximize zone spec mismatch")
+assert(geometry.named_zone_spec("unknown") == nil and geometry.named_zone_spec(nil) == nil, "unknown zone spec should return nil")
+
+local mons = {
+  { name = "DP-2", x = 1920, y = 0, width = 2560, height = 1440, scale = 1 },
+  { name = "eDP-1", x = 0, y = 120, width = 1920, height = 1200, scale = 1 },
+  { name = "HDMI-1", x = 4480, y = 0, width = 1920, height = 1080, scale = 1, disabled = true },
+  { name = "DP-3", x = -1920, y = 0, width = 1920, height = 1080, scale = 1 },
+}
+assert(geometry.pick_adjacent_monitor({ mons[1] }, "DP-2", "r") == nil, "single monitor must return nil")
+assert(geometry.pick_adjacent_monitor(mons, "eDP-1", "r").name == "DP-2", "right neighbor from eDP-1 should be DP-2")
+assert(geometry.pick_adjacent_monitor(mons, "eDP-1", "l").name == "DP-3", "left neighbor from eDP-1 should be DP-3")
+assert(geometry.pick_adjacent_monitor(mons, "DP-3", "l").name == "DP-2", "left wrap from DP-3 should skip disabled and land on DP-2")
+assert(geometry.pick_adjacent_monitor(mons, "DP-2", "r").name == "DP-3", "right wrap from DP-2 should land on DP-3")
+
+local src_area = geometry.get_work_area({ x = 0, y = 0, width = 1920, height = 1200, reserved = { 0, 26, 0, 0 } }, 8, 8)
+local dst_area = geometry.get_work_area({ x = 1920, y = 0, width = 2560, height = 1440, reserved = { 0, 0, 0, 40 } }, 8, 8)
+
+-- Named zone across different resolutions & reserved bar margins
+local moved_left = geometry.map_rect_between_areas({ x = 8, y = 34, w = 948, h = 1158 }, src_area, dst_area, "left", nil)
+assert(moved_left and moved_left.mode == "zone" and moved_left.x == 1928 and moved_left.y == 8 and moved_left.w == 1268 and moved_left.h == 1384, "left zone monitor move mismatch")
+
+-- Soft-maximize across monitors fills target max work area
+local moved_max = geometry.map_rect_between_areas({ x = 0, y = 26, w = 1920, h = 1174 }, src_area, dst_area, "maximize", nil)
+assert(moved_max and moved_max.mode == "maximize" and moved_max.x == 1920 and moved_max.y == 0 and moved_max.w == 2560 and moved_max.h == 1400, "maximize monitor move mismatch")
+
+-- Custom Snap Layouts 65/35 zone
+local moved_custom = geometry.map_rect_between_areas({ x = 8, y = 34, w = 1235, h = 1158 }, src_area, dst_area, "custom", { rx = 0, ry = 0, rw = 0.65, rh = 1.0, max = false })
+local expected_65 = geometry.zone_rect_in_area(dst_area, { rx = 0, ry = 0, rw = 0.65, rh = 1.0, max = false })
+assert(moved_custom and moved_custom.mode == "zone" and moved_custom.w == expected_65.w and moved_custom.x == expected_65.x, "custom zone monitor move mismatch")
+
+-- Edge-aligned Snap-Resized pane without explicit custom_zone keeps proportional split
+local moved_resized = geometry.map_rect_between_areas({ x = 8, y = 34, w = 1235, h = 1158 }, src_area, dst_area, nil, nil)
+assert(moved_resized and moved_resized.mode == "zone" and moved_resized.x == 1928 and moved_resized.y == 8 and moved_resized.h == 1384 and math.abs(moved_resized.w - expected_65.w) <= 2, "edge-aligned pane proportional move mismatch")
+
+-- Free-floating window clamps size/position safely inside target monitor
+local moved_float = geometry.map_rect_between_areas({ x = 300, y = 200, w = 1100, h = 700 }, src_area, dst_area, nil, nil)
+assert(moved_float and moved_float.mode == "float" and moved_float.w == 1100 and moved_float.h == 700, "free-floating size should be preserved when it fits")
+assert(moved_float.x >= dst_area.x and moved_float.x + moved_float.w <= dst_area.x + dst_area.w, "free-floating X must stay inside target work area")
+assert(moved_float.y >= dst_area.y and moved_float.y + moved_float.h <= dst_area.y + dst_area.h, "free-floating Y must stay inside target work area")
+
+local oversized_float = geometry.map_rect_between_areas({ x = 0, y = 0, w = 3000, h = 2000 }, dst_area, src_area, nil, nil)
+assert(oversized_float and oversized_float.w == src_area.w and oversized_float.h == src_area.h and oversized_float.x == src_area.x and oversized_float.y == src_area.y, "oversized window must clamp to smaller target monitor work area")
+
 print("ALL GEOMETRY LUA TESTS PASSED")

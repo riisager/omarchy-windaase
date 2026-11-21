@@ -62,5 +62,6 @@
   "appGrid.files": "Tiedostot",
   "appGrid.settings": "Asetukset",
   "appGrid.lock": "Lukitse",
-  "appGrid.power": "Virta"
+  "appGrid.power": "Virta",
+  "taskbar.alwaysOnTop": "Aina päällimmäisenä"
 }

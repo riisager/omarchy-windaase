@@ -15,7 +15,9 @@ end
 
 local function strip_transient_tags(window)
   for _, tag in ipairs(window.tags or {}) do
-    if tag:match("^omarchy%-minimized%-from%-%d+$") or tag:match("^omarchy%-showdesktop%-%d+$") then
+    if tag:match("^omarchy%-minimized%-from%-%d+$")
+      or tag:match("^omarchy%-showdesktop%-%d+$")
+      or tag:match("^omarchy%-minimize%-others%-%d+$") then
       hl.dispatch(hl.dsp.window.tag({ tag = "-" .. tag, window = window }))
     end
   end
@@ -79,6 +81,69 @@ function M.toggle()
       pcall(hl.dispatch, hl.dsp.window.set_prop({ prop = "no_anim", value = "unset", window = w }))
     end
   end, { type = "oneshot", timeout = 400 })
+end
+
+function M.toggle_minimize_others()
+  local active = hl.get_active_window()
+  if not active or not active.floating then
+    return false
+  end
+
+  local ws = (active.workspace and active.workspace.id and active.workspace) or hl.get_active_workspace()
+  local ws_id = ws and tonumber(ws.id) or -1
+  if ws_id < 1 then
+    return false
+  end
+
+  local ws_str = tostring(ws_id)
+  local min_tag = "omarchy-minimized-from-" .. ws_str
+  local others_tag = "omarchy-minimize-others-" .. ws_str
+
+  local others = {}
+  for _, w in ipairs(hl.get_workspace_windows(ws_str)) do
+    if w.address ~= active.address and (w.mapped ~= false) and not w.pinned then
+      table.insert(others, w)
+    end
+  end
+
+  if #others > 0 then
+    for _, w in ipairs(others) do
+      strip_transient_tags(w)
+      hl.dispatch(hl.dsp.window.tag({ tag = "+" .. min_tag, window = w }))
+      hl.dispatch(hl.dsp.window.tag({ tag = "+" .. others_tag, window = w }))
+      hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = w }))
+    end
+    hl.dispatch(hl.dsp.focus({ window = active }))
+    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = active }))
+    return true
+  end
+
+  local to_restore = {}
+  for _, w in ipairs(hl.get_workspace_windows("special:minimized")) do
+    if has_tag(w, others_tag) then
+      table.insert(to_restore, w)
+    end
+  end
+
+  if #to_restore == 0 then
+    return false
+  end
+
+  for _, w in ipairs(to_restore) do
+    hl.dispatch(hl.dsp.window.set_prop({ prop = "no_anim", value = "1", window = w }))
+    strip_transient_tags(w)
+    hl.dispatch(hl.dsp.window.move({ workspace = ws_str, window = w }))
+  end
+
+  hl.dispatch(hl.dsp.focus({ window = active }))
+  hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = active }))
+
+  hl.timer(function()
+    for _, w in ipairs(to_restore) do
+      pcall(hl.dispatch, hl.dsp.window.set_prop({ prop = "no_anim", value = "unset", window = w }))
+    end
+  end, { type = "oneshot", timeout = 400 })
+  return true
 end
 
 return M

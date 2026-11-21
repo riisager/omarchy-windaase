@@ -1044,4 +1044,171 @@ function M.resolve_keyboard_snap_resize(descriptors, driver_addr, area, gap_in, 
   }
 end
 
+local NAMED_ZONE_SPECS = {
+  left = { rx = 0, ry = 0, rw = 0.5, rh = 1.0, max = false },
+  right = { rx = 0.5, ry = 0, rw = 0.5, rh = 1.0, max = false },
+  top = { rx = 0, ry = 0, rw = 1.0, rh = 0.5, max = false },
+  bottom = { rx = 0, ry = 0.5, rw = 1.0, rh = 0.5, max = false },
+  ["top-left"] = { rx = 0, ry = 0, rw = 0.5, rh = 0.5, max = false },
+  ["top-right"] = { rx = 0.5, ry = 0, rw = 0.5, rh = 0.5, max = false },
+  ["bottom-left"] = { rx = 0, ry = 0.5, rw = 0.5, rh = 0.5, max = false },
+  ["bottom-right"] = { rx = 0.5, ry = 0.5, rw = 0.5, rh = 0.5, max = false },
+  maximize = { rx = 0, ry = 0, rw = 1.0, rh = 1.0, max = true },
+}
+
+function M.named_zone_spec(zone_name)
+  if type(zone_name) ~= "string" then
+    return nil
+  end
+  local spec = NAMED_ZONE_SPECS[zone_name]
+  if not spec then
+    return nil
+  end
+  return {
+    rx = spec.rx,
+    ry = spec.ry,
+    rw = spec.rw,
+    rh = spec.rh,
+    max = spec.max,
+  }
+end
+
+function M.pick_adjacent_monitor(monitors, current_name, direction)
+  if type(monitors) ~= "table" or type(current_name) ~= "string" or current_name == "" then
+    return nil
+  end
+  local active = {}
+  for _, m in ipairs(monitors) do
+    if type(m) == "table" and m.disabled ~= true and type(m.name) == "string" and m.name ~= "" then
+      active[#active + 1] = m
+    end
+  end
+  if #active < 2 then
+    return nil
+  end
+  table.sort(active, function(a, b)
+    local ax, bx = a.x or 0, b.x or 0
+    if ax ~= bx then
+      return ax < bx
+    end
+    local ay, by = a.y or 0, b.y or 0
+    if ay ~= by then
+      return ay < by
+    end
+    return tostring(a.name) < tostring(b.name)
+  end)
+
+  local cur_idx = nil
+  for i, m in ipairs(active) do
+    if m.name == current_name then
+      cur_idx = i
+      break
+    end
+  end
+  if not cur_idx then
+    return nil
+  end
+
+  local delta = (direction == "l" or direction == "left" or direction == -1) and -1 or 1
+  local next_idx = ((cur_idx - 1 + delta) % #active) + 1
+  return active[next_idx]
+end
+
+local function clamp_num(val, lo, hi)
+  if val < lo then
+    return lo
+  end
+  if val > hi then
+    return hi
+  end
+  return val
+end
+
+function M.map_rect_between_areas(outer, src_area, dst_area, zone_name, custom_zone)
+  if not src_area or not dst_area then
+    return nil
+  end
+
+  if zone_name == "maximize" or (type(custom_zone) == "table" and custom_zone.max) then
+    return {
+      x = dst_area.max_x,
+      y = dst_area.max_y,
+      w = dst_area.max_w,
+      h = dst_area.max_h,
+      mode = "maximize",
+    }
+  end
+
+  local spec = (type(custom_zone) == "table" and custom_zone) or M.named_zone_spec(zone_name)
+  if spec then
+    local r = M.zone_rect_in_area(dst_area, spec)
+    return {
+      x = r.x,
+      y = r.y,
+      w = r.w,
+      h = r.h,
+      mode = "zone",
+    }
+  end
+
+  if type(outer) ~= "table" then
+    local fw = math.max(120, math.min(dst_area.w, math.floor(dst_area.w * 0.68)))
+    local fh = math.max(120, math.min(dst_area.h, math.floor(dst_area.h * 0.75)))
+    return {
+      x = dst_area.x + math.floor((dst_area.w - fw) / 2),
+      y = dst_area.y + math.floor((dst_area.h - fh) / 2),
+      w = fw,
+      h = fh,
+      mode = "float",
+    }
+  end
+
+  local tol = 10
+  local full_h = math.abs(outer.y - src_area.y) <= tol
+    and math.abs((outer.y + outer.h) - (src_area.y + src_area.h)) <= tol
+  local full_w = math.abs(outer.x - src_area.x) <= tol
+    and math.abs((outer.x + outer.w) - (src_area.x + src_area.w)) <= tol
+  local at_left = math.abs(outer.x - src_area.x) <= tol
+  local at_right = math.abs((outer.x + outer.w) - (src_area.x + src_area.w)) <= tol
+  local at_top = math.abs(outer.y - src_area.y) <= tol
+  local at_bottom = math.abs((outer.y + outer.h) - (src_area.y + src_area.h)) <= tol
+
+  if (full_h and (at_left or at_right)) or (full_w and (at_top or at_bottom)) then
+    local src_gap = src_area.gap or 0
+    local span_w = math.max(1, src_area.w + src_gap)
+    local span_h = math.max(1, src_area.h + src_gap)
+
+    local rx = at_left and 0 or clamp_num((outer.x - src_area.x) / span_w, 0, 0.95)
+    local rw = at_right and (1.0 - rx) or clamp_num((outer.w + src_gap) / span_w, 0.05, 1.0 - rx)
+    local ry = at_top and 0 or clamp_num((outer.y - src_area.y) / span_h, 0, 0.95)
+    local rh = at_bottom and (1.0 - ry) or clamp_num((outer.h + src_gap) / span_h, 0.05, 1.0 - ry)
+
+    local r = M.zone_rect_in_area(dst_area, { rx = rx, ry = ry, rw = rw, rh = rh, max = false })
+    return {
+      x = r.x,
+      y = r.y,
+      w = r.w,
+      h = r.h,
+      mode = "zone",
+    }
+  end
+
+  local fw = clamp_num(math.floor(outer.w + 0.5), 120, math.max(120, dst_area.w))
+  local fh = clamp_num(math.floor(outer.h + 0.5), 120, math.max(120, dst_area.h))
+  local max_src_dx = math.max(1, src_area.w - outer.w)
+  local max_src_dy = math.max(1, src_area.h - outer.h)
+  local rel_x = clamp_num((outer.x - src_area.x) / max_src_dx, 0, 1)
+  local rel_y = clamp_num((outer.y - src_area.y) / max_src_dy, 0, 1)
+  local max_dst_dx = math.max(0, dst_area.w - fw)
+  local max_dst_dy = math.max(0, dst_area.h - fh)
+
+  return {
+    x = clamp_num(dst_area.x + math.floor(rel_x * max_dst_dx + 0.5), dst_area.x, dst_area.x + max_dst_dx),
+    y = clamp_num(dst_area.y + math.floor(rel_y * max_dst_dy + 0.5), dst_area.y, dst_area.y + max_dst_dy),
+    w = fw,
+    h = fh,
+    mode = "float",
+  }
+end
+
 return M

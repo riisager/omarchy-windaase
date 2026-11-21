@@ -62,5 +62,6 @@
   "appGrid.files": "கோப்புகள்",
   "appGrid.settings": "அமைப்புகள்",
   "appGrid.lock": "பூட்டு",
-  "appGrid.power": "மின்சக்தி"
+  "appGrid.power": "மின்சக்தி",
+  "taskbar.alwaysOnTop": "எப்போதும் மேலே"
 }

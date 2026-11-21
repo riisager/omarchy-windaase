@@ -62,5 +62,6 @@
   "appGrid.files": "Fájlok",
   "appGrid.settings": "Beállítások",
   "appGrid.lock": "Zárolás",
-  "appGrid.power": "Tápellátás"
+  "appGrid.power": "Tápellátás",
+  "taskbar.alwaysOnTop": "Mindig felül"
 }

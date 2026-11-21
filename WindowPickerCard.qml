@@ -17,6 +17,7 @@ PopupCard {
 
   signal windowActivated(var win)
   signal windowClosed(var win)
+  signal windowPinToggled(var win)
 
   readonly property var windows: root.item && root.item.windows ? root.item.windows : []
   readonly property bool verticalBar: !!root.bar && root.bar.vertical
@@ -94,7 +95,9 @@ PopupCard {
           required property var modelData
 
           readonly property bool isActive: !modelData.minimized && !!modelData.toplevel && !!modelData.toplevel.activated
-          readonly property bool tileHovered: tileMouse.containsMouse || closeMouse.containsMouse
+          readonly property bool isUrgent: !isActive && !!modelData.urgent
+          readonly property bool isPinned: !!modelData.pinned
+          readonly property bool tileHovered: tileMouse.containsMouse || pinMouse.containsMouse || closeMouse.containsMouse
           readonly property var winProfile: modelData.profile || null
           readonly property var captureToplevel: modelData && modelData.toplevel ? modelData.toplevel : null
           readonly property bool canLiveCapture: root.open && !!captureToplevel && !modelData.minimized
@@ -109,9 +112,13 @@ PopupCard {
           width: root.tileW
           height: root.tileH
           radius: Math.max(Style.space(6), Style.cornerRadius)
-          color: tileHovered ? Style.hoverFill : (isActive ? Style.selectedFill : "transparent")
+          color: tileHovered
+            ? Style.hoverFill
+            : (isActive ? Style.selectedFill : (isUrgent ? Util.alpha(Commons.Color.urgent, 0.14) : "transparent"))
           border.width: 1
-          border.color: tileHovered ? Commons.Color.accent : (isActive ? Style.normalBorderColor : Util.alpha(Commons.Color.popups.border, 0.6))
+          border.color: tileHovered
+            ? Commons.Color.accent
+            : (isUrgent ? Commons.Color.urgent : (isActive ? Style.normalBorderColor : Util.alpha(Commons.Color.popups.border, 0.6)))
 
           Behavior on color { ColorAnimation { duration: Style.duration(90) } }
 
@@ -165,6 +172,15 @@ PopupCard {
               }
             }
 
+            Rectangle {
+              visible: previewTile.isUrgent
+              Layout.preferredWidth: Style.space(6)
+              Layout.preferredHeight: Style.space(6)
+              Layout.alignment: Qt.AlignVCenter
+              radius: width / 2
+              color: Commons.Color.urgent
+            }
+
             Text {
               Layout.fillWidth: true
               Layout.alignment: Qt.AlignVCenter
@@ -190,6 +206,61 @@ PopupCard {
               opacity: 0.55
               font.family: Style.font.family
               font.pixelSize: Math.max(9, Style.font.caption - 1)
+            }
+
+            Rectangle {
+              id: pinBtn
+              visible: !previewTile.modelData.minimized
+              Layout.preferredWidth: Style.space(20)
+              Layout.preferredHeight: Style.space(20)
+              Layout.alignment: Qt.AlignVCenter
+              radius: Style.cornerRadius
+              color: previewTile.isPinned
+                ? Util.alpha(Commons.Color.accent, 0.2)
+                : (pinMouse.containsMouse ? Style.hoverFill : "transparent")
+
+              Item {
+                anchors.centerIn: parent
+                width: Style.space(12)
+                height: Style.space(12)
+                rotation: previewTile.isPinned ? 0 : 45
+
+                Behavior on rotation { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+
+                Rectangle {
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  y: 1
+                  width: Math.max(4, Style.space(6))
+                  height: Math.max(2, Style.space(2))
+                  radius: 1
+                  color: previewTile.isPinned ? Commons.Color.accent : Commons.Color.popups.text
+                }
+
+                Rectangle {
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  y: Math.max(3, Style.space(3))
+                  width: Math.max(6, Style.space(8))
+                  height: Math.max(3, Style.space(4))
+                  radius: 1
+                  color: previewTile.isPinned ? Commons.Color.accent : Commons.Color.popups.text
+                }
+
+                Rectangle {
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  y: Math.max(6, Style.space(7))
+                  width: Math.max(1, Style.space(2))
+                  height: Math.max(3, Style.space(4))
+                  color: previewTile.isPinned ? Commons.Color.accent : Commons.Color.popups.text
+                }
+              }
+
+              MouseArea {
+                id: pinMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.windowPinToggled(previewTile.modelData)
+              }
             }
 
             Rectangle {

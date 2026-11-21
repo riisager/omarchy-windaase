@@ -497,6 +497,55 @@ function run() {
     ["0xDEF456"]
   );
 
+  // Urgency tracking & Always-on-Top window target resolution
+  let uMap = TaskbarModel.markWindowUrgent({}, "abc123", "0xdef456");
+  assert.deepStrictEqual(uMap, { "0xabc123": true });
+  // Must ignore urgent event if window is already active
+  assert.deepStrictEqual(TaskbarModel.markWindowUrgent(uMap, "0xDEF456", "0xdef456"), { "0xabc123": true });
+  uMap = TaskbarModel.markWindowUrgent(uMap, "0x999", "0xdef456");
+  assert.deepStrictEqual(TaskbarModel.clearWindowUrgent(uMap, "0x999"), { "0xabc123": true });
+
+  const urgentWins = [
+    { address: "0xABC123", activated: false, minimized: false },
+    { address: "0x777", activated: true, minimized: false },
+    { address: "0x888", activated: true, minimized: true }
+  ];
+  assert.deepStrictEqual(
+    TaskbarModel.pruneUrgentWindows({ "0xabc123": true, "0x777": true, "0x888": true, "0xgone": true }, urgentWins),
+    { "0xabc123": true, "0x888": true }
+  );
+  assert.strictEqual(
+    TaskbarModel.isItemUrgent({ windows: [{ address: "0xABC123", activated: false, minimized: false }] }, { "0xabc123": true }),
+    true
+  );
+  assert.strictEqual(
+    TaskbarModel.isItemUrgent({ windows: [{ address: "0xABC123", activated: true, minimized: false, urgent: true }] }, { "0xabc123": true }),
+    false
+  );
+  assert.strictEqual(
+    TaskbarModel.targetWindowForPin({
+      windows: [
+        { address: "0x1", minimized: true, activated: false },
+        { address: "0x2", minimized: false, activated: false },
+        { address: "0x3", minimized: false, activated: true }
+      ]
+    }).address,
+    "0x3"
+  );
+  assert.strictEqual(
+    TaskbarModel.targetWindowForPin({
+      windows: [
+        { address: "0x1", minimized: true },
+        { address: "0x2", minimized: false }
+      ]
+    }).address,
+    "0x2"
+  );
+  assert.strictEqual(
+    TaskbarModel.targetWindowForPin({ windows: [{ address: "0x1", minimized: true }] }),
+    null
+  );
+
   // Verify i18n JSON files cover all 50 Omarchy locales cleanly with exact key & placeholder parity
   const i18nDir = path.join(__dirname, "../i18n");
   const omarchyLocalesPath = "/usr/share/omarchy/default/i18n/locales.json";
@@ -525,7 +574,7 @@ function run() {
 
   const en = JSON.parse(fs.readFileSync(path.join(i18nDir, "en.json"), "utf8"));
   const enKeys = Object.keys(en).sort();
-  assert.strictEqual(enKeys.length, 64, "Expected 64 keys in en.json");
+  assert.strictEqual(enKeys.length, 65, "Expected 65 keys in en.json");
 
   const placeholders = (str) => [...(str.match(/%[12]/g) || [])].sort();
 

@@ -62,5 +62,6 @@
   "appGrid.files": "ファイル",
   "appGrid.settings": "設定",
   "appGrid.lock": "ロック",
-  "appGrid.power": "電源"
+  "appGrid.power": "電源",
+  "taskbar.alwaysOnTop": "常に手前に表示"
 }

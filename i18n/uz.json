@@ -62,5 +62,6 @@
   "appGrid.files": "Fayllar",
   "appGrid.settings": "Sozlamalar",
   "appGrid.lock": "Qulflash",
-  "appGrid.power": "Quvvat"
+  "appGrid.power": "Quvvat",
+  "taskbar.alwaysOnTop": "Har doim yuqorida"
 }
