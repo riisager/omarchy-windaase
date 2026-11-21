@@ -1073,6 +1073,7 @@ function M.named_zone_spec(zone_name)
   }
 end
 
+-- Hyprland's Lua API exposes windows and monitors as sol2 userdata rather than plain tables.
 local function is_object(v)
   local t = type(v)
   return t == "table" or t == "userdata"

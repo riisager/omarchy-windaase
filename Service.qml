@@ -248,6 +248,7 @@ Item {
     root.altTabState = emptyAltTabState()
   }
 
+  // Alt+Tab is only opened by hypr.windaase, so routing close/commit through hyprctl eval keeps session state atomic with Alt release.
   function closeAltTab() {
     root.altTabState = emptyAltTabState()
     Util.execArgv(["hyprctl", "eval", "require(\"hypr.windaase\").alt_tab_cancel()"])

@@ -717,6 +717,7 @@ BarWidget {
     Util.execArgv(argv)
   }
 
+  // Uses hyprctl dispatch directly (not hypr.windaase) so shell-only Marketplace installs stay self-contained.
   function bringForward(window) {
     if (!window) return
     var address = TaskbarModel.normalizeAddress(window.address)

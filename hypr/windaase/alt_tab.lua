@@ -214,6 +214,7 @@ function M.setup(opts)
   o.rebind("ALT + TAB", "Switch to next window", function() M.step(1) end, { repeating = true })
   o.rebind("ALT + SHIFT + TAB", "Switch to previous window", function() M.step(-1) end, { repeating = true })
 
+  -- Transparent and non-consuming so Omarchy's ALT+Alt_R dictation hold/release keeps working.
   local release_opts = { release = true, transparent = true, ignore_mods = true, non_consuming = true }
   for _, sym in ipairs({ "Alt_L", "Alt_R" }) do
     if not bind_alive(release_binds[sym]) then
