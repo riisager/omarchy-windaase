@@ -388,6 +388,21 @@ Item {
         readonly property bool isAssist: activeOnScreen && root.snapState.mode === "assist"
         readonly property bool isResize: activeOnScreen && root.snapState.mode === "resize"
         readonly property bool isInteractive: isClick || isAssist
+        readonly property bool surfaceReady: win.backingWindowVisible
+          && !!screen
+          && Math.abs(win.width - screen.width) <= 2
+          && Math.abs(win.height - screen.height) <= 2
+
+        onBackingWindowVisibleChanged: {
+          if (win.backingWindowVisible && win.isInteractive) {
+            Qt.callLater(function() { if (win.isInteractive) snapKeyCatcher.forceActiveFocus() })
+          }
+        }
+        onIsInteractiveChanged: {
+          if (win.backingWindowVisible && win.isInteractive) {
+            Qt.callLater(function() { if (win.isInteractive) snapKeyCatcher.forceActiveFocus() })
+          }
+        }
 
         property int clickSelectedCard: -1
         property int clickSelectedZone: -1
@@ -552,8 +567,8 @@ Item {
           return { visible: false, x: 0, y: 0, w: 0, h: 0 }
         }
 
-        // Stays mapped with an empty mask when closed (0 ms appear latency, always click-through during drag)
-        visible: true
+        // Map fullscreen layer surface only while active or fading out (0 idle VRAM/surfaces).
+        visible: win.activeOnScreen || previewBox.opacity > 0 || pillContainer.opacity > 0 || assistCard.opacity > 0 || resizeOverlay.opacity > 0
         color: "transparent"
         WlrLayershell.namespace: "omarchy-windaase-snap"
         WlrLayershell.layer: WlrLayer.Overlay
@@ -573,12 +588,13 @@ Item {
         }
 
         HyprlandFocusGrab {
-          active: win.isInteractive
+          active: win.isInteractive && win.backingWindowVisible
           windows: [win]
           onCleared: if (win.isInteractive) root.closeState()
         }
 
         Item {
+          id: snapKeyCatcher
           anchors.fill: parent
           focus: win.isInteractive
 
@@ -661,7 +677,7 @@ Item {
           Rectangle {
             id: previewBox
             visible: opacity > 0
-            opacity: win.previewRect.visible ? 1 : 0
+            opacity: (win.surfaceReady && win.previewRect.visible) ? 1 : 0
             x: win.previewRect.visible ? win.previewRect.x : Math.round(win.width / 2 - 100)
             y: win.previewRect.visible ? win.previewRect.y : root.topMargin + pillContainer.height + 16
             width: win.previewRect.visible ? win.previewRect.w : 200
@@ -682,6 +698,7 @@ Item {
           BorderSurface {
             id: pillContainer
 
+            readonly property bool shown: win.activeOnScreen && win.surfaceReady && !win.isAssist && !win.isResize
             readonly property int cols: root.layouts.length
             readonly property int contentW: cols * root.cardW + Math.max(0, cols - 1) * root.cardGap
             readonly property int contentH: root.cardH
@@ -689,10 +706,10 @@ Item {
             width: contentW + root.pillPadX * 2 + contentLeftInset + contentRightInset - padding * 2
             height: contentH + root.pillPadY * 2 + contentTopInset + contentBottomInset - padding * 2
             x: Math.round((win.width - width) / 2)
-            y: (win.activeOnScreen && !win.isAssist && !win.isResize) ? root.topMargin : -height - 12
-            visible: (win.activeOnScreen && !win.isAssist && !win.isResize) || opacity > 0
-            opacity: (win.activeOnScreen && !win.isAssist && !win.isResize) ? 1 : 0
-            scale: (win.activeOnScreen && !win.isAssist && !win.isResize) ? 1 : 0.96
+            y: shown ? root.topMargin : -height - 12
+            visible: shown || opacity > 0
+            opacity: shown ? 1 : 0
+            scale: shown ? 1 : 0.96
 
             radius: Math.max(Style.space(10), Style.cornerRadius)
             color: Commons.Color.popups.background
@@ -765,7 +782,7 @@ Item {
           SnapAssistCard {
             id: assistCard
 
-            readonly property bool shown: win.isAssist && win.assistCandidates.length > 0
+            readonly property bool shown: win.isAssist && win.surfaceReady && win.assistCandidates.length > 0
 
             strings: serviceStrings
             candidates: win.assistCandidates
@@ -816,8 +833,8 @@ Item {
             }
             Component.onCompleted: syncFromState()
 
-            visible: win.isResize || opacity > 0
-            opacity: win.isResize ? 1 : 0
+            visible: (win.isResize && win.surfaceReady) || opacity > 0
+            opacity: (win.isResize && win.surfaceReady) ? 1 : 0
 
             Behavior on opacity { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
 
@@ -902,8 +919,14 @@ Item {
           altWin.selectedAltAddr,
           root.altTabState.selected
         )
+        readonly property bool surfaceReady: altWin.backingWindowVisible
+          && !!screen
+          && Math.abs(altWin.width - screen.width) <= 2
+          && Math.abs(altWin.height - screen.height) <= 2
+        readonly property bool shown: altWin.activeOnScreen && altWin.surfaceReady
 
-        visible: true
+        // Map fullscreen layer surface only while Alt+Tab is open or fading out (0 idle VRAM/surfaces).
+        visible: altWin.activeOnScreen || altBackdrop.opacity > 0
         color: "transparent"
         WlrLayershell.namespace: "omarchy-windaase-alttab"
         WlrLayershell.layer: WlrLayer.Overlay
@@ -925,8 +948,8 @@ Item {
         Item {
           id: altBackdrop
           anchors.fill: parent
-          visible: altWin.activeOnScreen || opacity > 0
-          opacity: altWin.activeOnScreen ? 1 : 0
+          visible: altWin.shown || opacity > 0
+          opacity: altWin.shown ? 1 : 0
 
           Behavior on opacity { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
 
@@ -948,7 +971,7 @@ Item {
             active: altWin.activeOnScreen
             maxWidth: Math.max(Style.space(260), altWin.width - Style.space(64))
             maxHeight: Math.max(Style.space(220), altWin.height - Style.space(96))
-            scale: altWin.activeOnScreen ? 1 : 0.96
+            scale: altWin.shown ? 1 : 0.96
 
             Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
 
