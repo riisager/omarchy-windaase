@@ -2,6 +2,7 @@
 -- Holds focus order via Hyprland's window list and commits on Alt key release.
 
 local geometry = require("hypr.windaase.geometry")
+local show_desktop = require("hypr.windaase.show_desktop")
 
 local M = {}
 
@@ -53,16 +54,6 @@ local function read_state_open()
   local raw = f:read("*a") or ""
   f:close()
   return raw:find('"open":true') ~= nil
-end
-
-local function strip_transient_tags(window)
-  for _, tag in ipairs(window.tags or {}) do
-    if tag:match("^omarchy%-minimized%-from%-%d+$")
-      or tag:match("^omarchy%-showdesktop%-%d+$")
-      or tag:match("^omarchy%-minimize%-others%-%d+$") then
-      hl.dispatch(hl.dsp.window.tag({ tag = "-" .. tag, window = window }))
-    end
-  end
 end
 
 local TRANSIENT_KEYS = {
@@ -152,6 +143,35 @@ function M.cancel()
   write_state({ open = false })
 end
 
+local function activate_addr(addr, monitor_name)
+  if type(addr) ~= "string" or not addr:match("^0x[0-9a-fA-F]+$") then
+    return false
+  end
+
+  local w = hl.get_window("address:" .. addr)
+  if not w then
+    return false
+  end
+
+  local ws = w.workspace
+  local ws_name = ws and ws.name or ""
+  if ws_name == "special:minimized" then
+    local m = (monitor_name and monitor_name ~= "" and hl.get_monitor(monitor_name)) or hl.get_active_monitor()
+    local target_ws = m and m.active_workspace and tonumber(m.active_workspace.id) or -1
+    if target_ws < 1 then
+      local aws = hl.get_active_workspace()
+      target_ws = aws and tonumber(aws.id) or -1
+    end
+    if target_ws >= 1 then
+      show_desktop.restore_windows({ w }, target_ws)
+    end
+  end
+
+  hl.dispatch(hl.dsp.focus({ window = "address:" .. addr }))
+  hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
+  return true
+end
+
 function M.commit()
   if not session then
     return false
@@ -165,38 +185,16 @@ function M.commit()
   end
   write_state({ open = false })
 
-  local addr = s.addrs[s.selected]
-  if not addr or addr == "" then
-    return false
-  end
+  return activate_addr(s.addrs[s.selected], s.monitor)
+end
 
-  local w = hl.get_window("address:" .. addr)
-  if not w then
-    return false
-  end
+function M.commit_addr(addr)
+  local monitor_name = session and session.monitor or ""
+  session = nil
+  set_transient_binds_enabled(false)
+  write_state({ open = false })
 
-  local ws = w.workspace
-  local ws_name = ws and ws.name or ""
-  if ws_name == "special:minimized" then
-    local m = (s.monitor ~= "" and hl.get_monitor(s.monitor)) or hl.get_active_monitor()
-    local target_ws = m and m.active_workspace and tonumber(m.active_workspace.id) or -1
-    if target_ws < 1 then
-      local aws = hl.get_active_workspace()
-      target_ws = aws and tonumber(aws.id) or -1
-    end
-    if target_ws >= 1 then
-      hl.dispatch(hl.dsp.window.set_prop({ prop = "no_anim", value = "1", window = "address:" .. addr }))
-      strip_transient_tags(w)
-      hl.dispatch(hl.dsp.window.move({ workspace = tostring(target_ws), window = "address:" .. addr }))
-      hl.timer(function()
-        pcall(hl.dispatch, hl.dsp.window.set_prop({ prop = "no_anim", value = "unset", window = "address:" .. addr }))
-      end, { type = "oneshot", timeout = 400 })
-    end
-  end
-
-  hl.dispatch(hl.dsp.focus({ window = "address:" .. addr }))
-  hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. addr }))
-  return true
+  return activate_addr(addr, monitor_name)
 end
 
 function M.setup(opts)

@@ -124,6 +124,7 @@ M.minimize_others = show_desktop.toggle_minimize_others
 M.toggle_snap_layouts = snap_layouts.toggle_click_overlay
 M.alt_tab_step = alt_tab.step
 M.alt_tab_commit = alt_tab.commit
+M.alt_tab_commit_addr = alt_tab.commit_addr
 M.alt_tab_cancel = alt_tab.cancel
 
 return M

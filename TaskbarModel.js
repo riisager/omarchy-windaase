@@ -25,6 +25,24 @@ function isDockWindow(window) {
   return window.hasEntry === true && window.workspaceId >= 1
 }
 
+function collectTerminalEntries(entries) {
+  var values = Array.isArray(entries) ? entries : []
+  var out = []
+  for (var i = 0; i < values.length; i++) {
+    var entry = values[i]
+    if (!entry) continue
+    if (entry.runInTerminal || String(entry.execString || "").indexOf("--app-id=") >= 0) {
+      out.push({
+        id: entry.id,
+        execString: entry.execString,
+        command: entry.command,
+        runInTerminal: !!entry.runInTerminal
+      })
+    }
+  }
+  return out
+}
+
 function claimingEntryId(appId, entries) {
   var id = String(appId || "")
   if (!id) return ""
@@ -1301,6 +1319,19 @@ function detectSnapGroups(allWindows, targetWindows) {
   return groups
 }
 
+function resolveSelectedWindowIndex(windows, selectedAddr, fallbackIndex) {
+  if (!Array.isArray(windows) || windows.length === 0) return -1
+  var target = normalizeAddress(selectedAddr).toLowerCase()
+  if (target) {
+    for (var i = 0; i < windows.length; i++) {
+      var w = windows[i]
+      if (w && normalizeAddress(w.address).toLowerCase() === target) return i
+    }
+  }
+  var idx = Math.round(Number(fallbackIndex) || 0)
+  return Math.max(0, Math.min(windows.length - 1, idx))
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     MINIMIZED_WORKSPACE: MINIMIZED_WORKSPACE,
@@ -1308,6 +1339,7 @@ if (typeof module !== "undefined") {
     normalizeId: normalizeId,
     normalizeAddress: normalizeAddress,
     isDockWindow: isDockWindow,
+    collectTerminalEntries: collectTerminalEntries,
     claimingEntryId: claimingEntryId,
     stabilizeWindows: stabilizeWindows,
     buildItems: buildItems,
@@ -1350,6 +1382,7 @@ if (typeof module !== "undefined") {
     pruneUrgentWindows: pruneUrgentWindows,
     isItemUrgent: isItemUrgent,
     targetWindowForPin: targetWindowForPin,
-    detectSnapGroups: detectSnapGroups
+    detectSnapGroups: detectSnapGroups,
+    resolveSelectedWindowIndex: resolveSelectedWindowIndex
   }
 }

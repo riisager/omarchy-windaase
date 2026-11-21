@@ -13,7 +13,7 @@ local function has_tag(window, target)
   return false
 end
 
-local function strip_transient_tags(window)
+function M.strip_transient_tags(window)
   for _, tag in ipairs(window.tags or {}) do
     if tag:match("^omarchy%-minimized%-from%-%d+$")
       or tag:match("^omarchy%-showdesktop%-%d+$")
@@ -21,6 +21,33 @@ local function strip_transient_tags(window)
       hl.dispatch(hl.dsp.window.tag({ tag = "-" .. tag, window = window }))
     end
   end
+end
+
+function M.restore_windows(windows, target_ws)
+  local ws_str = target_ws ~= nil and tostring(target_ws) or ""
+  if not windows or #windows == 0 or ws_str == "" then
+    return
+  end
+
+  local addrs = {}
+  for _, w in ipairs(windows) do
+    hl.dispatch(hl.dsp.window.set_prop({ prop = "no_anim", value = "1", window = w }))
+    M.strip_transient_tags(w)
+    hl.dispatch(hl.dsp.window.move({ workspace = ws_str, window = w }))
+    if type(w.address) == "string" and w.address ~= "" then
+      addrs[#addrs + 1] = w.address
+    end
+  end
+
+  if #addrs == 0 then
+    return
+  end
+
+  hl.timer(function()
+    for _, addr in ipairs(addrs) do
+      pcall(hl.dispatch, hl.dsp.window.set_prop({ prop = "no_anim", value = "unset", window = "address:" .. addr }))
+    end
+  end, { type = "oneshot", timeout = 400 })
 end
 
 function M.toggle()
@@ -42,7 +69,7 @@ function M.toggle()
 
   if #open_windows > 0 then
     for _, w in ipairs(open_windows) do
-      strip_transient_tags(w)
+      M.strip_transient_tags(w)
       hl.dispatch(hl.dsp.window.tag({ tag = "+" .. min_tag, window = w }))
       hl.dispatch(hl.dsp.window.tag({ tag = "+" .. show_tag, window = w }))
       hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = w }))
@@ -70,17 +97,7 @@ function M.toggle()
     return
   end
 
-  for _, w in ipairs(to_restore) do
-    hl.dispatch(hl.dsp.window.set_prop({ prop = "no_anim", value = "1", window = w }))
-    strip_transient_tags(w)
-    hl.dispatch(hl.dsp.window.move({ workspace = ws_str, window = w }))
-  end
-
-  hl.timer(function()
-    for _, w in ipairs(to_restore) do
-      pcall(hl.dispatch, hl.dsp.window.set_prop({ prop = "no_anim", value = "unset", window = w }))
-    end
-  end, { type = "oneshot", timeout = 400 })
+  M.restore_windows(to_restore, ws_str)
 end
 
 function M.toggle_minimize_others()
@@ -108,7 +125,7 @@ function M.toggle_minimize_others()
 
   if #others > 0 then
     for _, w in ipairs(others) do
-      strip_transient_tags(w)
+      M.strip_transient_tags(w)
       hl.dispatch(hl.dsp.window.tag({ tag = "+" .. min_tag, window = w }))
       hl.dispatch(hl.dsp.window.tag({ tag = "+" .. others_tag, window = w }))
       hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", follow = false, window = w }))
@@ -129,20 +146,9 @@ function M.toggle_minimize_others()
     return false
   end
 
-  for _, w in ipairs(to_restore) do
-    hl.dispatch(hl.dsp.window.set_prop({ prop = "no_anim", value = "1", window = w }))
-    strip_transient_tags(w)
-    hl.dispatch(hl.dsp.window.move({ workspace = ws_str, window = w }))
-  end
-
+  M.restore_windows(to_restore, ws_str)
   hl.dispatch(hl.dsp.focus({ window = active }))
   hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = active }))
-
-  hl.timer(function()
-    for _, w in ipairs(to_restore) do
-      pcall(hl.dispatch, hl.dsp.window.set_prop({ prop = "no_anim", value = "unset", window = w }))
-    end
-  end, { type = "oneshot", timeout = 400 })
   return true
 end
 

@@ -296,10 +296,7 @@ PopupCard {
       SettingToggleRow {
         label: root.strings.t("settings.nautilusContextMenu")
         checked: root.nautilusMenuInstalled
-        onToggled: {
-          root.nautilusRestartNeeded = true
-          root.nautilusMenuToggled(!root.nautilusMenuInstalled)
-        }
+        onToggled: root.nautilusMenuToggled(!root.nautilusMenuInstalled)
       }
 
       Text {

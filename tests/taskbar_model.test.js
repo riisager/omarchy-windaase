@@ -597,6 +597,49 @@ function run() {
   ];
   assert.deepStrictEqual(TaskbarModel.detectSnapGroups(nonEligible, [nonEligible[0]]), []);
 
+  // collectTerminalEntries filters runInTerminal or --app-id= entries cleanly
+  assert.deepStrictEqual(TaskbarModel.collectTerminalEntries(null), []);
+  assert.deepStrictEqual(
+    TaskbarModel.collectTerminalEntries([
+      { id: "firefox", execString: "firefox %u", command: ["firefox"], runInTerminal: false },
+      { id: "nvim", execString: "nvim %F", command: ["nvim"], runInTerminal: true },
+      { id: "org.omarchy.btop", execString: "xdg-terminal-exec --app-id=org.omarchy.btop -e btop", command: ["xdg-terminal-exec"], runInTerminal: false }
+    ]),
+    [
+      { id: "nvim", execString: "nvim %F", command: ["nvim"], runInTerminal: true },
+      { id: "org.omarchy.btop", execString: "xdg-terminal-exec --app-id=org.omarchy.btop -e btop", command: ["xdg-terminal-exec"], runInTerminal: false }
+    ]
+  );
+
+  // resolveSelectedWindowIndex preserves selection by address even when windows disappear
+  assert.strictEqual(TaskbarModel.resolveSelectedWindowIndex([], "0x1", 0), -1);
+  assert.strictEqual(
+    TaskbarModel.resolveSelectedWindowIndex(
+      [{ address: "0xa" }, { address: "0xB" }, { address: "0xc" }],
+      "0xb",
+      0
+    ),
+    1
+  );
+  // Missing earlier window shifts array indices, but address match keeps selection on 0x3
+  assert.strictEqual(
+    TaskbarModel.resolveSelectedWindowIndex(
+      [{ address: "0x1" }, { address: "0x3" }],
+      "0x3",
+      2
+    ),
+    1
+  );
+  // Clamps fallback index when selected address is absent
+  assert.strictEqual(
+    TaskbarModel.resolveSelectedWindowIndex(
+      [{ address: "0x1" }, { address: "0x3" }],
+      "0x999",
+      5
+    ),
+    1
+  );
+
   // Verify i18n JSON files cover all 50 Omarchy locales cleanly with exact key & placeholder parity
   const i18nDir = path.join(__dirname, "../i18n");
   const omarchyLocalesPath = "/usr/share/omarchy/default/i18n/locales.json";

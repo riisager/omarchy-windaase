@@ -211,22 +211,7 @@ BarWidget {
     }
   }
 
-  readonly property var terminalEntries: {
-    var values = DesktopEntries.applications.values
-    var out = []
-    for (var i = 0; i < values.length; i++) {
-      var entry = values[i]
-      if (entry.runInTerminal || String(entry.execString || "").indexOf("--app-id=") >= 0) {
-        out.push({
-          id: entry.id,
-          execString: entry.execString,
-          command: entry.command,
-          runInTerminal: entry.runInTerminal
-        })
-      }
-    }
-    return out
-  }
+  readonly property var terminalEntries: TaskbarModel.collectTerminalEntries(DesktopEntries.applications.values)
 
   function entryForAppId(appId) {
     var entry = DesktopEntries.heuristicLookup(appId)
@@ -270,7 +255,7 @@ BarWidget {
         monitorName: winMon && winMon.name ? String(winMon.name) : "",
         minimized: isMin,
         pinned: !!ipc.pinned,
-        floating: ipc.floating !== undefined ? !!ipc.floating : false,
+        floating: !!ipc.floating,
         urgent: isUrgent,
         address: toplevels[i].address,
         tags: cleanTags,
@@ -346,6 +331,27 @@ BarWidget {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.applyProfileProbeOutput(text)
+    }
+  }
+
+  function refreshNautilusMenuState() {
+    nautilusMenuFile.reload()
+  }
+
+  Process {
+    id: nautilusMenuProc
+    onExited: function(exitCode) {
+      var peers = root.peerWidgets()
+      if (peers && peers.length > 0) {
+        for (var i = 0; i < peers.length; i++) {
+          if (peers[i] && typeof peers[i].refreshNautilusMenuState === "function") {
+            peers[i].refreshNautilusMenuState()
+          }
+        }
+      } else {
+        root.refreshNautilusMenuState()
+      }
+      if (exitCode === 0) settingsCard.nautilusRestartNeeded = true
     }
   }
 
@@ -849,7 +855,7 @@ BarWidget {
         workspaceId: ws ? ws.id : -1,
         monitorName: winMon && winMon.name ? String(winMon.name) : "",
         minimized: !!ws && TaskbarModel.isMinimizedWorkspace(ws.name),
-        floating: ipc.floating !== undefined ? !!ipc.floating : true,
+        floating: !!ipc.floating,
         fullscreen: (ipc.fullscreen ? Number(ipc.fullscreen) : (wl.fullscreen ? 1 : 0)) > 0,
         x: Number(at[0]),
         y: Number(at[1]),
@@ -1688,8 +1694,9 @@ BarWidget {
       Util.execArgv(["wl-copy", "--", root.companionInstallCmd])
     }
     onNautilusMenuToggled: function(enabled) {
-      root.nautilusMenuInstalled = enabled
-      root.runConfigHelper(["nautilus-menu", enabled ? "on" : "off"])
+      if (!root.configScriptPath || nautilusMenuProc.running) return
+      nautilusMenuProc.command = ["python3", root.configScriptPath, "nautilus-menu", enabled ? "on" : "off"]
+      nautilusMenuProc.running = true
     }
     onRestartFilesRequested: {
       Util.execArgv(["nautilus", "-q"])

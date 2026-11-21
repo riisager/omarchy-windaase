@@ -82,29 +82,13 @@ Item {
 
   readonly property string altTabStatePath: (Quickshell.env("XDG_RUNTIME_DIR") || Quickshell.env("XDG_CACHE_HOME") || (Commons.Color.home + "/.cache")) + "/omarchy-windaase-alttab.json"
   property var altTabState: emptyAltTabState()
-  property int _altTabWriteSeq: 0
 
   Commons.Translations {
     id: serviceStrings
     directory: Qt.resolvedUrl("i18n")
   }
 
-  readonly property var terminalEntries: {
-    var values = DesktopEntries.applications.values
-    var out = []
-    for (var i = 0; i < values.length; i++) {
-      var entry = values[i]
-      if (entry.runInTerminal || String(entry.execString || "").indexOf("--app-id=") >= 0) {
-        out.push({
-          id: entry.id,
-          execString: entry.execString,
-          command: entry.command,
-          runInTerminal: entry.runInTerminal
-        })
-      }
-    }
-    return out
-  }
+  readonly property var terminalEntries: TaskbarModel.collectTerminalEntries(DesktopEntries.applications.values)
 
   function entryForAppId(appId) {
     var entry = DesktopEntries.heuristicLookup(appId)
@@ -140,7 +124,7 @@ Item {
       var ws = tl.workspace || null
       var wsName = (ws && ws.name) ? String(ws.name) : (ipc.workspace && ipc.workspace.name ? String(ipc.workspace.name) : "")
       var wsId = (ws && ws.id) ? Number(ws.id) : (ipc.workspace && ipc.workspace.id ? Number(ipc.workspace.id) : -1)
-      var floating = ipc.floating !== undefined ? !!ipc.floating : true
+      var floating = !!ipc.floating
       var fullscreen = ipc.fullscreen ? Number(ipc.fullscreen) : (wl && wl.fullscreen ? 1 : 0)
       var appName = entry && entry.name ? entry.name : appId
       var title = (wl && wl.title) ? String(wl.title) : (ipc.title ? String(ipc.title) : appName)
@@ -264,16 +248,9 @@ Item {
     root.altTabState = emptyAltTabState()
   }
 
-  function writeAltTabStateFile(obj) {
-    var payload = JSON.stringify(obj)
-    root._altTabWriteSeq += 1
-    var tmpPath = root.altTabStatePath + ".qml." + root._altTabWriteSeq + ".tmp"
-    Util.execDetached("printf '%s\\n' " + Util.shellQuote(payload) + " > " + Util.shellQuote(tmpPath) + " && mv -f " + Util.shellQuote(tmpPath) + " " + Util.shellQuote(root.altTabStatePath))
-  }
-
   function closeAltTab() {
     root.altTabState = emptyAltTabState()
-    root.writeAltTabStateFile({ open: false })
+    Util.execArgv(["hyprctl", "eval", "require(\"hypr.windaase\").alt_tab_cancel()"])
   }
 
   function collectAltTabWindows(addrs) {
@@ -300,9 +277,6 @@ Item {
       var ws = tlMatch.workspace || null
       var wsName = (ws && ws.name) ? String(ws.name) : (ipc.workspace && ipc.workspace.name ? String(ipc.workspace.name) : "")
       var wsId = (ws && ws.id) ? Number(ws.id) : (ipc.workspace && ipc.workspace.id ? Number(ipc.workspace.id) : -1)
-      var rawTags = ipc.tags ? ipc.tags : []
-      var cleanTags = []
-      for (var t = 0; t < rawTags.length; t++) cleanTags.push(String(rawTags[t]))
       var appName = (entry && entry.name) ? entry.name : appId
       var title = (wl && wl.title) ? String(wl.title) : (ipc.title ? String(ipc.title) : appName)
       out.push({
@@ -313,7 +287,6 @@ Item {
         workspaceId: wsId,
         minimized: TaskbarModel.isMinimizedWorkspace(wsName),
         pinned: !!ipc.pinned,
-        tags: cleanTags,
         toplevel: wl
       })
     }
@@ -321,48 +294,13 @@ Item {
   }
 
   function activateAltTabWindow(win) {
-    if (!win) {
+    var addr = win ? root.validAddress(win.address) : ""
+    if (!addr) {
       root.closeAltTab()
       return
     }
-    var addr = root.validAddress(win.address)
-    var targetMonitor = root.altTabState ? String(root.altTabState.monitor || "") : ""
-    root.closeAltTab()
-    if (!addr) return
-    var target = "window = \"address:" + addr + "\""
-    var steps = []
-    var after = []
-    if (win.minimized) {
-      var mon = Hyprland.focusedMonitor
-      var wsId = mon && mon.activeWorkspace ? Number(mon.activeWorkspace.id) : -1
-      if (targetMonitor) {
-        var mons = Hyprland.monitors.values
-        for (var m = 0; m < mons.length; m++) {
-          if (mons[m].name === targetMonitor && mons[m].activeWorkspace) {
-            wsId = Number(mons[m].activeWorkspace.id)
-            break
-          }
-        }
-      }
-      if (wsId >= 1) {
-        var tags = win.tags || []
-        for (var t = 0; t < tags.length; t++) {
-          var tag = String(tags[t] || "")
-          if (/^omarchy-(minimized-from|showdesktop|minimize-others)-[0-9]+$/.test(tag)) {
-            steps.push("hl.dsp.window.tag({ tag = \"-" + tag + "\", " + target + " })")
-          }
-        }
-        steps.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"1\", " + target + " })")
-        steps.push("hl.dsp.window.move({ workspace = \"" + wsId + "\", " + target + " })")
-        after.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"unset\", " + target + " })")
-      }
-    }
-    steps.push("hl.dsp.focus({ " + target + " })")
-    steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + target + " })")
-    var dispatch = function(step) { return "hyprctl dispatch " + Util.shellQuote(step) }
-    var command = steps.map(dispatch).join(" && ")
-    if (after.length > 0) command += "; sleep 0.4; " + after.map(dispatch).join("; ")
-    Util.execDetached(command)
+    root.altTabState = emptyAltTabState()
+    Util.execArgv(["hyprctl", "eval", "require(\"hypr.windaase\").alt_tab_commit_addr(\"" + addr + "\")"])
   }
 
   Component.onCompleted: {
@@ -949,8 +887,20 @@ Item {
 
         readonly property var monitor: Hyprland.monitorFor(screen)
         readonly property string monitorName: monitor ? monitor.name : ""
-        readonly property bool activeOnScreen: root.altTabState.open && (root.altTabState.monitor === monitorName || root.altTabState.monitor === "")
+        readonly property bool activeOnScreen: root.altTabState.open && (
+          root.altTabState.monitor !== ""
+            ? root.altTabState.monitor === monitorName
+            : (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name === monitorName : screen === Quickshell.screens[0])
+        )
         readonly property var altWindows: altWin.activeOnScreen ? root.collectAltTabWindows(root.altTabState.addrs) : []
+        readonly property string selectedAltAddr: (root.altTabState.selected >= 0 && root.altTabState.selected < root.altTabState.addrs.length)
+          ? root.altTabState.addrs[root.altTabState.selected]
+          : ""
+        readonly property int selectedAltIndex: TaskbarModel.resolveSelectedWindowIndex(
+          altWin.altWindows,
+          altWin.selectedAltAddr,
+          root.altTabState.selected
+        )
 
         visible: true
         color: "transparent"
@@ -993,7 +943,7 @@ Item {
             anchors.centerIn: parent
             strings: serviceStrings
             windows: altWin.altWindows
-            selectedIndex: root.altTabState.selected
+            selectedIndex: altWin.selectedAltIndex
             active: altWin.activeOnScreen
             maxWidth: Math.max(Style.space(260), altWin.width - Style.space(64))
             maxHeight: Math.max(Style.space(220), altWin.height - Style.space(96))

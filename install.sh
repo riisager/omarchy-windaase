@@ -51,6 +51,7 @@ STAGING_DIR=""
 OLD_DIR=""
 OLD_MOVED=0
 SWAP_COMMITTED=0
+WAS_INSTALLED=0
 cleanup_temp_dirs() {
   if [[ "${OLD_MOVED}" -eq 1 && "${SWAP_COMMITTED}" -eq 0 && -n "${OLD_DIR}" && ( -e "${OLD_DIR}" || -L "${OLD_DIR}" ) ]]; then
     if [[ ! -e "${PLUGIN_DEST}" && ! -L "${PLUGIN_DEST}" ]] && mv "${OLD_DIR}" "${PLUGIN_DEST}" 2>/dev/null; then
@@ -74,6 +75,7 @@ DEST_PARENT_REAL="$(cd "$(dirname "${PLUGIN_DEST}")" && pwd -P)"
 DEST_REAL="${DEST_PARENT_REAL}/$(basename "${PLUGIN_DEST}")"
 
 if [[ "${SCRIPT_REAL}" == "${DEST_REAL}" ]]; then
+  WAS_INSTALLED=1
   echo "==> Validating in-place Omarchy-windåse shell plugin at ${PLUGIN_DEST}"
   chmod +x "${PLUGIN_DEST}/windaase-config.py"
   omarchy plugin validate "${PLUGIN_DEST}"
@@ -108,6 +110,7 @@ else
   echo "==> Validated plugin: ${PLUGIN_ID}"
 
   if [[ -e "${PLUGIN_DEST}" || -L "${PLUGIN_DEST}" ]]; then
+    WAS_INSTALLED=1
     mv "${PLUGIN_DEST}" "${OLD_DIR}"
     OLD_MOVED=1
   fi
@@ -206,6 +209,9 @@ if command -v omarchy-shell >/dev/null 2>&1; then
   omarchy-shell -q shell rescanPlugins || true
   if ! omarchy plugin enable "${PLUGIN_ID}" --section left --after omarchy.workspaces >/dev/null 2>&1; then
     omarchy plugin enable "${PLUGIN_ID}" --section left >/dev/null 2>&1 || omarchy plugin enable "${PLUGIN_ID}" || true
+  fi
+  if [[ "${WAS_INSTALLED}" -eq 1 ]]; then
+    echo "==> Upgrading an active session? Run 'omarchy-restart-shell' so Qt6 reloads updated QML views."
   fi
 fi
 

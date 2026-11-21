@@ -18,7 +18,6 @@ BorderSurface {
   property real maxHeight: Style.space(620)
 
   signal windowPicked(var win)
-  signal hoveredIndexChanged(int idx)
 
   readonly property int tileW: Style.space(204)
   readonly property int tileGap: Style.spacing.sm
@@ -137,7 +136,6 @@ BorderSurface {
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              onEntered: root.hoveredIndexChanged(tile.index)
               onClicked: root.windowPicked(tile.modelData)
             }
 
