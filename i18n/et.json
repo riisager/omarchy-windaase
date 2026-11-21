@@ -47,5 +47,20 @@
   "settings.copyCommand": "Kopeeri lõikelauale",
   "settings.copied": "Kopeeritud",
   "snapAssist.title": "Täida teine pool",
-  "snapAssist.hint": "Klõpsa aknal või vajuta Esc"
+  "snapAssist.hint": "Klõpsa aknal või vajuta Esc",
+  "settings.sectionFiles": "Failid (Nautilus)",
+  "settings.nautilusContextMenu": "Windowsi paremklõpsu toimingud",
+  "settings.nautilusContextMenuHint": "Paigaldab kasutajalaienduse kausta ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Muudatuste rakendamiseks taaskäivita Failid.",
+  "settings.restartFiles": "Taaskäivita Failid",
+  "nautilus.copyPath": "Kopeeri asukohana",
+  "nautilus.copyPaths": "Kopeeri asukohad",
+  "nautilus.copyFolderPath": "Kopeeri kausta asukoht",
+  "nautilus.openTerminal": "Ava terminalis",
+  "nautilus.openEditor": "Ava redaktoris",
+  "nautilus.newTextDocument": "Uus tekstidokument",
+  "appGrid.files": "Failid",
+  "appGrid.settings": "Seaded",
+  "appGrid.lock": "Lukusta",
+  "appGrid.power": "Toide"
 }

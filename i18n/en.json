@@ -47,5 +47,20 @@
   "settings.copyCommand": "Copy to clipboard",
   "settings.copied": "Copied",
   "snapAssist.title": "Fill other side",
-  "snapAssist.hint": "Click a window or press Esc"
+  "snapAssist.hint": "Click a window or press Esc",
+  "settings.sectionFiles": "Files (Nautilus)",
+  "settings.nautilusContextMenu": "Windows right-click actions",
+  "settings.nautilusContextMenuHint": "Installs user extension to ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Restart Files to apply context menu changes.",
+  "settings.restartFiles": "Restart Files",
+  "nautilus.copyPath": "Copy as path",
+  "nautilus.copyPaths": "Copy paths",
+  "nautilus.copyFolderPath": "Copy folder path",
+  "nautilus.openTerminal": "Open in Terminal",
+  "nautilus.openEditor": "Open in Editor",
+  "nautilus.newTextDocument": "New Text Document",
+  "appGrid.files": "Files",
+  "appGrid.settings": "Settings",
+  "appGrid.lock": "Lock",
+  "appGrid.power": "Power"
 }

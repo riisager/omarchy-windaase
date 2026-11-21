@@ -47,5 +47,20 @@
   "settings.copyCommand": "क्लिपबोर्ड पर कॉपी करें",
   "settings.copied": "कॉपी हो गया",
   "snapAssist.title": "दूसरी तरफ़ भरें",
-  "snapAssist.hint": "किसी विंडो पर क्लिक करें या Esc दबाएँ"
+  "snapAssist.hint": "किसी विंडो पर क्लिक करें या Esc दबाएँ",
+  "settings.sectionFiles": "फ़ाइलें (Nautilus)",
+  "settings.nautilusContextMenu": "Windows शैली के राइट-क्लिक विकल्प",
+  "settings.nautilusContextMenuHint": "~/.local/share/nautilus-python/extensions में उपयोगकर्ता एक्सटेंशन इंस्टॉल करता है",
+  "settings.restartFilesHint": "मेनू बदलाव लागू करने के लिए फ़ाइलें पुनः आरंभ करें।",
+  "settings.restartFiles": "फ़ाइलें पुनः आरंभ करें",
+  "nautilus.copyPath": "पथ के रूप में कॉपी करें",
+  "nautilus.copyPaths": "पथ कॉपी करें",
+  "nautilus.copyFolderPath": "फ़ोल्डर पथ कॉपी करें",
+  "nautilus.openTerminal": "टर्मिनल में खोलें",
+  "nautilus.openEditor": "संपादक में खोलें",
+  "nautilus.newTextDocument": "नया टेक्स्ट दस्तावेज़",
+  "appGrid.files": "फ़ाइलें",
+  "appGrid.settings": "सेटिंग्स",
+  "appGrid.lock": "लॉक करें",
+  "appGrid.power": "पावर"
 }

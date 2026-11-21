@@ -47,5 +47,20 @@
   "settings.copyCommand": "Afrita á klippiborð",
   "settings.copied": "Afritað",
   "snapAssist.title": "Fylla hina hliðina",
-  "snapAssist.hint": "Smelltu á glugga eða ýttu á Esc"
+  "snapAssist.hint": "Smelltu á glugga eða ýttu á Esc",
+  "settings.sectionFiles": "Skrár (Nautilus)",
+  "settings.nautilusContextMenu": "Hægrismells-aðgerðir að hætti Windows",
+  "settings.nautilusContextMenuHint": "Setur upp notendaviðbót í ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Endurræstu Skrár til að virkja breytingarnar.",
+  "settings.restartFiles": "Endurræsa Skrár",
+  "nautilus.copyPath": "Afrita sem slóð",
+  "nautilus.copyPaths": "Afrita slóðir",
+  "nautilus.copyFolderPath": "Afrita möppuslóð",
+  "nautilus.openTerminal": "Opna í skjáhermi",
+  "nautilus.openEditor": "Opna í ritli",
+  "nautilus.newTextDocument": "Nýtt textaskjal",
+  "appGrid.files": "Skrár",
+  "appGrid.settings": "Stillingar",
+  "appGrid.lock": "Læsa",
+  "appGrid.power": "Orka"
 }

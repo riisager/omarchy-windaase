@@ -47,5 +47,20 @@
   "settings.copyCommand": "Αντιγραφή στο πρόχειρο",
   "settings.copied": "Αντιγράφηκε",
   "snapAssist.title": "Συμπλήρωση άλλης πλευράς",
-  "snapAssist.hint": "Κάντε κλικ σε παράθυρο ή πατήστε Esc"
+  "snapAssist.hint": "Κάντε κλικ σε παράθυρο ή πατήστε Esc",
+  "settings.sectionFiles": "Αρχεία (Nautilus)",
+  "settings.nautilusContextMenu": "Ενέργειες δεξιού κλικ τύπου Windows",
+  "settings.nautilusContextMenuHint": "Εγκαθιστά επέκταση χρήστη στο ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Επανεκκινήστε τα Αρχεία για να εφαρμοστούν οι αλλαγές.",
+  "settings.restartFiles": "Επανεκκίνηση Αρχείων",
+  "nautilus.copyPath": "Αντιγραφή ως διαδρομή",
+  "nautilus.copyPaths": "Αντιγραφή διαδρομών",
+  "nautilus.copyFolderPath": "Αντιγραφή διαδρομής φακέλου",
+  "nautilus.openTerminal": "Άνοιγμα στο Τερματικό",
+  "nautilus.openEditor": "Άνοιγμα στον Επεξεργαστή",
+  "nautilus.newTextDocument": "Νέο έγγραφο κειμένου",
+  "appGrid.files": "Αρχεία",
+  "appGrid.settings": "Ρυθμίσεις",
+  "appGrid.lock": "Κλείδωμα",
+  "appGrid.power": "Τροφοδοσία"
 }

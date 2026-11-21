@@ -47,5 +47,20 @@
   "settings.copyCommand": "Копирай в клипборда",
   "settings.copied": "Копирано",
   "snapAssist.title": "Попълни другата страна",
-  "snapAssist.hint": "Кликнете прозорец или натиснете Esc"
+  "snapAssist.hint": "Кликнете прозорец или натиснете Esc",
+  "settings.sectionFiles": "Файлове (Nautilus)",
+  "settings.nautilusContextMenu": "Действия при десен клик като в Windows",
+  "settings.nautilusContextMenuHint": "Инсталира потребителско разширение в ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Рестартирайте Файлове, за да приложите промените.",
+  "settings.restartFiles": "Рестартиране на Файлове",
+  "nautilus.copyPath": "Копиране като път",
+  "nautilus.copyPaths": "Копиране на пътищата",
+  "nautilus.copyFolderPath": "Копиране на пътя на папката",
+  "nautilus.openTerminal": "Отваряне в Терминал",
+  "nautilus.openEditor": "Отваряне в Редактор",
+  "nautilus.newTextDocument": "Нов текстов документ",
+  "appGrid.files": "Файлове",
+  "appGrid.settings": "Настройки",
+  "appGrid.lock": "Заключи",
+  "appGrid.power": "Захранване"
 }

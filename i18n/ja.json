@@ -47,5 +47,20 @@
   "settings.copyCommand": "クリップボードにコピー",
   "settings.copied": "コピーしました",
   "snapAssist.title": "もう片側を埋める",
-  "snapAssist.hint": "ウィンドウをクリックまたは Esc"
+  "snapAssist.hint": "ウィンドウをクリックまたは Esc",
+  "settings.sectionFiles": "ファイル (Nautilus)",
+  "settings.nautilusContextMenu": "Windows 風右クリックメニュー",
+  "settings.nautilusContextMenuHint": "~/.local/share/nautilus-python/extensions にユーザー拡張機能を配置します",
+  "settings.restartFilesHint": "コンテキストメニューの変更を反映するにはファイルを再起動してください。",
+  "settings.restartFiles": "ファイルを再起動",
+  "nautilus.copyPath": "パスのコピー",
+  "nautilus.copyPaths": "パスをコピー",
+  "nautilus.copyFolderPath": "フォルダーパスをコピー",
+  "nautilus.openTerminal": "ターミナルで開く",
+  "nautilus.openEditor": "エディターで開く",
+  "nautilus.newTextDocument": "新規テキストドキュメント",
+  "appGrid.files": "ファイル",
+  "appGrid.settings": "設定",
+  "appGrid.lock": "ロック",
+  "appGrid.power": "電源"
 }

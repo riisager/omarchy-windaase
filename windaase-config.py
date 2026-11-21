@@ -22,6 +22,8 @@ HYPR_OPTION_KEYS = (
     "shortcuts",
 )
 
+NAUTILUS_EXT_MARKER = "# Managed by Omarchy-windåse (riisager.windaase)"
+
 TWO_LINE_CLOCK_FORMAT = "HH:mm\ndd-MM-yyyy"
 DEFAULT_CLOCK_FORMAT = "dddd HH:mm"
 
@@ -1148,26 +1150,96 @@ def cmd_browser_window_profiles(args):
     sys.stdout.write(json.dumps(result, separators=(",", ":")) + "\n")
 
 
+def nautilus_ext_path(home_dir=None):
+    home = os.path.expanduser(home_dir) if home_dir else os.path.expanduser("~")
+    return os.path.join(home, ".local", "share", "nautilus-python", "extensions", "windaase_context_menu.py")
+
+
+def nautilus_ext_source():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "nautilus", "windaase_context_menu.py")
+
+
+def _remove_nautilus_pycache(ext_path):
+    cache_dir = os.path.join(os.path.dirname(ext_path), "__pycache__")
+    for pyc_path in glob.glob(os.path.join(cache_dir, "windaase_context_menu*.pyc")):
+        if not os.path.islink(pyc_path) and os.path.isfile(pyc_path):
+            try:
+                os.unlink(pyc_path)
+            except OSError:
+                pass
+
+
+def cmd_nautilus_menu(args):
+    if len(args) != 1 or args[0] not in ("on", "off", "status"):
+        raise ValueError("Expected 'on', 'off', or 'status' for nautilus-menu")
+    action = args[0]
+    dest = nautilus_ext_path()
+
+    if action == "status":
+        installed = False
+        if not os.path.islink(dest) and os.path.isfile(dest):
+            try:
+                with open(dest, "r", encoding="utf-8", errors="ignore") as handle:
+                    installed = NAUTILUS_EXT_MARKER in handle.read()
+            except OSError:
+                installed = False
+        sys.stdout.write("installed\n" if installed else "not-installed\n")
+        return
+
+    if action == "on":
+        src = nautilus_ext_source()
+        if os.path.islink(src) or not os.path.isfile(src):
+            raise FileNotFoundError(f"Missing Nautilus extension source: {src}")
+        with open(src, "r", encoding="utf-8") as handle:
+            content = handle.read()
+        if NAUTILUS_EXT_MARKER not in content:
+            raise ValueError(f"Nautilus extension source is missing marker: {src}")
+
+        if os.path.islink(dest):
+            raise ValueError(f"Refusing to overwrite symlink at {dest}")
+        if os.path.lexists(dest):
+            if not os.path.isfile(dest):
+                raise ValueError(f"Refusing to overwrite non-file entry at {dest}")
+            with open(dest, "r", encoding="utf-8", errors="ignore") as handle:
+                if NAUTILUS_EXT_MARKER not in handle.read():
+                    raise ValueError(f"Refusing to overwrite unmanaged file at {dest}")
+
+        atomic_write(dest, content)
+        os.chmod(dest, 0o644)
+        return
+
+    # action == "off"
+    if os.path.islink(dest):
+        raise ValueError(f"Refusing to remove symlink at {dest}")
+    if os.path.lexists(dest):
+        if not os.path.isfile(dest):
+            raise ValueError(f"Refusing to remove non-file entry at {dest}")
+        with open(dest, "r", encoding="utf-8", errors="ignore") as handle:
+            if NAUTILUS_EXT_MARKER not in handle.read():
+                raise ValueError(f"Refusing to remove unmanaged file at {dest}")
+        os.unlink(dest)
+    _remove_nautilus_pycache(dest)
+
+
 def main(argv):
     if len(argv) < 2:
         raise ValueError(
-            "Usage: windaase-config.py <bar-height|bar-height-reset|two-line-clock|hypr-set|strip-hyprland-loader|browser-window-profiles> ..."
+            "Usage: windaase-config.py <bar-height|bar-height-reset|two-line-clock|hypr-set|strip-hyprland-loader|browser-window-profiles|nautilus-menu> ..."
         )
     cmd, rest = argv[1], argv[2:]
-    if cmd == "bar-height":
-        cmd_bar_height(rest)
-    elif cmd == "bar-height-reset":
-        cmd_bar_height_reset(rest)
-    elif cmd == "two-line-clock":
-        cmd_two_line_clock(rest)
-    elif cmd == "hypr-set":
-        cmd_hypr_set(rest)
-    elif cmd == "strip-hyprland-loader":
-        cmd_strip_hyprland_loader(rest)
-    elif cmd == "browser-window-profiles":
-        cmd_browser_window_profiles(rest)
-    else:
+    handlers = {
+        "bar-height": cmd_bar_height,
+        "bar-height-reset": cmd_bar_height_reset,
+        "two-line-clock": cmd_two_line_clock,
+        "hypr-set": cmd_hypr_set,
+        "strip-hyprland-loader": cmd_strip_hyprland_loader,
+        "browser-window-profiles": cmd_browser_window_profiles,
+        "nautilus-menu": cmd_nautilus_menu,
+    }
+    handler = handlers.get(cmd)
+    if handler is None:
         raise ValueError(f"Unknown subcommand: {cmd}")
+    handler(rest)
 
 
 if __name__ == "__main__":

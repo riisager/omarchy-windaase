@@ -47,5 +47,20 @@
   "settings.copyCommand": "Kopijuoti į iškarpinę",
   "settings.copied": "Nukopijuota",
   "snapAssist.title": "Užpildyti kitą pusę",
-  "snapAssist.hint": "Spustelėkite langą arba paspauskite Esc"
+  "snapAssist.hint": "Spustelėkite langą arba paspauskite Esc",
+  "settings.sectionFiles": "Failai (Nautilus)",
+  "settings.nautilusContextMenu": "Windows dešiniojo klavišo veiksmai",
+  "settings.nautilusContextMenuHint": "Įdiegia naudotojo plėtinį į ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Paleiskite Failus iš naujo, kad pritaikytumėte kontekstinio meniu pakeitimus.",
+  "settings.restartFiles": "Paleisti Failus iš naujo",
+  "nautilus.copyPath": "Kopijuoti kaip kelią",
+  "nautilus.copyPaths": "Kopijuoti kelius",
+  "nautilus.copyFolderPath": "Kopijuoti aplanko kelią",
+  "nautilus.openTerminal": "Atverti terminale",
+  "nautilus.openEditor": "Atverti redaktoriuje",
+  "nautilus.newTextDocument": "Naujas tekstinis dokumentas",
+  "appGrid.files": "Failai",
+  "appGrid.settings": "Nustatymai",
+  "appGrid.lock": "Užrakinti",
+  "appGrid.power": "Maitinimas"
 }

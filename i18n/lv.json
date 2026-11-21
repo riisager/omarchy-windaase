@@ -47,5 +47,20 @@
   "settings.copyCommand": "Kopēt starpliktuvē",
   "settings.copied": "Nokopēts",
   "snapAssist.title": "Aizpildīt otru pusi",
-  "snapAssist.hint": "Noklikšķiniet uz loga vai nospiediet Esc"
+  "snapAssist.hint": "Noklikšķiniet uz loga vai nospiediet Esc",
+  "settings.sectionFiles": "Faili (Nautilus)",
+  "settings.nautilusContextMenu": "Windows labā klikšķa darbības",
+  "settings.nautilusContextMenuHint": "Instalē lietotāja paplašinājumu mapē ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Restartējiet Failus, lai lietotu konteksta izvēlnes izmaiņas.",
+  "settings.restartFiles": "Restartēt Failus",
+  "nautilus.copyPath": "Kopēt kā ceļu",
+  "nautilus.copyPaths": "Kopēt ceļus",
+  "nautilus.copyFolderPath": "Kopēt mapes ceļu",
+  "nautilus.openTerminal": "Atvērt terminālī",
+  "nautilus.openEditor": "Atvērt redaktorā",
+  "nautilus.newTextDocument": "Jauns teksta dokuments",
+  "appGrid.files": "Faili",
+  "appGrid.settings": "Iestatījumi",
+  "appGrid.lock": "Bloķēt",
+  "appGrid.power": "Barošana"
 }

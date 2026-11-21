@@ -47,5 +47,20 @@
   "settings.copyCommand": "העתקה ללוח",
   "settings.copied": "הועתק",
   "snapAssist.title": "מלא צד שני",
-  "snapAssist.hint": "לחץ על חלון או הקש Esc"
+  "snapAssist.hint": "לחץ על חלון או הקש Esc",
+  "settings.sectionFiles": "קבצים (Nautilus)",
+  "settings.nautilusContextMenu": "פעולות לחיצה ימנית בסגנון Windows",
+  "settings.nautilusContextMenuHint": "מתקין הרחבת משתמש בתיקייה ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "הפעל מחדש את הקבצים כדי להחיל את השינויים בתפריט ההקשר.",
+  "settings.restartFiles": "הפעל מחדש את קבצים",
+  "nautilus.copyPath": "העתק כנתיב",
+  "nautilus.copyPaths": "העתק נתיבים",
+  "nautilus.copyFolderPath": "העתק נתיב תיקייה",
+  "nautilus.openTerminal": "פתח במסוף",
+  "nautilus.openEditor": "פתח בעורך",
+  "nautilus.newTextDocument": "מסמך טקסט חדש",
+  "appGrid.files": "קבצים",
+  "appGrid.settings": "הגדרות",
+  "appGrid.lock": "נעילה",
+  "appGrid.power": "הפעלה/כיבוי"
 }

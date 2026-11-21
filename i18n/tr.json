@@ -47,5 +47,20 @@
   "settings.copyCommand": "Panoya kopyala",
   "settings.copied": "Kopyalandı",
   "snapAssist.title": "Diğer tarafı doldur",
-  "snapAssist.hint": "Bir pencereye tıklayın veya Esc'ye basın"
+  "snapAssist.hint": "Bir pencereye tıklayın veya Esc'ye basın",
+  "settings.sectionFiles": "Dosyalar (Nautilus)",
+  "settings.nautilusContextMenu": "Windows sağ tık eylemleri",
+  "settings.nautilusContextMenuHint": "Kullanıcı uzantısını ~/.local/share/nautilus-python/extensions konumuna yükler",
+  "settings.restartFilesHint": "Bağlam menüsü değişikliklerini uygulamak için Dosyalar'ı yeniden başlatın.",
+  "settings.restartFiles": "Dosyalar'ı yeniden başlat",
+  "nautilus.copyPath": "Yol olarak kopyala",
+  "nautilus.copyPaths": "Yolları kopyala",
+  "nautilus.copyFolderPath": "Klasör yolunu kopyala",
+  "nautilus.openTerminal": "Terminal'de aç",
+  "nautilus.openEditor": "Düzenleyici'de aç",
+  "nautilus.newTextDocument": "Yeni Metin Belgesi",
+  "appGrid.files": "Dosyalar",
+  "appGrid.settings": "Ayarlar",
+  "appGrid.lock": "Kilitle",
+  "appGrid.power": "Güç"
 }

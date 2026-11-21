@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -44,12 +45,18 @@ Item {
   readonly property int inset: contentMargin + borderWidth
   readonly property int headerHeight: Math.max(Style.space(36), Style.font.heading + Style.spacing.controlPaddingY * 2)
   readonly property int headerSpacing: Style.spacing.xl
+  readonly property int footerSpacing: Style.spacing.md
+  readonly property int footerSeparatorHeight: Math.max(1, Style.spacing.hairline)
+  readonly property int footerHeight: Math.max(Style.space(34), Style.font.body + Style.spacing.controlPaddingY * 2)
   readonly property int screenMargin: Style.space(40)
 
   readonly property int cardWidth: Math.min(panel.width - screenMargin * 2, maxColumns * cellWidth + inset * 2)
   readonly property int columns: Math.max(1, Math.floor((cardWidth - inset * 2) / cellWidth))
   readonly property int gridWidth: columns * cellWidth
-  readonly property int cardHeight: Math.min(panel.height - screenMargin * 2, inset * 2 + headerHeight + headerSpacing + visibleRows * cellHeight)
+  readonly property int cardHeight: Math.min(
+    panel.height - screenMargin * 2,
+    inset * 2 + headerHeight + headerSpacing + visibleRows * cellHeight + footerSpacing + footerSeparatorHeight + Style.spacing.sm + footerHeight
+  )
 
   Commons.Translations {
     id: strings
@@ -426,7 +433,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.topMargin: card.contentTopInset
         anchors.bottomMargin: card.contentBottomInset
-        spacing: root.headerSpacing
+        spacing: 0
 
         Rectangle {
           x: root.cellGutter
@@ -451,9 +458,11 @@ Item {
           }
         }
 
+        Item { width: 1; height: root.headerSpacing }
+
         Item {
           width: parent.width
-          height: parent.height - root.headerHeight - parent.spacing
+          height: Math.max(0, parent.height - root.headerHeight - root.headerSpacing - root.footerSpacing - root.footerSeparatorHeight - Style.spacing.sm - root.footerHeight)
 
           GridView {
             id: grid
@@ -541,6 +550,95 @@ Item {
             opacity: 0.7
             font.family: Style.font.menuFamily
             font.pixelSize: Style.font.title
+          }
+        }
+
+        Item { width: 1; height: root.footerSpacing }
+
+        Rectangle {
+          x: root.cellGutter
+          width: parent.width - root.cellGutter * 2
+          height: root.footerSeparatorHeight
+          color: Commons.Color.menu.text
+          opacity: 0.14
+        }
+
+        Item { width: 1; height: Style.spacing.sm }
+
+        RowLayout {
+          x: root.cellGutter
+          width: parent.width - root.cellGutter * 2
+          height: root.footerHeight
+          spacing: Style.spacing.sm
+
+          Button {
+            text: strings.t("appGrid.files")
+            focusable: false
+            bordered: false
+            fontFamily: Style.font.menuFamily
+            fontSize: Style.font.caption
+            foreground: Commons.Color.menu.text
+            background: "transparent"
+            accent: Commons.Color.accent
+            horizontalPadding: Style.spacing.sm
+            verticalPadding: Style.space(4)
+            onClicked: {
+              root.close()
+              Util.execArgv(["omarchy-launch-nautilus"])
+            }
+          }
+
+          Button {
+            text: strings.t("appGrid.settings")
+            focusable: false
+            bordered: false
+            fontFamily: Style.font.menuFamily
+            fontSize: Style.font.caption
+            foreground: Commons.Color.menu.text
+            background: "transparent"
+            accent: Commons.Color.accent
+            horizontalPadding: Style.spacing.sm
+            verticalPadding: Style.space(4)
+            onClicked: {
+              root.close()
+              Commons.IpcRegistry.call("riisager.windaase.bar", "toggleSettings", [])
+            }
+          }
+
+          Item { Layout.fillWidth: true }
+
+          Button {
+            text: strings.t("appGrid.lock")
+            focusable: false
+            bordered: false
+            fontFamily: Style.font.menuFamily
+            fontSize: Style.font.caption
+            foreground: Commons.Color.menu.text
+            background: "transparent"
+            accent: Commons.Color.accent
+            horizontalPadding: Style.spacing.sm
+            verticalPadding: Style.space(4)
+            onClicked: {
+              root.close()
+              Util.execArgv(["omarchy-system-lock"])
+            }
+          }
+
+          Button {
+            text: strings.t("appGrid.power")
+            focusable: false
+            bordered: false
+            fontFamily: Style.font.menuFamily
+            fontSize: Style.font.caption
+            foreground: Commons.Color.menu.text
+            background: "transparent"
+            accent: Commons.Color.accent
+            horizontalPadding: Style.spacing.sm
+            verticalPadding: Style.space(4)
+            onClicked: {
+              root.close()
+              Util.execArgv(["omarchy-shell", "shell", "toggle", "omarchy.menu", "{\"menu\":\"system\"}"])
+            }
           }
         }
       }

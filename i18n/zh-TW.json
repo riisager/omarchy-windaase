@@ -47,5 +47,20 @@
   "settings.copyCommand": "複製到剪貼簿",
   "settings.copied": "已複製",
   "snapAssist.title": "填滿另一側",
-  "snapAssist.hint": "點選視窗或按 Esc"
+  "snapAssist.hint": "點選視窗或按 Esc",
+  "settings.sectionFiles": "檔案 (Nautilus)",
+  "settings.nautilusContextMenu": "Windows 風格右鍵動作",
+  "settings.nautilusContextMenuHint": "將使用者擴充套件安裝到 ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "重新啟動檔案管理員以套用右鍵選單變更。",
+  "settings.restartFiles": "重新啟動檔案",
+  "nautilus.copyPath": "複製路徑",
+  "nautilus.copyPaths": "複製多個路徑",
+  "nautilus.copyFolderPath": "複製資料夾路徑",
+  "nautilus.openTerminal": "在終端機中開啟",
+  "nautilus.openEditor": "在編輯器中開啟",
+  "nautilus.newTextDocument": "新增文字文件",
+  "appGrid.files": "檔案",
+  "appGrid.settings": "設定",
+  "appGrid.lock": "鎖定",
+  "appGrid.power": "電源"
 }

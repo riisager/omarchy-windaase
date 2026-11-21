@@ -47,5 +47,20 @@
   "settings.copyCommand": "Kopioi leikepöydälle",
   "settings.copied": "Kopioitu",
   "snapAssist.title": "Täytä toinen puoli",
-  "snapAssist.hint": "Napsauta ikkunaa tai paina Esc"
+  "snapAssist.hint": "Napsauta ikkunaa tai paina Esc",
+  "settings.sectionFiles": "Tiedostot (Nautilus)",
+  "settings.nautilusContextMenu": "Windows-hiiren oikean painikkeen toiminnot",
+  "settings.nautilusContextMenuHint": "Asentaa käyttäjälaajennuksen kansioon ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Käynnistä Tiedostot uudelleen ottaaksesi muutokset käyttöön.",
+  "settings.restartFiles": "Käynnistä Tiedostot uudelleen",
+  "nautilus.copyPath": "Kopioi polkuna",
+  "nautilus.copyPaths": "Kopioi polut",
+  "nautilus.copyFolderPath": "Kopioi kansion polku",
+  "nautilus.openTerminal": "Avaa päätteessä",
+  "nautilus.openEditor": "Avaa editorissa",
+  "nautilus.newTextDocument": "Uusi tekstiasiakirja",
+  "appGrid.files": "Tiedostot",
+  "appGrid.settings": "Asetukset",
+  "appGrid.lock": "Lukitse",
+  "appGrid.power": "Virta"
 }

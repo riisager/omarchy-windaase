@@ -47,5 +47,20 @@
   "settings.copyCommand": "Salin ke papan klip",
   "settings.copied": "Disalin",
   "snapAssist.title": "Isi sisi lain",
-  "snapAssist.hint": "Klik jendela atau tekan Esc"
+  "snapAssist.hint": "Klik jendela atau tekan Esc",
+  "settings.sectionFiles": "Berkas (Nautilus)",
+  "settings.nautilusContextMenu": "Aksi klik kanan gaya Windows",
+  "settings.nautilusContextMenuHint": "Memasang ekstensi pengguna ke ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Mulai ulang Berkas untuk menerapkan perubahan menu konteks.",
+  "settings.restartFiles": "Mulai ulang Berkas",
+  "nautilus.copyPath": "Salin sebagai jalur",
+  "nautilus.copyPaths": "Salin semua jalur",
+  "nautilus.copyFolderPath": "Salin jalur folder",
+  "nautilus.openTerminal": "Buka di Terminal",
+  "nautilus.openEditor": "Buka di Editor",
+  "nautilus.newTextDocument": "Dokumen Teks Baru",
+  "appGrid.files": "Berkas",
+  "appGrid.settings": "Pengaturan",
+  "appGrid.lock": "Kunci",
+  "appGrid.power": "Daya"
 }

@@ -47,5 +47,20 @@
   "settings.copyCommand": "Másolás vágólapra",
   "settings.copied": "Másolva",
   "snapAssist.title": "Másik oldal kitöltése",
-  "snapAssist.hint": "Kattintson egy ablakra vagy nyomja meg az Esc-et"
+  "snapAssist.hint": "Kattintson egy ablakra vagy nyomja meg az Esc-et",
+  "settings.sectionFiles": "Fájlok (Nautilus)",
+  "settings.nautilusContextMenu": "Windows jobb klikk műveletek",
+  "settings.nautilusContextMenuHint": "Felhasználói bővítményt telepít ide: ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Indítsa újra a Fájlok alkalmazást a helyi menü módosításaihoz.",
+  "settings.restartFiles": "Fájlok újraindítása",
+  "nautilus.copyPath": "Másolás elérési útként",
+  "nautilus.copyPaths": "Elérési utak másolása",
+  "nautilus.copyFolderPath": "Mappa elérési útjának másolása",
+  "nautilus.openTerminal": "Megnyitás Terminálban",
+  "nautilus.openEditor": "Megnyitás Szerkesztőben",
+  "nautilus.newTextDocument": "Új szöveges dokumentum",
+  "appGrid.files": "Fájlok",
+  "appGrid.settings": "Beállítások",
+  "appGrid.lock": "Zárolás",
+  "appGrid.power": "Tápellátás"
 }

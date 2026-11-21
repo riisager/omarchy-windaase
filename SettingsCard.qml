@@ -19,8 +19,10 @@ PopupCard {
   property var hyprSettings: ({})
   property bool companionInstalled: true
   property string companionInstallCmd: ""
+  property bool nautilusMenuInstalled: false
 
   property bool copyDone: false
+  property bool nautilusRestartNeeded: false
 
   signal barHeightRequested(int px)
   signal iconSizeRequested(int px)
@@ -28,10 +30,15 @@ PopupCard {
   signal windowFilterRequested(string scope)
   signal twoLineClockToggled(bool enabled)
   signal showAppsButtonToggled(bool enabled)
+  signal nautilusMenuToggled(bool enabled)
+  signal restartFilesRequested()
   signal hyprOptionToggled(string key, bool enabled)
   signal copyInstallCommandRequested()
 
-  onOpenChanged: if (!open) copyDone = false
+  onOpenChanged: if (!open) {
+    copyDone = false
+    nautilusRestartNeeded = false
+  }
 
   readonly property int maxIconPx: Math.max(16, root.barSize - 6)
   readonly property bool isAutoIcon: Number(root.configuredIconSize) <= 0
@@ -274,6 +281,69 @@ PopupCard {
         label: root.strings.t("settings.showAppsButton")
         checked: root.showAppsButton
         onToggled: root.showAppsButtonToggled(!root.showAppsButton)
+      }
+
+      PanelSeparator {
+        foreground: Commons.Color.popups.text
+      }
+
+      PanelSectionHeader {
+        width: parent.width
+        text: root.strings.t("settings.sectionFiles")
+        foreground: Commons.Color.popups.text
+      }
+
+      SettingToggleRow {
+        label: root.strings.t("settings.nautilusContextMenu")
+        checked: root.nautilusMenuInstalled
+        onToggled: {
+          root.nautilusRestartNeeded = true
+          root.nautilusMenuToggled(!root.nautilusMenuInstalled)
+        }
+      }
+
+      Text {
+        width: parent.width
+        textFormat: Text.PlainText
+        wrapMode: Text.WordWrap
+        text: root.strings.t("settings.nautilusContextMenuHint")
+        color: Commons.Color.popups.text
+        opacity: 0.68
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+      }
+
+      RowLayout {
+        visible: root.nautilusRestartNeeded
+        width: parent.width
+        spacing: Style.spacing.sm
+
+        Text {
+          Layout.fillWidth: true
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          text: root.strings.t("settings.restartFilesHint")
+          color: Commons.Color.popups.text
+          opacity: 0.78
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+        }
+
+        Button {
+          text: root.strings.t("settings.restartFiles")
+          bordered: true
+          focusable: false
+          foreground: Commons.Color.popups.text
+          background: Commons.Color.popups.background
+          accent: Commons.Color.accent
+          fontSize: Style.font.caption
+          horizontalPadding: Style.spacing.sm
+          verticalPadding: Style.space(2)
+          onClicked: {
+            root.nautilusRestartNeeded = false
+            root.restartFilesRequested()
+          }
+        }
       }
 
       PanelSeparator {

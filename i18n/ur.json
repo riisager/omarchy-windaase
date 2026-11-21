@@ -47,5 +47,20 @@
   "settings.copyCommand": "کلپ بورڈ پر کاپی کریں",
   "settings.copied": "کاپی ہو گیا",
   "snapAssist.title": "دوسری جانب بھریں",
-  "snapAssist.hint": "ونڈو پر کلک کریں یا Esc دبائیں"
+  "snapAssist.hint": "ونڈو پر کلک کریں یا Esc دبائیں",
+  "settings.sectionFiles": "فائلیں (Nautilus)",
+  "settings.nautilusContextMenu": "Windows طرز کے دائیں کلک کے اختیارات",
+  "settings.nautilusContextMenuHint": "صارف کی توسیع کو ~/.local/share/nautilus-python/extensions میں انسٹال کرتا ہے",
+  "settings.restartFilesHint": "سیاق و سباق کے مینو کی تبدیلیاں لاگو کرنے کے لیے فائلیں دوبارہ شروع کریں۔",
+  "settings.restartFiles": "فائلیں دوبارہ شروع کریں",
+  "nautilus.copyPath": "بطور راستہ کاپی کریں",
+  "nautilus.copyPaths": "راستے کاپی کریں",
+  "nautilus.copyFolderPath": "فولڈر کا راستہ کاپی کریں",
+  "nautilus.openTerminal": "ٹرمینل میں کھولیں",
+  "nautilus.openEditor": "ایڈیٹر میں کھولیں",
+  "nautilus.newTextDocument": "نئی ٹیکسٹ دستاویز",
+  "appGrid.files": "فائلیں",
+  "appGrid.settings": "ترتیبات",
+  "appGrid.lock": "لاک کریں",
+  "appGrid.power": "پاور"
 }

@@ -47,5 +47,20 @@
   "settings.copyCommand": "In Zwischenablage kopieren",
   "settings.copied": "Kopiert",
   "snapAssist.title": "Andere Seite füllen",
-  "snapAssist.hint": "Fenster anklicken oder Esc drücken"
+  "snapAssist.hint": "Fenster anklicken oder Esc drücken",
+  "settings.sectionFiles": "Dateien (Nautilus)",
+  "settings.nautilusContextMenu": "Windows-Rechtsklickaktionen",
+  "settings.nautilusContextMenuHint": "Installiert Benutzererweiterung nach ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Dateien neu starten, um die Kontextmenü-Änderungen anzuwenden.",
+  "settings.restartFiles": "Dateien neu starten",
+  "nautilus.copyPath": "Als Pfad kopieren",
+  "nautilus.copyPaths": "Pfade kopieren",
+  "nautilus.copyFolderPath": "Ordnerpfad kopieren",
+  "nautilus.openTerminal": "Im Terminal öffnen",
+  "nautilus.openEditor": "Im Editor öffnen",
+  "nautilus.newTextDocument": "Neues Textdokument",
+  "appGrid.files": "Dateien",
+  "appGrid.settings": "Einstellungen",
+  "appGrid.lock": "Sperren",
+  "appGrid.power": "Ein/Aus"
 }

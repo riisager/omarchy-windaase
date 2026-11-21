@@ -47,5 +47,20 @@
   "settings.copyCommand": "Sao chép vào bộ nhớ tạm",
   "settings.copied": "Đã sao chép",
   "snapAssist.title": "Lấp nửa còn lại",
-  "snapAssist.hint": "Nhấp vào cửa sổ hoặc nhấn Esc"
+  "snapAssist.hint": "Nhấp vào cửa sổ hoặc nhấn Esc",
+  "settings.sectionFiles": "Tệp (Nautilus)",
+  "settings.nautilusContextMenu": "Tùy chọn chuột phải kiểu Windows",
+  "settings.nautilusContextMenuHint": "Cài đặt tiện ích người dùng vào ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Khởi động lại Tệp để áp dụng thay đổi menu ngữ cảnh.",
+  "settings.restartFiles": "Khởi động lại Tệp",
+  "nautilus.copyPath": "Sao chép dưới dạng đường dẫn",
+  "nautilus.copyPaths": "Sao chép các đường dẫn",
+  "nautilus.copyFolderPath": "Sao chép đường dẫn thư mục",
+  "nautilus.openTerminal": "Mở trong Terminal",
+  "nautilus.openEditor": "Mở trong Trình soạn thảo",
+  "nautilus.newTextDocument": "Tài liệu văn bản mới",
+  "appGrid.files": "Tệp",
+  "appGrid.settings": "Cài đặt",
+  "appGrid.lock": "Khóa",
+  "appGrid.power": "Nguồn"
 }

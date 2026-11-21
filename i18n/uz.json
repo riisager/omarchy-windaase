@@ -47,5 +47,20 @@
   "settings.copyCommand": "Buferga nusxalash",
   "settings.copied": "Nusxalandi",
   "snapAssist.title": "Ikkinchi tomonni toʻldirish",
-  "snapAssist.hint": "Oynani bosing yoki Esc tugmasini bosing"
+  "snapAssist.hint": "Oynani bosing yoki Esc tugmasini bosing",
+  "settings.sectionFiles": "Fayllar (Nautilus)",
+  "settings.nautilusContextMenu": "Windows o'ng tugma amallari",
+  "settings.nautilusContextMenuHint": "Foydalanuvchi kengaytmasini ~/.local/share/nautilus-python/extensions jildiga o'rnatadi",
+  "settings.restartFilesHint": "Kontekst menyusi o'zgarishlarini qo'llash uchun Fayllarni qayta ishga tushiring.",
+  "settings.restartFiles": "Fayllarni qayta ishga tushirish",
+  "nautilus.copyPath": "Yo'l sifatida nusxalash",
+  "nautilus.copyPaths": "Yo'llarni nusxalash",
+  "nautilus.copyFolderPath": "Jild yo'lini nusxalash",
+  "nautilus.openTerminal": "Terminalda ochish",
+  "nautilus.openEditor": "Muharrirda ochish",
+  "nautilus.newTextDocument": "Yangi matnli hujjat",
+  "appGrid.files": "Fayllar",
+  "appGrid.settings": "Sozlamalar",
+  "appGrid.lock": "Qulflash",
+  "appGrid.power": "Quvvat"
 }

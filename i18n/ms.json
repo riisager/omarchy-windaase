@@ -47,5 +47,20 @@
   "settings.copyCommand": "Salin ke papan klip",
   "settings.copied": "Disalin",
   "snapAssist.title": "Isi sebelah lain",
-  "snapAssist.hint": "Klik tetingkap atau tekan Esc"
+  "snapAssist.hint": "Klik tetingkap atau tekan Esc",
+  "settings.sectionFiles": "Fail (Nautilus)",
+  "settings.nautilusContextMenu": "Tindakan klik kanan gaya Windows",
+  "settings.nautilusContextMenuHint": "Memasang sambungan pengguna ke ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Mulakan semula Fail untuk menerapkan perubahan menu konteks.",
+  "settings.restartFiles": "Mulakan semula Fail",
+  "nautilus.copyPath": "Salin sebagai laluan",
+  "nautilus.copyPaths": "Salin laluan",
+  "nautilus.copyFolderPath": "Salin laluan folder",
+  "nautilus.openTerminal": "Buka dalam Terminal",
+  "nautilus.openEditor": "Buka dalam Editor",
+  "nautilus.newTextDocument": "Dokumen Teks Baharu",
+  "appGrid.files": "Fail",
+  "appGrid.settings": "Tetapan",
+  "appGrid.lock": "Kunci",
+  "appGrid.power": "Kuasa"
 }

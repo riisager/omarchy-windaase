@@ -47,5 +47,20 @@
   "settings.copyCommand": "Копирај у клипборд",
   "settings.copied": "Копирано",
   "snapAssist.title": "Попуни другу страну",
-  "snapAssist.hint": "Кликни на прозор или притисни Esc"
+  "snapAssist.hint": "Кликни на прозор или притисни Esc",
+  "settings.sectionFiles": "Датотеке (Nautilus)",
+  "settings.nautilusContextMenu": "Windows радње десног клика",
+  "settings.nautilusContextMenuHint": "Инсталира корисничко проширење у ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Поново покрените Датотеке да бисте применили измене контекстног менија.",
+  "settings.restartFiles": "Поново покрени Датотеке",
+  "nautilus.copyPath": "Копирај као путању",
+  "nautilus.copyPaths": "Копирај путање",
+  "nautilus.copyFolderPath": "Копирај путању фасцикле",
+  "nautilus.openTerminal": "Отвори у Терминалу",
+  "nautilus.openEditor": "Отвори у Уређивачу",
+  "nautilus.newTextDocument": "Нови текстуални документ",
+  "appGrid.files": "Датотеке",
+  "appGrid.settings": "Подешавања",
+  "appGrid.lock": "Закључај",
+  "appGrid.power": "Напајање"
 }

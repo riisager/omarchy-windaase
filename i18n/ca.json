@@ -47,5 +47,20 @@
   "settings.copyCommand": "Copia al porta-retalls",
   "settings.copied": "Copiat",
   "snapAssist.title": "Omple l'altra meitat",
-  "snapAssist.hint": "Fes clic a una finestra o prem Esc"
+  "snapAssist.hint": "Fes clic a una finestra o prem Esc",
+  "settings.sectionFiles": "Fitxers (Nautilus)",
+  "settings.nautilusContextMenu": "Accions de clic dret estil Windows",
+  "settings.nautilusContextMenuHint": "Instal·la l'extensió d'usuari a ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Reinicieu Fitxers per aplicar els canvis del menú contextual.",
+  "settings.restartFiles": "Reinicia Fitxers",
+  "nautilus.copyPath": "Copia com a camí",
+  "nautilus.copyPaths": "Copia els camins",
+  "nautilus.copyFolderPath": "Copia el camí de la carpeta",
+  "nautilus.openTerminal": "Obre al Terminal",
+  "nautilus.openEditor": "Obre a l'Editor",
+  "nautilus.newTextDocument": "Document de text nou",
+  "appGrid.files": "Fitxers",
+  "appGrid.settings": "Configuració",
+  "appGrid.lock": "Bloqueja",
+  "appGrid.power": "Energia"
 }

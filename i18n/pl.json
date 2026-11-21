@@ -47,5 +47,20 @@
   "settings.copyCommand": "Kopiuj do schowka",
   "settings.copied": "Skopiowano",
   "snapAssist.title": "Wypełnij drugą stronę",
-  "snapAssist.hint": "Kliknij okno lub naciśnij Esc"
+  "snapAssist.hint": "Kliknij okno lub naciśnij Esc",
+  "settings.sectionFiles": "Pliki (Nautilus)",
+  "settings.nautilusContextMenu": "Akcje prawego przycisku w stylu Windows",
+  "settings.nautilusContextMenuHint": "Instaluje rozszerzenie użytkownika w ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Uruchom ponownie Pliki, aby zastosować zmiany w menu kontekstowym.",
+  "settings.restartFiles": "Uruchom ponownie Pliki",
+  "nautilus.copyPath": "Kopiuj jako ścieżkę",
+  "nautilus.copyPaths": "Kopiuj ścieżki",
+  "nautilus.copyFolderPath": "Kopiuj ścieżkę folderu",
+  "nautilus.openTerminal": "Otwórz w Terminalu",
+  "nautilus.openEditor": "Otwórz w Edytorze",
+  "nautilus.newTextDocument": "Nowy dokument tekstowy",
+  "appGrid.files": "Pliki",
+  "appGrid.settings": "Ustawienia",
+  "appGrid.lock": "Zablokuj",
+  "appGrid.power": "Zasilanie"
 }

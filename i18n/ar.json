@@ -47,5 +47,20 @@
   "settings.copyCommand": "النسخ إلى الحافظة",
   "settings.copied": "تم النسخ",
   "snapAssist.title": "ملء الجانب الآخر",
-  "snapAssist.hint": "انقر نافذة أو اضغط Esc"
+  "snapAssist.hint": "انقر نافذة أو اضغط Esc",
+  "settings.sectionFiles": "الملفات (Nautilus)",
+  "settings.nautilusContextMenu": "إجراءات النقر بزر الماوس الأيمن بنمط Windows",
+  "settings.nautilusContextMenuHint": "يثبّت إضافة المستخدم في ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "أعد تشغيل الملفات لتطبيق تغييرات قائمة السياق.",
+  "settings.restartFiles": "إعادة تشغيل الملفات",
+  "nautilus.copyPath": "نسخ كمسار",
+  "nautilus.copyPaths": "نسخ المسارات",
+  "nautilus.copyFolderPath": "نسخ مسار المجلد",
+  "nautilus.openTerminal": "فتح في الطرفية",
+  "nautilus.openEditor": "فتح في المحرر",
+  "nautilus.newTextDocument": "مستند نصي جديد",
+  "appGrid.files": "الملفات",
+  "appGrid.settings": "الإعدادات",
+  "appGrid.lock": "قفل",
+  "appGrid.power": "الطاقة"
 }

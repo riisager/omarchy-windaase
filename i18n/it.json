@@ -47,5 +47,20 @@
   "settings.copyCommand": "Copia negli appunti",
   "settings.copied": "Copiato",
   "snapAssist.title": "Riempi l'altro lato",
-  "snapAssist.hint": "Fai clic su una finestra o premi Esc"
+  "snapAssist.hint": "Fai clic su una finestra o premi Esc",
+  "settings.sectionFiles": "File (Nautilus)",
+  "settings.nautilusContextMenu": "Azioni tasto destro stile Windows",
+  "settings.nautilusContextMenuHint": "Installa l'estensione utente in ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Riavvia File per applicare le modifiche al menu contestuale.",
+  "settings.restartFiles": "Riavvia File",
+  "nautilus.copyPath": "Copia come percorso",
+  "nautilus.copyPaths": "Copia percorsi",
+  "nautilus.copyFolderPath": "Copia percorso cartella",
+  "nautilus.openTerminal": "Apri nel Terminale",
+  "nautilus.openEditor": "Apri nell'Editor",
+  "nautilus.newTextDocument": "Nuovo documento di testo",
+  "appGrid.files": "File",
+  "appGrid.settings": "Impostazioni",
+  "appGrid.lock": "Blocca",
+  "appGrid.power": "Alimentazione"
 }

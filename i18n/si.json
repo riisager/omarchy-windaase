@@ -47,5 +47,20 @@
   "settings.copyCommand": "පසුරු පුවරුවට පිටපත් කරන්න",
   "settings.copied": "පිටපත් විය",
   "snapAssist.title": "අනෙක් පස පුරවන්න",
-  "snapAssist.hint": "කවුළුවක් ක්ලික් කරන්න හෝ Esc ඔබන්න"
+  "snapAssist.hint": "කවුළුවක් ක්ලික් කරන්න හෝ Esc ඔබන්න",
+  "settings.sectionFiles": "ගොනු (Nautilus)",
+  "settings.nautilusContextMenu": "Windows දකුණු ක්ලික් ක්‍රියා",
+  "settings.nautilusContextMenuHint": "~/.local/share/nautilus-python/extensions වෙත පරිශීලක දිගුව ස්ථාපනය කරයි",
+  "settings.restartFilesHint": "සන්දර්භ මෙනු වෙනස්කම් යෙදීමට ගොනු නැවත අරඹන්න.",
+  "settings.restartFiles": "ගොනු නැවත අරඹන්න",
+  "nautilus.copyPath": "මාර්ගය ලෙස පිටපත් කරන්න",
+  "nautilus.copyPaths": "මාර්ග පිටපත් කරන්න",
+  "nautilus.copyFolderPath": "ෆෝල්ඩර මාර්ගය පිටපත් කරන්න",
+  "nautilus.openTerminal": "ටර්මිනලයේ විවෘත කරන්න",
+  "nautilus.openEditor": "සංස්කාරකයේ විවෘත කරන්න",
+  "nautilus.newTextDocument": "නව පෙළ ලේඛනය",
+  "appGrid.files": "ගොනු",
+  "appGrid.settings": "සැකසුම්",
+  "appGrid.lock": "අගුලු දාන්න",
+  "appGrid.power": "බලය"
 }

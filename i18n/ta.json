@@ -47,5 +47,20 @@
   "settings.copyCommand": "கிளிப்போர்டுக்கு நகலெடு",
   "settings.copied": "நகலெடுக்கப்பட்டது",
   "snapAssist.title": "மறுபுறத்தை நிரப்பு",
-  "snapAssist.hint": "சாளரத்தைக் கிளிக் செய்யவும் அல்லது Esc அழுத்தவும்"
+  "snapAssist.hint": "சாளரத்தைக் கிளிக் செய்யவும் அல்லது Esc அழுத்தவும்",
+  "settings.sectionFiles": "கோப்புகள் (Nautilus)",
+  "settings.nautilusContextMenu": "Windows வலது கிளிக் செயல்கள்",
+  "settings.nautilusContextMenuHint": "~/.local/share/nautilus-python/extensions இல் பயனர் நீட்டிப்பை நிறுவுகிறது",
+  "settings.restartFilesHint": "சூழல் மெனு மாற்றங்களைப் பயன்படுத்த கோப்புகளை மறுதொடக்கம் செய்யவும்.",
+  "settings.restartFiles": "கோப்புகளை மறுதொடக்கம் செய்",
+  "nautilus.copyPath": "பாதையாக நகலெடு",
+  "nautilus.copyPaths": "பாதைகளை நகலெடு",
+  "nautilus.copyFolderPath": "கோப்புறைப் பாதையை நகலெடு",
+  "nautilus.openTerminal": "முனையத்தில் திற",
+  "nautilus.openEditor": "தொகுப்பியில் திற",
+  "nautilus.newTextDocument": "புதிய உரை ஆவணம்",
+  "appGrid.files": "கோப்புகள்",
+  "appGrid.settings": "அமைப்புகள்",
+  "appGrid.lock": "பூட்டு",
+  "appGrid.power": "மின்சக்தி"
 }

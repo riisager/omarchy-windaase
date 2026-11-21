@@ -71,6 +71,7 @@ BarWidget {
   property var hyprSettings: TaskbarModel.defaultHyprSettings()
   property bool companionInstalled: false
   property bool hasLocalInstaller: false
+  property bool nautilusMenuInstalled: false
   readonly property string companionInstallCmd: root.hasLocalInstaller
     ? "~/.config/omarchy/plugins/riisager.windaase/install.sh"
     : "git clone https://github.com/riisager/omarchy-windaase.git && ./omarchy-windaase/install.sh"
@@ -142,6 +143,17 @@ BarWidget {
     printErrors: false
     onLoaded: root.hasLocalInstaller = String(text() || "").length > 0
     onLoadFailed: root.hasLocalInstaller = false
+  }
+
+  FileView {
+    id: nautilusMenuFile
+    path: Commons.Color.home + "/.local/share/nautilus-python/extensions/windaase_context_menu.py"
+    watchChanges: true
+    blockLoading: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.nautilusMenuInstalled = String(text() || "").indexOf("Managed by Omarchy-windåse") >= 0
+    onLoadFailed: root.nautilusMenuInstalled = false
   }
 
   FileView {
@@ -324,6 +336,7 @@ BarWidget {
     root.hyprSettings = TaskbarModel.parseHyprSettings(hyprSettingsFile.text())
     root.companionInstalled = String(companionLuaFile.text() || "").length > 0
     root.hasLocalInstaller = String(localInstallerFile.text() || "").length > 0
+    root.nautilusMenuInstalled = String(nautilusMenuFile.text() || "").indexOf("Managed by Omarchy-windåse") >= 0
     syncItemModel()
     syncBrowserProfiles()
   }
@@ -851,6 +864,7 @@ BarWidget {
     root.menuKey = ""
     companionLuaFile.reload()
     localInstallerFile.reload()
+    nautilusMenuFile.reload()
     root.settingsAnchor = slot || (root.showAppsButton ? appsSlot : root)
     root.settingsOpen = true
     if (root.bar && root.settingsAnchor) root.bar.hideTooltip(root.settingsAnchor)
@@ -1467,6 +1481,7 @@ BarWidget {
     hyprSettings: root.hyprSettings
     companionInstalled: root.companionInstalled
     companionInstallCmd: root.companionInstallCmd
+    nautilusMenuInstalled: root.nautilusMenuInstalled
 
     onBarHeightRequested: function(px) {
       root.runConfigHelper(["bar-height", String(px)])
@@ -1500,6 +1515,13 @@ BarWidget {
     }
     onCopyInstallCommandRequested: {
       Util.execArgv(["wl-copy", "--", root.companionInstallCmd])
+    }
+    onNautilusMenuToggled: function(enabled) {
+      root.nautilusMenuInstalled = enabled
+      root.runConfigHelper(["nautilus-menu", enabled ? "on" : "off"])
+    }
+    onRestartFilesRequested: {
+      Util.execArgv(["nautilus", "-q"])
     }
   }
 }

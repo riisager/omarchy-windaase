@@ -47,5 +47,20 @@
   "settings.copyCommand": "Kopier til utklippstavle",
   "settings.copied": "Kopiert",
   "snapAssist.title": "Fyll motsatt side",
-  "snapAssist.hint": "Klikk på et vindu eller trykk Esc"
+  "snapAssist.hint": "Klikk på et vindu eller trykk Esc",
+  "settings.sectionFiles": "Filer (Nautilus)",
+  "settings.nautilusContextMenu": "Windows høyreklikk-handlinger",
+  "settings.nautilusContextMenuHint": "Installerer brukerutvidelse i ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Start Filer på nytt for å bruke endringene.",
+  "settings.restartFiles": "Start Filer på nytt",
+  "nautilus.copyPath": "Kopier som bane",
+  "nautilus.copyPaths": "Kopier baner",
+  "nautilus.copyFolderPath": "Kopier mappebane",
+  "nautilus.openTerminal": "Åpne i Terminal",
+  "nautilus.openEditor": "Åpne i Teksteditor",
+  "nautilus.newTextDocument": "Nytt tekstdokument",
+  "appGrid.files": "Filer",
+  "appGrid.settings": "Innstillinger",
+  "appGrid.lock": "Lås",
+  "appGrid.power": "Strøm"
 }

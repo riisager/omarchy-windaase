@@ -83,7 +83,7 @@ else
   STAGING_DIR="${PLUGIN_DEST}.staging.$$"
   OLD_DIR="${PLUGIN_DEST}.old.$$"
 
-  mkdir -p "${STAGING_DIR}/i18n"
+  mkdir -p "${STAGING_DIR}/i18n" "${STAGING_DIR}/nautilus"
   cp "${SCRIPT_DIR}/manifest.json" \
      "${SCRIPT_DIR}/layouts.json" \
      "${SCRIPT_DIR}/TaskbarModel.js" \
@@ -101,6 +101,7 @@ else
      "${STAGING_DIR}/"
   chmod +x "${STAGING_DIR}/windaase-config.py"
   cp "${SCRIPT_DIR}/i18n/"*.json "${STAGING_DIR}/i18n/"
+  cp "${SCRIPT_DIR}/nautilus/windaase_context_menu.py" "${STAGING_DIR}/nautilus/"
 
   omarchy plugin validate "${STAGING_DIR}"
   echo "==> Validated plugin: ${PLUGIN_ID}"
@@ -119,6 +120,11 @@ else
     OLD_MOVED=0
   fi
   echo "==> Installed Omarchy-windåse shell plugin to ${PLUGIN_DEST}"
+fi
+
+if [[ "$(python3 "${PLUGIN_DEST}/windaase-config.py" nautilus-menu status 2>/dev/null || true)" == "installed" ]]; then
+  python3 "${PLUGIN_DEST}/windaase-config.py" nautilus-menu on
+  echo "==> Refreshed opt-in Nautilus context menu extension"
 fi
 
 if [[ "$MODE" != "shell-only" ]]; then

@@ -858,6 +858,202 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertTrue(os.path.exists(preserved_marker))
         self.assertEqual(self.read_text(preserved_marker), "keep-me\n")
 
+    def test_nautilus_menu_enable_disable_status_and_pycache_cleanup(self):
+        ext_path = os.path.join(
+            self.home, ".local", "share", "nautilus-python", "extensions", "windaase_context_menu.py"
+        )
+        pycache_dir = os.path.join(os.path.dirname(ext_path), "__pycache__")
+
+        res = self.run_helper("nautilus-menu", "status")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(res.stdout.strip(), "not-installed")
+
+        res = self.run_helper("nautilus-menu", "on")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertTrue(os.path.isfile(ext_path))
+        self.assertFalse(os.path.islink(ext_path))
+        self.assertEqual(stat.S_IMODE(os.stat(ext_path).st_mode), 0o644)
+        self.assertIn("# Managed by Omarchy-windåse (riisager.windaase)", self.read_text(ext_path))
+
+        res = self.run_helper("nautilus-menu", "status")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(res.stdout.strip(), "installed")
+
+        os.makedirs(pycache_dir, exist_ok=True)
+        pyc_file = os.path.join(pycache_dir, "windaase_context_menu.cpython-313.pyc")
+        unrelated_pyc = os.path.join(pycache_dir, "localsend.cpython-313.pyc")
+        with open(pyc_file, "wb") as handle:
+            handle.write(b"pyc")
+        with open(unrelated_pyc, "wb") as handle:
+            handle.write(b"keep")
+
+        res = self.run_helper("nautilus-menu", "off")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertFalse(os.path.lexists(ext_path))
+        self.assertFalse(os.path.exists(pyc_file))
+        self.assertTrue(os.path.exists(unrelated_pyc))
+
+        res = self.run_helper("nautilus-menu", "status")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(res.stdout.strip(), "not-installed")
+
+    def test_nautilus_menu_refuses_unmanaged_file_and_symlink(self):
+        ext_dir = os.path.join(self.home, ".local", "share", "nautilus-python", "extensions")
+        os.makedirs(ext_dir, exist_ok=True)
+        ext_path = os.path.join(ext_dir, "windaase_context_menu.py")
+
+        # Unmanaged regular file must not be overwritten or deleted.
+        with open(ext_path, "w", encoding="utf-8") as handle:
+            handle.write("# custom user extension\n")
+        for action in ("on", "off"):
+            res = self.run_helper("nautilus-menu", action)
+            self.assertNotEqual(res.returncode, 0)
+            self.assertEqual(self.read_text(ext_path), "# custom user extension\n")
+        res = self.run_helper("nautilus-menu", "status")
+        self.assertEqual(res.stdout.strip(), "not-installed")
+        os.unlink(ext_path)
+
+        # Symlink (even dangling) must not be followed, overwritten, or deleted.
+        target = os.path.join(self.home, "outside-target.py")
+        os.symlink(target, ext_path)
+        for action in ("on", "off"):
+            res = self.run_helper("nautilus-menu", action)
+            self.assertNotEqual(res.returncode, 0)
+            self.assertTrue(os.path.islink(ext_path))
+            self.assertFalse(os.path.exists(target))
+        res = self.run_helper("nautilus-menu", "status")
+        self.assertEqual(res.stdout.strip(), "not-installed")
+
+    def test_install_stages_nautilus_without_auto_enable_and_refreshes_when_enabled(self):
+        stub_dir = self._make_stub_bin()
+        env = self.env.copy()
+        env["PATH"] = f"{stub_dir}:{env['PATH']}"
+
+        plugin_dest = os.path.join(self.omarchy_dir, "plugins", "riisager.windaase")
+        ext_dir = os.path.join(self.home, ".local", "share", "nautilus-python", "extensions")
+        ext_path = os.path.join(ext_dir, "windaase_context_menu.py")
+
+        # Fresh install stages nautilus/windaase_context_menu.py without enabling it.
+        res = subprocess.run(["bash", INSTALL_SH, "--shell-only"], env=env, capture_output=True, text=True, check=False)
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+        staged_ext = os.path.join(plugin_dest, "nautilus", "windaase_context_menu.py")
+        self.assertTrue(os.path.isfile(staged_ext))
+        self.assertFalse(os.path.lexists(ext_path))
+
+        # When already opt-in enabled with outdated managed content, install refreshes it.
+        os.makedirs(ext_dir, exist_ok=True)
+        with open(ext_path, "w", encoding="utf-8") as handle:
+            handle.write("# Managed by Omarchy-windåse (riisager.windaase)\n# stale version\n")
+
+        res = subprocess.run(["bash", INSTALL_SH, "--shell-only"], env=env, capture_output=True, text=True, check=False)
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+        self.assertEqual(self.read_text(ext_path), self.read_text(staged_ext))
+
+    def test_uninstall_removes_nautilus_ext_but_keeps_localsend(self):
+        stub_dir = self._make_stub_bin()
+        env = self.env.copy()
+        env["PATH"] = f"{stub_dir}:{env['PATH']}"
+
+        res = subprocess.run(["bash", INSTALL_SH, "--shell-only"], env=env, capture_output=True, text=True, check=False)
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+
+        res = self.run_helper("nautilus-menu", "on")
+        self.assertEqual(res.returncode, 0, res.stderr)
+
+        ext_dir = os.path.join(self.home, ".local", "share", "nautilus-python", "extensions")
+        windaase_ext = os.path.join(ext_dir, "windaase_context_menu.py")
+        localsend_ext = os.path.join(ext_dir, "localsend.py")
+        with open(localsend_ext, "w", encoding="utf-8") as handle:
+            handle.write("# keep localsend\n")
+
+        res = subprocess.run(["bash", UNINSTALL_SH], env=env, capture_output=True, text=True, check=False)
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+        self.assertFalse(os.path.lexists(windaase_ext))
+        self.assertTrue(os.path.isfile(localsend_ext))
+        self.assertEqual(self.read_text(localsend_ext), "# keep localsend\n")
+
+    def test_nautilus_context_menu_pure_helpers(self):
+        import importlib.util
+
+        nautilus_py = os.path.join(REPO_ROOT, "nautilus", "windaase_context_menu.py")
+        spec = importlib.util.spec_from_file_location("windaase_context_menu", nautilus_py)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        # format_paths_payload
+        self.assertEqual(
+            mod.format_paths_payload(["/a/one.txt", "", "   ", "/a/one.txt", "/b/two.txt"]),
+            "/a/one.txt\n/b/two.txt",
+        )
+        self.assertEqual(mod.format_paths_payload([]), "")
+
+        # build_terminal_command
+        stub_map = {
+            "uwsm-app": "/usr/bin/uwsm-app",
+            "xdg-terminal-exec": "/usr/bin/xdg-terminal-exec",
+            "omarchy-launch-editor": "/usr/share/omarchy/bin/omarchy-launch-editor",
+        }
+        self.assertEqual(
+            mod.build_terminal_command("/tmp/my folder", which_fn=stub_map.get),
+            ["/usr/bin/uwsm-app", "--", "/usr/bin/xdg-terminal-exec", "--dir=/tmp/my folder"],
+        )
+        no_uwsm = {"xdg-terminal-exec": "/usr/bin/xdg-terminal-exec"}
+        self.assertEqual(
+            mod.build_terminal_command("/tmp/dir", which_fn=no_uwsm.get),
+            ["/usr/bin/xdg-terminal-exec", "--dir=/tmp/dir"],
+        )
+        self.assertIsNone(mod.build_terminal_command("/tmp/dir", which_fn={}.get))
+
+        # build_editor_command
+        self.assertEqual(
+            mod.build_editor_command(["/a.txt", "", "/b.txt"], which_fn=stub_map.get),
+            ["/usr/share/omarchy/bin/omarchy-launch-editor", "/a.txt", "/b.txt"],
+        )
+        self.assertIsNone(mod.build_editor_command(["/a.txt"], which_fn={}.get))
+        self.assertIsNone(mod.build_editor_command([], which_fn=stub_map.get))
+
+        # create_new_text_file uniqueness and symlink/overwrite safety
+        work_dir = os.path.join(self.home, "folder")
+        os.makedirs(work_dir, exist_ok=True)
+        first = mod.create_new_text_file(work_dir)
+        self.assertEqual(first, os.path.join(work_dir, "Untitled.txt"))
+        with open(first, "w", encoding="utf-8") as handle:
+            handle.write("do-not-clobber")
+
+        # Dangling symlink at Untitled 2.txt must also not be followed or overwritten.
+        dangling = os.path.join(work_dir, "Untitled 2.txt")
+        escaped_target = os.path.join(self.home, "should-not-exist.txt")
+        os.symlink(escaped_target, dangling)
+
+        second = mod.create_new_text_file(work_dir)
+        self.assertEqual(second, os.path.join(work_dir, "Untitled 3.txt"))
+        self.assertEqual(self.read_text(first), "do-not-clobber")
+        self.assertFalse(os.path.exists(escaped_target))
+        self.assertIsNone(mod.create_new_text_file(os.path.join(work_dir, "missing")))
+
+        # load_labels locale resolution + traversal rejection
+        plugin_i18n = os.path.join(self.omarchy_dir, "plugins", "riisager.windaase", "i18n")
+        os.makedirs(plugin_i18n, exist_ok=True)
+        shutil.copy2(os.path.join(REPO_ROOT, "i18n", "da.json"), os.path.join(plugin_i18n, "da.json"))
+        shutil.copy2(os.path.join(REPO_ROOT, "i18n", "pt-BR.json"), os.path.join(plugin_i18n, "pt-BR.json"))
+
+        with open(os.path.join(self.omarchy_dir, "language"), "w", encoding="utf-8") as handle:
+            handle.write("pt-BR\n")
+        pt_labels = mod.load_labels(home_dir=self.home)
+        self.assertEqual(pt_labels["nautilus.copyPath"], "Copiar como caminho")
+
+        # Traversal attempt falls back safely to defaults
+        with open(os.path.join(self.omarchy_dir, "language"), "w", encoding="utf-8") as handle:
+            handle.write("../../../etc/passwd\n")
+        fallback_labels = mod.load_labels(home_dir=self.home, lang_env="")
+        self.assertEqual(fallback_labels["nautilus.copyPath"], "Copy as path")
+
+        # Missing language file falls back to lang_env (e.g. da_DK.UTF-8 -> da)
+        os.unlink(os.path.join(self.omarchy_dir, "language"))
+        da_labels = mod.load_labels(home_dir=self.home, lang_env="da_DK.UTF-8")
+        self.assertEqual(da_labels["nautilus.copyPath"], "Kopiér som sti")
+        self.assertEqual(da_labels["nautilus.newTextDocument"], "Nyt tekstdokument")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

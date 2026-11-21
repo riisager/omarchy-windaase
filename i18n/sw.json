@@ -47,5 +47,20 @@
   "settings.copyCommand": "Nakili kwenye ubao wa kunakili",
   "settings.copied": "Imenakiliwa",
   "snapAssist.title": "Jaza upande mwingine",
-  "snapAssist.hint": "Bofya dirisha au bonyeza Esc"
+  "snapAssist.hint": "Bofya dirisha au bonyeza Esc",
+  "settings.sectionFiles": "Faili (Nautilus)",
+  "settings.nautilusContextMenu": "Vitendo vya kubofya kulia kama Windows",
+  "settings.nautilusContextMenuHint": "Husakinisha kiendelezi cha mtumiaji katika ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Anzisha upya Faili ili kutumia mabadiliko ya menyu.",
+  "settings.restartFiles": "Anzisha upya Faili",
+  "nautilus.copyPath": "Nakili kama njia",
+  "nautilus.copyPaths": "Nakili njia",
+  "nautilus.copyFolderPath": "Nakili njia ya folda",
+  "nautilus.openTerminal": "Fungua katika Terminali",
+  "nautilus.openEditor": "Fungua katika Kihariri",
+  "nautilus.newTextDocument": "Hati Mpya ya Maandishi",
+  "appGrid.files": "Faili",
+  "appGrid.settings": "Mipangilio",
+  "appGrid.lock": "Funga",
+  "appGrid.power": "Nishati"
 }

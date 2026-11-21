@@ -47,5 +47,20 @@
   "settings.copyCommand": "Kopiraj v odložišče",
   "settings.copied": "Kopirano",
   "snapAssist.title": "Zapolni drugo stran",
-  "snapAssist.hint": "Klikni okno ali pritisni Esc"
+  "snapAssist.hint": "Klikni okno ali pritisni Esc",
+  "settings.sectionFiles": "Datoteke (Nautilus)",
+  "settings.nautilusContextMenu": "Dejanja desnega klika v slogu Windows",
+  "settings.nautilusContextMenuHint": "Namesti uporabniško razširitev v ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Za uveljavitev sprememb priročnega menija znova zaženite Datoteke.",
+  "settings.restartFiles": "Znova zaženi Datoteke",
+  "nautilus.copyPath": "Kopiraj kot pot",
+  "nautilus.copyPaths": "Kopiraj poti",
+  "nautilus.copyFolderPath": "Kopiraj pot mape",
+  "nautilus.openTerminal": "Odpri v Terminalu",
+  "nautilus.openEditor": "Odpri v Urejevalniku",
+  "nautilus.newTextDocument": "Nov besedilni dokument",
+  "appGrid.files": "Datoteke",
+  "appGrid.settings": "Nastavitve",
+  "appGrid.lock": "Zakleni",
+  "appGrid.power": "Napajanje"
 }

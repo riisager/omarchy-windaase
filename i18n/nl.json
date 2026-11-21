@@ -47,5 +47,20 @@
   "settings.copyCommand": "Naar klembord kopiëren",
   "settings.copied": "Gekopieerd",
   "snapAssist.title": "Andere kant vullen",
-  "snapAssist.hint": "Klik op een venster of druk op Esc"
+  "snapAssist.hint": "Klik op een venster of druk op Esc",
+  "settings.sectionFiles": "Bestanden (Nautilus)",
+  "settings.nautilusContextMenu": "Windows rechtermuisknop-acties",
+  "settings.nautilusContextMenuHint": "Installeert gebruikersextensie in ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Herstart Bestanden om wijzigingen in het contextmenu toe te passen.",
+  "settings.restartFiles": "Bestanden herstarten",
+  "nautilus.copyPath": "Als pad kopiëren",
+  "nautilus.copyPaths": "Paden kopiëren",
+  "nautilus.copyFolderPath": "Mappad kopiëren",
+  "nautilus.openTerminal": "Openen in Terminal",
+  "nautilus.openEditor": "Openen in Editor",
+  "nautilus.newTextDocument": "Nieuw tekstdocument",
+  "appGrid.files": "Bestanden",
+  "appGrid.settings": "Instellingen",
+  "appGrid.lock": "Vergrendelen",
+  "appGrid.power": "Energie"
 }

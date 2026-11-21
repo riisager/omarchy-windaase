@@ -47,5 +47,20 @@
   "settings.copyCommand": "Копіювати в буфер обміну",
   "settings.copied": "Скопійовано",
   "snapAssist.title": "Заповнити інший бік",
-  "snapAssist.hint": "Натисніть вікно або Esc"
+  "snapAssist.hint": "Натисніть вікно або Esc",
+  "settings.sectionFiles": "Файли (Nautilus)",
+  "settings.nautilusContextMenu": "Дії правої кнопки у стилі Windows",
+  "settings.nautilusContextMenuHint": "Встановлює розширення користувача до ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Перезапустіть Файли, щоб застосувати зміни контекстного меню.",
+  "settings.restartFiles": "Перезапустити Файли",
+  "nautilus.copyPath": "Копіювати як шлях",
+  "nautilus.copyPaths": "Копіювати шляхи",
+  "nautilus.copyFolderPath": "Копіювати шлях теки",
+  "nautilus.openTerminal": "Відкрити в Терміналі",
+  "nautilus.openEditor": "Відкрити в Редакторі",
+  "nautilus.newTextDocument": "Створити текстовий документ",
+  "appGrid.files": "Файли",
+  "appGrid.settings": "Налаштування",
+  "appGrid.lock": "Заблокувати",
+  "appGrid.power": "Живлення"
 }

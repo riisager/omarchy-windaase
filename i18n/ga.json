@@ -47,5 +47,20 @@
   "settings.copyCommand": "Cóipeáil chuig an ngearrthaisce",
   "settings.copied": "Cóipeáilte",
   "snapAssist.title": "Líon an taobh eile",
-  "snapAssist.hint": "Cliceáil fuinneog nó brúigh Esc"
+  "snapAssist.hint": "Cliceáil fuinneog nó brúigh Esc",
+  "settings.sectionFiles": "Comhaid (Nautilus)",
+  "settings.nautilusContextMenu": "Gníomhartha deaschliceála ar stíl Windows",
+  "settings.nautilusContextMenuHint": "Suiteálann síneadh úsáideora i ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Atosaigh Comhaid chun athruithe an roghchláir chomhthéacs a chur i bhfeidhm.",
+  "settings.restartFiles": "Atosaigh Comhaid",
+  "nautilus.copyPath": "Cóipeáil mar chonair",
+  "nautilus.copyPaths": "Cóipeáil conairí",
+  "nautilus.copyFolderPath": "Cóipeáil conair an fhillteáin",
+  "nautilus.openTerminal": "Oscail i dTeirminéal",
+  "nautilus.openEditor": "Oscail san Eagarthóir",
+  "nautilus.newTextDocument": "Cáipéis Téacs Nua",
+  "appGrid.files": "Comhaid",
+  "appGrid.settings": "Socruithe",
+  "appGrid.lock": "Glasáil",
+  "appGrid.power": "Cumhacht"
 }

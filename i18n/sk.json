@@ -47,5 +47,20 @@
   "settings.copyCommand": "Kopírovať do schránky",
   "settings.copied": "Skopírované",
   "snapAssist.title": "Vyplniť druhú stranu",
-  "snapAssist.hint": "Kliknite na okno alebo stlačte Esc"
+  "snapAssist.hint": "Kliknite na okno alebo stlačte Esc",
+  "settings.sectionFiles": "Súbory (Nautilus)",
+  "settings.nautilusContextMenu": "Akcie pravého tlačidla v štýle Windows",
+  "settings.nautilusContextMenuHint": "Nainštaluje používateľské rozšírenie do ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Reštartujte Súbory pre použitie zmien kontextovej ponuky.",
+  "settings.restartFiles": "Reštartovať Súbory",
+  "nautilus.copyPath": "Kopírovať ako cestu",
+  "nautilus.copyPaths": "Kopírovať cesty",
+  "nautilus.copyFolderPath": "Kopírovať cestu k priečinku",
+  "nautilus.openTerminal": "Otvoriť v Termináli",
+  "nautilus.openEditor": "Otvoriť v Editore",
+  "nautilus.newTextDocument": "Nový textový dokument",
+  "appGrid.files": "Súbory",
+  "appGrid.settings": "Nastavenia",
+  "appGrid.lock": "Zamknúť",
+  "appGrid.power": "Napájanie"
 }

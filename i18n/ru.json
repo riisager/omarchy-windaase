@@ -47,5 +47,20 @@
   "settings.copyCommand": "Копировать в буфер обмена",
   "settings.copied": "Скопировано",
   "snapAssist.title": "Заполнить другую сторону",
-  "snapAssist.hint": "Нажмите на окно или Esc"
+  "snapAssist.hint": "Нажмите на окно или Esc",
+  "settings.sectionFiles": "Файлы (Nautilus)",
+  "settings.nautilusContextMenu": "Действия правой кнопки в стиле Windows",
+  "settings.nautilusContextMenuHint": "Устанавливает пользовательское расширение в ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Перезапустите «Файлы», чтобы применить изменения контекстного меню.",
+  "settings.restartFiles": "Перезапустить Файлы",
+  "nautilus.copyPath": "Копировать как путь",
+  "nautilus.copyPaths": "Копировать пути",
+  "nautilus.copyFolderPath": "Копировать путь к папке",
+  "nautilus.openTerminal": "Открыть в Терминале",
+  "nautilus.openEditor": "Открыть в Редакторе",
+  "nautilus.newTextDocument": "Создать текстовый документ",
+  "appGrid.files": "Файлы",
+  "appGrid.settings": "Настройки",
+  "appGrid.lock": "Блокировка",
+  "appGrid.power": "Питание"
 }

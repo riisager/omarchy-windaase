@@ -47,5 +47,20 @@
   "settings.copyCommand": "ক্লিপবোর্ডে কপি করুন",
   "settings.copied": "কপি হয়েছে",
   "snapAssist.title": "অন্য পাশ পূরণ করুন",
-  "snapAssist.hint": "উইন্ডোতে ক্লিক করুন বা Esc চাপুন"
+  "snapAssist.hint": "উইন্ডোতে ক্লিক করুন বা Esc চাপুন",
+  "settings.sectionFiles": "ফাইল (Nautilus)",
+  "settings.nautilusContextMenu": "Windows রাইট-ক্লিক অ্যাকশন",
+  "settings.nautilusContextMenuHint": "~/.local/share/nautilus-python/extensions-এ ব্যবহারকারীর এক্সটেনশন ইনস্টল করে",
+  "settings.restartFilesHint": "কনটেক্সট মেনুর পরিবর্তন প্রয়োগ করতে ফাইল পুনরায় চালু করুন।",
+  "settings.restartFiles": "ফাইল পুনরায় চালু করুন",
+  "nautilus.copyPath": "পাথ হিসেবে কপি করুন",
+  "nautilus.copyPaths": "পাথগুলো কপি করুন",
+  "nautilus.copyFolderPath": "ফোল্ডারের পাথ কপি করুন",
+  "nautilus.openTerminal": "টার্মিনালে খুলুন",
+  "nautilus.openEditor": "সম্পাদকে খুলুন",
+  "nautilus.newTextDocument": "নতুন টেক্সট ডকুমেন্ট",
+  "appGrid.files": "ফাইল",
+  "appGrid.settings": "সেটিংস",
+  "appGrid.lock": "লক",
+  "appGrid.power": "পাওয়ার"
 }

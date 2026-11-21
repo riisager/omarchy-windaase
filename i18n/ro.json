@@ -47,5 +47,20 @@
   "settings.copyCommand": "Copiază în clipboard",
   "settings.copied": "Copiat",
   "snapAssist.title": "Umple cealaltă parte",
-  "snapAssist.hint": "Fă clic pe o fereastră sau apasă Esc"
+  "snapAssist.hint": "Fă clic pe o fereastră sau apasă Esc",
+  "settings.sectionFiles": "Fișiere (Nautilus)",
+  "settings.nautilusContextMenu": "Acțiuni clic dreapta stil Windows",
+  "settings.nautilusContextMenuHint": "Instalează extensia utilizatorului în ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "Reporniți Fișiere pentru a aplica modificările meniului contextual.",
+  "settings.restartFiles": "Repornește Fișiere",
+  "nautilus.copyPath": "Copiază ca cale",
+  "nautilus.copyPaths": "Copiază căile",
+  "nautilus.copyFolderPath": "Copiază calea folderului",
+  "nautilus.openTerminal": "Deschide în Terminal",
+  "nautilus.openEditor": "Deschide în Editor",
+  "nautilus.newTextDocument": "Document text nou",
+  "appGrid.files": "Fișiere",
+  "appGrid.settings": "Setări",
+  "appGrid.lock": "Blochează",
+  "appGrid.power": "Alimentare"
 }

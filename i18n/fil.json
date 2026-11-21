@@ -47,5 +47,20 @@
   "settings.copyCommand": "Kopyahin sa clipboard",
   "settings.copied": "Nakopya",
   "snapAssist.title": "Punan ang kabilang panig",
-  "snapAssist.hint": "Mag-click ng window o pindutin ang Esc"
+  "snapAssist.hint": "Mag-click ng window o pindutin ang Esc",
+  "settings.sectionFiles": "Mga File (Nautilus)",
+  "settings.nautilusContextMenu": "Mga aksyon sa right-click gaya ng Windows",
+  "settings.nautilusContextMenuHint": "Nag-i-install ng user extension sa ~/.local/share/nautilus-python/extensions",
+  "settings.restartFilesHint": "I-restart ang Mga File upang mailapat ang mga pagbabago sa menu.",
+  "settings.restartFiles": "I-restart ang Mga File",
+  "nautilus.copyPath": "Kopyahin bilang path",
+  "nautilus.copyPaths": "Kopyahin ang mga path",
+  "nautilus.copyFolderPath": "Kopyahin ang path ng folder",
+  "nautilus.openTerminal": "Buksan sa Terminal",
+  "nautilus.openEditor": "Buksan sa Editor",
+  "nautilus.newTextDocument": "Bagong Text Document",
+  "appGrid.files": "Mga File",
+  "appGrid.settings": "Mga Setting",
+  "appGrid.lock": "I-lock",
+  "appGrid.power": "Power"
 }
