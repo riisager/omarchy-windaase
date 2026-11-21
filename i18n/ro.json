@@ -63,5 +63,7 @@
   "appGrid.settings": "Setări",
   "appGrid.lock": "Blochează",
   "appGrid.power": "Alimentare",
-  "taskbar.alwaysOnTop": "Întotdeauna deasupra"
+  "taskbar.alwaysOnTop": "Întotdeauna deasupra",
+  "taskbar.snapGroup": "Grup Snap",
+  "settings.altTab": "Comutator Alt+Tab stil Windows"
 }

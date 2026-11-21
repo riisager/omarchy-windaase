@@ -63,5 +63,7 @@
   "appGrid.settings": "Seaded",
   "appGrid.lock": "Lukusta",
   "appGrid.power": "Toide",
-  "taskbar.alwaysOnTop": "Alati pealmine"
+  "taskbar.alwaysOnTop": "Alati pealmine",
+  "taskbar.snapGroup": "Haakimise grupp",
+  "settings.altTab": "Windowsi stiilis Alt+Tab aknavahetaja"
 }

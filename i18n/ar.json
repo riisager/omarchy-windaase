@@ -63,5 +63,7 @@
   "appGrid.settings": "الإعدادات",
   "appGrid.lock": "قفل",
   "appGrid.power": "الطاقة",
-  "taskbar.alwaysOnTop": "في المقدمة دائمًا"
+  "taskbar.alwaysOnTop": "في المقدمة دائمًا",
+  "taskbar.snapGroup": "مجموعة التثبيت",
+  "settings.altTab": "مبدّل النوافذ Alt+Tab بنمط Windows"
 }

@@ -63,5 +63,7 @@
   "appGrid.settings": "Beállítások",
   "appGrid.lock": "Zárolás",
   "appGrid.power": "Tápellátás",
-  "taskbar.alwaysOnTop": "Mindig felül"
+  "taskbar.alwaysOnTop": "Mindig felül",
+  "taskbar.snapGroup": "Snap-csoport",
+  "settings.altTab": "Windows stílusú Alt+Tab ablakváltó"
 }

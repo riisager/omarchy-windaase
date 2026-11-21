@@ -63,5 +63,7 @@
   "appGrid.settings": "Настройки",
   "appGrid.lock": "Блокировка",
   "appGrid.power": "Питание",
-  "taskbar.alwaysOnTop": "Поверх всех окон"
+  "taskbar.alwaysOnTop": "Поверх всех окон",
+  "taskbar.snapGroup": "Группа привязки",
+  "settings.altTab": "Переключатель окон Alt+Tab в стиле Windows"
 }

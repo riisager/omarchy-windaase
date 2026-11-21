@@ -63,5 +63,7 @@
   "appGrid.settings": "Configuració",
   "appGrid.lock": "Bloqueja",
   "appGrid.power": "Energia",
-  "taskbar.alwaysOnTop": "Sempre a sobre"
+  "taskbar.alwaysOnTop": "Sempre a sobre",
+  "taskbar.snapGroup": "Grup d'ajustament",
+  "settings.altTab": "Canviador Alt+Tab estil Windows"
 }

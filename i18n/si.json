@@ -63,5 +63,7 @@
   "appGrid.settings": "සැකසුම්",
   "appGrid.lock": "අගුලු දාන්න",
   "appGrid.power": "බලය",
-  "taskbar.alwaysOnTop": "සැමවිටම ඉහළින්"
+  "taskbar.alwaysOnTop": "සැමවිටම ඉහළින්",
+  "taskbar.snapGroup": "Snap සමූහය",
+  "settings.altTab": "Windows Alt+Tab කවුළු මාරුකය"
 }

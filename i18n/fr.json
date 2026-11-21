@@ -63,5 +63,7 @@
   "appGrid.settings": "Paramètres",
   "appGrid.lock": "Verrouiller",
   "appGrid.power": "Alimentation",
-  "taskbar.alwaysOnTop": "Toujours au premier plan"
+  "taskbar.alwaysOnTop": "Toujours au premier plan",
+  "taskbar.snapGroup": "Groupe d'ancrage",
+  "settings.altTab": "Sélecteur Alt+Tab style Windows"
 }

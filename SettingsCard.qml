@@ -421,6 +421,7 @@ PopupCard {
           { key: "soft_maximize", labelKey: "settings.softMaximize" },
           { key: "auto_raise", labelKey: "settings.autoRaise" },
           { key: "shortcuts", labelKey: "settings.shortcuts" },
+          { key: "alt_tab", labelKey: "settings.altTab" },
           { key: "ultrawide_layout", labelKey: "settings.ultrawideLayout" }
         ]
 

@@ -63,5 +63,7 @@
   "appGrid.settings": "Mga Setting",
   "appGrid.lock": "I-lock",
   "appGrid.power": "Power",
-  "taskbar.alwaysOnTop": "Palaging nasa ibabaw"
+  "taskbar.alwaysOnTop": "Palaging nasa ibabaw",
+  "taskbar.snapGroup": "Snap Group",
+  "settings.altTab": "Tagapagpalit ng window na Alt+Tab gaya ng Windows"
 }

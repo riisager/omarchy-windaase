@@ -908,6 +908,7 @@ var HYPR_OPTION_KEYS = [
   "soft_maximize",
   "auto_raise",
   "shortcuts",
+  "alt_tab",
   "ultrawide_layout"
 ]
 
@@ -921,6 +922,7 @@ function defaultHyprSettings() {
     soft_maximize: true,
     auto_raise: true,
     shortcuts: true,
+    alt_tab: true,
     ultrawide_layout: false
   }
 }
@@ -1149,6 +1151,156 @@ function targetWindowForPin(item) {
   return firstVisible
 }
 
+function detectSnapGroups(allWindows, targetWindows) {
+  if (!Array.isArray(allWindows) || !Array.isArray(targetWindows) || targetWindows.length === 0) {
+    return []
+  }
+
+  var candidates = []
+  var byAddr = {}
+  for (var i = 0; i < allWindows.length; i++) {
+    var w = allWindows[i]
+    if (!w || w.floating !== true || w.minimized || w.fullscreen) continue
+    if (!(Number(w.workspaceId) >= 1)) continue
+    var addr = normalizeAddress(w.address).toLowerCase()
+    if (!addr || byAddr[addr]) continue
+    var wx = Number(w.x)
+    var wy = Number(w.y)
+    var ww = Number(w.w)
+    var wh = Number(w.h)
+    if (!isFinite(wx) || !isFinite(wy) || !isFinite(ww) || !isFinite(wh)) continue
+    if (ww < 120 || wh < 120) continue
+    var node = {
+      normAddr: addr,
+      workspaceId: Number(w.workspaceId),
+      monitorName: String(w.monitorName || ""),
+      x: wx,
+      y: wy,
+      w: ww,
+      h: wh,
+      window: w
+    }
+    byAddr[addr] = candidates.length
+    candidates.push(node)
+  }
+
+  if (candidates.length < 2) return []
+
+  var adj = []
+  for (var n = 0; n < candidates.length; n++) adj.push([])
+
+  for (var aIdx = 0; aIdx < candidates.length; aIdx++) {
+    var a = candidates[aIdx]
+    for (var bIdx = aIdx + 1; bIdx < candidates.length; bIdx++) {
+      var b = candidates[bIdx]
+      if (a.workspaceId !== b.workspaceId || a.monitorName !== b.monitorName) continue
+
+      var ix1 = Math.max(a.x, b.x)
+      var iy1 = Math.max(a.y, b.y)
+      var ix2 = Math.min(a.x + a.w, b.x + b.w)
+      var iy2 = Math.min(a.y + a.h, b.y + b.h)
+      var interArea = (ix2 > ix1 && iy2 > iy1) ? ((ix2 - ix1) * (iy2 - iy1)) : 0
+      var minArea = Math.min(a.w * a.h, b.w * b.h)
+      if (interArea >= 0.05 * minArea) continue
+
+      var vOverlap = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
+      var hGap = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w))
+      var horizAdj = vOverlap >= 0.40 * Math.max(a.h, b.h) && hGap >= -4 && hGap <= 36
+
+      var hOverlap = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)
+      var vGap = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h))
+      var vertAdj = hOverlap >= 0.40 * Math.max(a.w, b.w) && vGap >= -4 && vGap <= 64
+
+      if (horizAdj || vertAdj) {
+        adj[aIdx].push(bIdx)
+        adj[bIdx].push(aIdx)
+      }
+    }
+  }
+
+  var groups = []
+  var seenGroups = {}
+
+  for (var t = 0; t < targetWindows.length; t++) {
+    var tw = targetWindows[t]
+    if (!tw) continue
+    var startAddr = normalizeAddress(tw.address).toLowerCase()
+    if (!startAddr || byAddr[startAddr] === undefined) continue
+    var startIdx = byAddr[startAddr]
+    if (adj[startIdx].length === 0) continue
+
+    var visited = {}
+    var queue = [startIdx]
+    visited[startIdx] = true
+    var comp = []
+    while (queue.length > 0) {
+      var cur = queue.shift()
+      comp.push(candidates[cur])
+      var nbrs = adj[cur]
+      for (var j = 0; j < nbrs.length; j++) {
+        var nextIdx = nbrs[j]
+        if (!visited[nextIdx]) {
+          visited[nextIdx] = true
+          queue.push(nextIdx)
+        }
+      }
+    }
+
+    if (comp.length < 2 || comp.length > 4) continue
+
+    var minX = comp[0].x
+    var minY = comp[0].y
+    var maxX = comp[0].x + comp[0].w
+    var maxY = comp[0].y + comp[0].h
+    var sumArea = 0
+    var addrList = []
+    for (var m = 0; m < comp.length; m++) {
+      var cm = comp[m]
+      if (cm.x < minX) minX = cm.x
+      if (cm.y < minY) minY = cm.y
+      if (cm.x + cm.w > maxX) maxX = cm.x + cm.w
+      if (cm.y + cm.h > maxY) maxY = cm.y + cm.h
+      sumArea += cm.w * cm.h
+      addrList.push(cm.normAddr)
+    }
+
+    var bboxW = maxX - minX
+    var bboxH = maxY - minY
+    if (bboxW < 600 || bboxH < 360) continue
+    if (sumArea / (bboxW * bboxH) < 0.72) continue
+
+    addrList.sort()
+    var groupId = addrList.join("|")
+    if (seenGroups[groupId]) continue
+    seenGroups[groupId] = true
+
+    comp.sort(function(p, q) {
+      if (p.y !== q.y) return p.y - q.y
+      if (p.x !== q.x) return p.x - q.x
+      return p.normAddr < q.normAddr ? -1 : (p.normAddr > q.normAddr ? 1 : 0)
+    })
+
+    var members = comp.map(function(node) {
+      return {
+        window: node.window,
+        rx: (node.x - minX) / bboxW,
+        ry: (node.y - minY) / bboxH,
+        rw: node.w / bboxW,
+        rh: node.h / bboxH
+      }
+    })
+
+    groups.push({
+      id: groupId,
+      workspaceId: comp[0].workspaceId,
+      focusAddr: startAddr,
+      members: members
+    })
+  }
+
+  return groups
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     MINIMIZED_WORKSPACE: MINIMIZED_WORKSPACE,
@@ -1197,6 +1349,7 @@ if (typeof module !== "undefined") {
     clearWindowUrgent: clearWindowUrgent,
     pruneUrgentWindows: pruneUrgentWindows,
     isItemUrgent: isItemUrgent,
-    targetWindowForPin: targetWindowForPin
+    targetWindowForPin: targetWindowForPin,
+    detectSnapGroups: detectSnapGroups
   }
 }

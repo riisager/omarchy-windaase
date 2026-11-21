@@ -63,5 +63,7 @@
   "appGrid.settings": "Stillingar",
   "appGrid.lock": "Læsa",
   "appGrid.power": "Orka",
-  "taskbar.alwaysOnTop": "Alltaf efst"
+  "taskbar.alwaysOnTop": "Alltaf efst",
+  "taskbar.snapGroup": "Snap-hópur",
+  "settings.altTab": "Windows-stíll Alt+Tab gluggaskipti"
 }

@@ -20,6 +20,7 @@ HYPR_OPTION_KEYS = (
     "auto_raise",
     "hover_scroll",
     "shortcuts",
+    "alt_tab",
 )
 
 NAUTILUS_EXT_MARKER = "# Managed by Omarchy-windåse (riisager.windaase)"

@@ -63,5 +63,7 @@
   "appGrid.settings": "설정",
   "appGrid.lock": "잠금",
   "appGrid.power": "전원",
-  "taskbar.alwaysOnTop": "항상 위에 표시"
+  "taskbar.alwaysOnTop": "항상 위에 표시",
+  "taskbar.snapGroup": "스냅 그룹",
+  "settings.altTab": "Windows 스타일 Alt+Tab 전환기"
 }

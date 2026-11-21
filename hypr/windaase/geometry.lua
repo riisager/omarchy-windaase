@@ -1211,4 +1211,69 @@ function M.map_rect_between_areas(outer, src_area, dst_area, zone_name, custom_z
   }
 end
 
+function M.order_alttab_windows(windows, active_addr)
+  if type(windows) ~= "table" then
+    return {}
+  end
+
+  local open_list = {}
+  local min_list = {}
+  local active_low = type(active_addr) == "string" and active_addr:lower() or ""
+
+  for _, w in ipairs(windows) do
+    if type(w) == "table" and w.mapped ~= false and type(w.address) == "string" and w.address ~= "" then
+      local ws = w.workspace
+      local ws_id = (ws and tonumber(ws.id)) or -1
+      local ws_name = (ws and tostring(ws.name or "")) or ""
+      if ws_name == "special:minimized" then
+        min_list[#min_list + 1] = w
+      elseif ws_id >= 1 then
+        open_list[#open_list + 1] = w
+      end
+    end
+  end
+
+  table.sort(open_list, function(a, b)
+    local a_active = (active_low ~= "" and a.address:lower() == active_low) and 0 or 1
+    local b_active = (active_low ~= "" and b.address:lower() == active_low) and 0 or 1
+    if a_active ~= b_active then
+      return a_active < b_active
+    end
+    local af = tonumber(a.focus_history_id) or 999999
+    local bf = tonumber(b.focus_history_id) or 999999
+    if af ~= bf then
+      return af < bf
+    end
+    return a.address < b.address
+  end)
+
+  table.sort(min_list, function(a, b)
+    local af = tonumber(a.focus_history_id) or 999999
+    local bf = tonumber(b.focus_history_id) or 999999
+    if af ~= bf then
+      return af < bf
+    end
+    return a.address < b.address
+  end)
+
+  local ordered = {}
+  for _, w in ipairs(open_list) do
+    ordered[#ordered + 1] = w
+  end
+  for _, w in ipairs(min_list) do
+    ordered[#ordered + 1] = w
+  end
+  return ordered
+end
+
+function M.step_index(current, count, delta)
+  local n = tonumber(count) or 0
+  if n <= 0 then
+    return 0
+  end
+  local cur = tonumber(current) or 1
+  local step = tonumber(delta) or 0
+  return ((cur - 1 + step) % n) + 1
+end
+
 return M

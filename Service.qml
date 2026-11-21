@@ -80,6 +80,10 @@ Item {
   property var snapState: emptyState()
   property int _writeSeq: 0
 
+  readonly property string altTabStatePath: (Quickshell.env("XDG_RUNTIME_DIR") || Quickshell.env("XDG_CACHE_HOME") || (Commons.Color.home + "/.cache")) + "/omarchy-windaase-alttab.json"
+  property var altTabState: emptyAltTabState()
+  property int _altTabWriteSeq: 0
+
   Commons.Translations {
     id: serviceStrings
     directory: Qt.resolvedUrl("i18n")
@@ -231,11 +235,144 @@ Item {
     root.writeStateFile({ open: false })
   }
 
+  function emptyAltTabState() {
+    return { open: false, monitor: "", selected: 0, addrs: [] }
+  }
+
+  function parseAltTabState(raw) {
+    try {
+      var parsed = JSON.parse(String(raw || ""))
+      if (parsed && typeof parsed === "object") {
+        var cleanAddrs = []
+        var rawAddrs = Array.isArray(parsed.addrs) ? parsed.addrs : []
+        for (var i = 0; i < rawAddrs.length; i++) {
+          var na = root.validAddress(rawAddrs[i])
+          if (na) cleanAddrs.push(na)
+        }
+        var sel = typeof parsed.selected === "number" ? Math.round(parsed.selected) : 0
+        if (cleanAddrs.length === 0) sel = 0
+        else sel = Math.max(0, Math.min(cleanAddrs.length - 1, sel))
+        root.altTabState = {
+          open: !!parsed.open && cleanAddrs.length > 0,
+          monitor: String(parsed.monitor || ""),
+          selected: sel,
+          addrs: cleanAddrs
+        }
+        return
+      }
+    } catch (e) {}
+    root.altTabState = emptyAltTabState()
+  }
+
+  function writeAltTabStateFile(obj) {
+    var payload = JSON.stringify(obj)
+    root._altTabWriteSeq += 1
+    var tmpPath = root.altTabStatePath + ".qml." + root._altTabWriteSeq + ".tmp"
+    Util.execDetached("printf '%s\\n' " + Util.shellQuote(payload) + " > " + Util.shellQuote(tmpPath) + " && mv -f " + Util.shellQuote(tmpPath) + " " + Util.shellQuote(root.altTabStatePath))
+  }
+
+  function closeAltTab() {
+    root.altTabState = emptyAltTabState()
+    root.writeAltTabStateFile({ open: false })
+  }
+
+  function collectAltTabWindows(addrs) {
+    if (!Array.isArray(addrs) || addrs.length === 0) return []
+    var toplevels = Hyprland.toplevels.values
+    var byAddr = {}
+    for (var i = 0; i < toplevels.length; i++) {
+      var tl = toplevels[i]
+      if (!tl) continue
+      var norm = root.validAddress(tl.address || (tl.lastIpcObject && tl.lastIpcObject.address)).toLowerCase()
+      if (norm) byAddr[norm] = tl
+    }
+
+    var out = []
+    for (var j = 0; j < addrs.length; j++) {
+      var addr = root.validAddress(addrs[j])
+      if (!addr) continue
+      var tlMatch = byAddr[addr.toLowerCase()]
+      if (!tlMatch) continue
+      var wl = tlMatch.wayland || null
+      var ipc = tlMatch.lastIpcObject || {}
+      var appId = (wl && wl.appId) ? String(wl.appId) : (ipc["class"] ? String(ipc["class"]) : (ipc.initialClass ? String(ipc.initialClass) : ""))
+      var entry = appId ? root.entryForAppId(appId) : null
+      var ws = tlMatch.workspace || null
+      var wsName = (ws && ws.name) ? String(ws.name) : (ipc.workspace && ipc.workspace.name ? String(ipc.workspace.name) : "")
+      var wsId = (ws && ws.id) ? Number(ws.id) : (ipc.workspace && ipc.workspace.id ? Number(ipc.workspace.id) : -1)
+      var rawTags = ipc.tags ? ipc.tags : []
+      var cleanTags = []
+      for (var t = 0; t < rawTags.length; t++) cleanTags.push(String(rawTags[t]))
+      var appName = (entry && entry.name) ? entry.name : appId
+      var title = (wl && wl.title) ? String(wl.title) : (ipc.title ? String(ipc.title) : appName)
+      out.push({
+        address: addr,
+        title: title,
+        appName: appName,
+        iconSource: root.iconSourceFor(entry, appId),
+        workspaceId: wsId,
+        minimized: TaskbarModel.isMinimizedWorkspace(wsName),
+        pinned: !!ipc.pinned,
+        tags: cleanTags,
+        toplevel: wl
+      })
+    }
+    return out
+  }
+
+  function activateAltTabWindow(win) {
+    if (!win) {
+      root.closeAltTab()
+      return
+    }
+    var addr = root.validAddress(win.address)
+    var targetMonitor = root.altTabState ? String(root.altTabState.monitor || "") : ""
+    root.closeAltTab()
+    if (!addr) return
+    var target = "window = \"address:" + addr + "\""
+    var steps = []
+    var after = []
+    if (win.minimized) {
+      var mon = Hyprland.focusedMonitor
+      var wsId = mon && mon.activeWorkspace ? Number(mon.activeWorkspace.id) : -1
+      if (targetMonitor) {
+        var mons = Hyprland.monitors.values
+        for (var m = 0; m < mons.length; m++) {
+          if (mons[m].name === targetMonitor && mons[m].activeWorkspace) {
+            wsId = Number(mons[m].activeWorkspace.id)
+            break
+          }
+        }
+      }
+      if (wsId >= 1) {
+        var tags = win.tags || []
+        for (var t = 0; t < tags.length; t++) {
+          var tag = String(tags[t] || "")
+          if (/^omarchy-(minimized-from|showdesktop|minimize-others)-[0-9]+$/.test(tag)) {
+            steps.push("hl.dsp.window.tag({ tag = \"-" + tag + "\", " + target + " })")
+          }
+        }
+        steps.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"1\", " + target + " })")
+        steps.push("hl.dsp.window.move({ workspace = \"" + wsId + "\", " + target + " })")
+        after.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"unset\", " + target + " })")
+      }
+    }
+    steps.push("hl.dsp.focus({ " + target + " })")
+    steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + target + " })")
+    var dispatch = function(step) { return "hyprctl dispatch " + Util.shellQuote(step) }
+    var command = steps.map(dispatch).join(" && ")
+    if (after.length > 0) command += "; sleep 0.4; " + after.map(dispatch).join("; ")
+    Util.execDetached(command)
+  }
+
   Component.onCompleted: {
     root.loadLayouts(layoutsFile.text())
     root.hyprSettings = TaskbarModel.parseHyprSettings(hyprSettingsFile.text())
-    Quickshell.execDetached(["bash", "-c", "[ -f " + Util.shellQuote(root.statePath) + " ] || printf '{\"open\":false}\\n' > " + Util.shellQuote(root.statePath)])
-    Qt.callLater(function() { stateFile.reload() })
+    Quickshell.execDetached(["bash", "-c", "[ -f " + Util.shellQuote(root.statePath) + " ] || printf '{\"open\":false}\\n' > " + Util.shellQuote(root.statePath) + "; [ -f " + Util.shellQuote(root.altTabStatePath) + " ] || printf '{\"open\":false}\\n' > " + Util.shellQuote(root.altTabStatePath)])
+    Qt.callLater(function() {
+      stateFile.reload()
+      altTabStateFile.reload()
+    })
   }
 
   FileView {
@@ -267,6 +404,16 @@ Item {
     printErrors: false
     onFileChanged: reload()
     onLoaded: root.parseState(text())
+    onLoadFailed: {}
+  }
+
+  FileView {
+    id: altTabStateFile
+    path: root.altTabStatePath
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.parseAltTabState(text())
     onLoadFailed: {}
   }
 
@@ -785,6 +932,76 @@ Item {
                 font.bold: true
               }
             }
+          }
+        }
+      }
+    }
+  }
+
+  Variants {
+    model: Quickshell.screens
+
+    delegate: Component {
+      PanelWindow {
+        id: altWin
+        required property var modelData
+        screen: modelData
+
+        readonly property var monitor: Hyprland.monitorFor(screen)
+        readonly property string monitorName: monitor ? monitor.name : ""
+        readonly property bool activeOnScreen: root.altTabState.open && (root.altTabState.monitor === monitorName || root.altTabState.monitor === "")
+        readonly property var altWindows: altWin.activeOnScreen ? root.collectAltTabWindows(root.altTabState.addrs) : []
+
+        visible: true
+        color: "transparent"
+        WlrLayershell.namespace: "omarchy-windaase-alttab"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        exclusionMode: ExclusionMode.Ignore
+        exclusiveZone: 0
+
+        anchors {
+          top: true
+          bottom: true
+          left: true
+          right: true
+        }
+
+        mask: Region {
+          item: altWin.activeOnScreen ? altBackdrop : null
+        }
+
+        Item {
+          id: altBackdrop
+          anchors.fill: parent
+          visible: altWin.activeOnScreen || opacity > 0
+          opacity: altWin.activeOnScreen ? 1 : 0
+
+          Behavior on opacity { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+
+          Rectangle {
+            anchors.fill: parent
+            color: Commons.Color.menu.scrim
+          }
+
+          MouseArea {
+            anchors.fill: parent
+            onClicked: root.closeAltTab()
+          }
+
+          AltTabSwitcher {
+            anchors.centerIn: parent
+            strings: serviceStrings
+            windows: altWin.altWindows
+            selectedIndex: root.altTabState.selected
+            active: altWin.activeOnScreen
+            maxWidth: Math.max(Style.space(260), altWin.width - Style.space(64))
+            maxHeight: Math.max(Style.space(220), altWin.height - Style.space(96))
+            scale: altWin.activeOnScreen ? 1 : 0.96
+
+            Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+
+            onWindowPicked: function(w) { root.activateAltTabWindow(w) }
           }
         }
       }

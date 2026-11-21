@@ -63,5 +63,7 @@
   "appGrid.settings": "Nustatymai",
   "appGrid.lock": "Užrakinti",
   "appGrid.power": "Maitinimas",
-  "taskbar.alwaysOnTop": "Visada viršuje"
+  "taskbar.alwaysOnTop": "Visada viršuje",
+  "taskbar.snapGroup": "Pritvirtinimo grupė",
+  "settings.altTab": "Windows stiliaus Alt+Tab perjungiklis"
 }

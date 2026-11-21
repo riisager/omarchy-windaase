@@ -63,5 +63,7 @@
   "appGrid.settings": "Подешавања",
   "appGrid.lock": "Закључај",
   "appGrid.power": "Напајање",
-  "taskbar.alwaysOnTop": "Увек на врху"
+  "taskbar.alwaysOnTop": "Увек на врху",
+  "taskbar.snapGroup": "Група качења",
+  "settings.altTab": "Пребацивач прозора Alt+Tab у стилу Windows-а"
 }

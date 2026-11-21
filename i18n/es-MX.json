@@ -63,5 +63,7 @@
   "appGrid.settings": "Configuración",
   "appGrid.lock": "Bloquear",
   "appGrid.power": "Apagado",
-  "taskbar.alwaysOnTop": "Siempre visible"
+  "taskbar.alwaysOnTop": "Siempre visible",
+  "taskbar.snapGroup": "Grupo de acoplamiento",
+  "settings.altTab": "Selector Alt+Tab estilo Windows"
 }

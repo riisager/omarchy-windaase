@@ -63,5 +63,7 @@
   "appGrid.settings": "Instellingen",
   "appGrid.lock": "Vergrendelen",
   "appGrid.power": "Energie",
-  "taskbar.alwaysOnTop": "Altijd op voorgrond"
+  "taskbar.alwaysOnTop": "Altijd op voorgrond",
+  "taskbar.snapGroup": "Snap-groep",
+  "settings.altTab": "Windows-stijl Alt+Tab-wisselaar"
 }

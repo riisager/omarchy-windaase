@@ -822,6 +822,77 @@ BarWidget {
     Util.execDetached(command)
   }
 
+  function collectSnapGroupsForItem(item) {
+    if (!item || !Array.isArray(item.windows) || item.windows.length === 0) return []
+    var toplevels = Hyprland.toplevels.values
+    var allWins = []
+    for (var i = 0; i < toplevels.length; i++) {
+      var tl = toplevels[i]
+      var wl = tl ? tl.wayland : null
+      if (!wl || !wl.appId || wl.parent) continue
+      var ipc = tl.lastIpcObject || {}
+      if (ipc.mapped === false) continue
+      var entry = root.entryForAppId(wl.appId)
+      var appKey = entry ? entry.id : wl.appId
+      var ws = tl.workspace
+      var winMon = tl.monitor || (ws ? ws.monitor : null)
+      var at = Array.isArray(ipc.at) ? ipc.at : []
+      var size = Array.isArray(ipc.size) ? ipc.size : []
+      var normAddr = TaskbarModel.normalizeAddress(tl.address)
+      var appName = (entry && entry.name) ? entry.name : appKey
+      allWins.push({
+        address: tl.address,
+        appKey: appKey,
+        appName: appName,
+        title: wl.title || appName,
+        iconSource: root.iconFor({ appKey: appKey, key: appKey }),
+        workspaceId: ws ? ws.id : -1,
+        monitorName: winMon && winMon.name ? String(winMon.name) : "",
+        minimized: !!ws && TaskbarModel.isMinimizedWorkspace(ws.name),
+        floating: ipc.floating !== undefined ? !!ipc.floating : true,
+        fullscreen: (ipc.fullscreen ? Number(ipc.fullscreen) : (wl.fullscreen ? 1 : 0)) > 0,
+        x: Number(at[0]),
+        y: Number(at[1]),
+        w: Number(size[0]),
+        h: Number(size[1]),
+        toplevel: wl,
+        profile: normAddr ? TaskbarModel.lookupWindowProfile(normAddr, root.windowProfiles) : null
+      })
+    }
+    return TaskbarModel.detectSnapGroups(allWins, item.windows)
+  }
+
+  function bringGroupForward(group) {
+    if (!group || !Array.isArray(group.members) || group.members.length < 2) return
+    var steps = []
+    if (group.workspaceId >= 1) {
+      steps.push("hl.dsp.focus({ workspace = \"" + group.workspaceId + "\" })")
+    }
+    var focusAddr = TaskbarModel.normalizeAddress(group.focusAddr).toLowerCase()
+    var resolvedFocus = ""
+    for (var i = 0; i < group.members.length; i++) {
+      var mWin = group.members[i] && group.members[i].window ? group.members[i].window : null
+      var mAddr = mWin ? TaskbarModel.normalizeAddress(mWin.address) : ""
+      if (!mAddr) continue
+      if (focusAddr && mAddr.toLowerCase() === focusAddr) {
+        resolvedFocus = mAddr
+        continue
+      }
+      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", window = \"address:" + mAddr + "\" })")
+    }
+    if (!resolvedFocus && group.members[0] && group.members[0].window) {
+      resolvedFocus = TaskbarModel.normalizeAddress(group.members[0].window.address)
+    }
+    if (resolvedFocus) {
+      var target = "window = \"address:" + resolvedFocus + "\""
+      steps.push("hl.dsp.focus({ " + target + " })")
+      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + target + " })")
+    }
+    if (steps.length === 0) return
+    var command = steps.map(function(step) { return "hyprctl dispatch " + Util.shellQuote(step) }).join(" && ")
+    Util.execDetached(command)
+  }
+
   function quitItem(item) {
     if (!item || !item.windows) return
     var wins = item.windows.slice()
@@ -1503,6 +1574,7 @@ BarWidget {
     open: root.pickerKey.length > 0 && !!targetItem && targetItem.windows.length > 0
     strings: strings
     item: targetItem
+    snapGroups: (open && targetItem) ? root.collectSnapGroupsForItem(targetItem) : []
     fallbackLabel: targetItem ? root.labelFor(targetItem) : ""
     appIconSource: targetItem ? root.iconFor(targetItem) : ""
 
@@ -1513,6 +1585,7 @@ BarWidget {
     onWindowActivated: function(win) { root.activateWindow(win) }
     onWindowClosed: function(win) { root.closeWindow(win) }
     onWindowPinToggled: function(win) { root.togglePinWindow(win) }
+    onSnapGroupActivated: function(grp) { root.bringGroupForward(grp) }
   }
 
   AppMenuCard {

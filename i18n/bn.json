@@ -63,5 +63,7 @@
   "appGrid.settings": "সেটিংস",
   "appGrid.lock": "লক",
   "appGrid.power": "পাওয়ার",
-  "taskbar.alwaysOnTop": "সবসময় উপরে"
+  "taskbar.alwaysOnTop": "সবসময় উপরে",
+  "taskbar.snapGroup": "স্ন্যাপ গ্রুপ",
+  "settings.altTab": "Windows Alt+Tab সুইচার"
 }

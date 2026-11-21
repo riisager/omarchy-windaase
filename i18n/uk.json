@@ -63,5 +63,7 @@
   "appGrid.settings": "Налаштування",
   "appGrid.lock": "Заблокувати",
   "appGrid.power": "Живлення",
-  "taskbar.alwaysOnTop": "Завжди зверху"
+  "taskbar.alwaysOnTop": "Завжди зверху",
+  "taskbar.snapGroup": "Група прив'язки",
+  "settings.altTab": "Перемикач вікон Alt+Tab у стилі Windows"
 }

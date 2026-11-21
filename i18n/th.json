@@ -63,5 +63,7 @@
   "appGrid.settings": "การตั้งค่า",
   "appGrid.lock": "ล็อก",
   "appGrid.power": "พลังงาน",
-  "taskbar.alwaysOnTop": "อยู่ด้านบนเสมอ"
+  "taskbar.alwaysOnTop": "อยู่ด้านบนเสมอ",
+  "taskbar.snapGroup": "กลุ่มจัดเรียง",
+  "settings.altTab": "ตัวสลับหน้าต่าง Alt+Tab แบบ Windows"
 }

@@ -8,6 +8,7 @@ local snap_layouts = require("hypr.windaase.snap_layouts")
 local snap_resize = require("hypr.windaase.snap_resize")
 local focus = require("hypr.windaase.focus")
 local show_desktop = require("hypr.windaase.show_desktop")
+local alt_tab = require("hypr.windaase.alt_tab")
 
 local M = {}
 
@@ -21,6 +22,7 @@ local DEFAULTS = {
   auto_raise = true,
   hover_scroll = true,
   shortcuts = true,
+  alt_tab = true,
   gap_out = 8,
   gap_in = 8,
 }
@@ -79,6 +81,7 @@ function M.setup(user_opts)
 
   snap_layouts.setup(opts)
   snap_resize.setup(opts, snap_layouts.write_state, snap_layouts.suppress)
+  alt_tab.setup(opts)
 
   if opts.hover_scroll then
     focus.setup()
@@ -119,5 +122,8 @@ M.move_to_monitor = snap.move_to_monitor
 M.show_desktop = show_desktop.toggle
 M.minimize_others = show_desktop.toggle_minimize_others
 M.toggle_snap_layouts = snap_layouts.toggle_click_overlay
+M.alt_tab_step = alt_tab.step
+M.alt_tab_commit = alt_tab.commit
+M.alt_tab_cancel = alt_tab.cancel
 
 return M

@@ -63,5 +63,7 @@
   "appGrid.settings": "تنظیمات",
   "appGrid.lock": "قفل",
   "appGrid.power": "برق",
-  "taskbar.alwaysOnTop": "همیشه در بالا"
+  "taskbar.alwaysOnTop": "همیشه در بالا",
+  "taskbar.snapGroup": "گروه چسباندن",
+  "settings.altTab": "جابه‌جاگر پنجره Alt+Tab سبک ویندوز"
 }

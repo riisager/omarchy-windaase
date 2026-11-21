@@ -12,12 +12,14 @@ PopupCard {
 
   required property var strings
   property var item: null
+  property var snapGroups: []
   property string fallbackLabel: ""
   property string appIconSource: ""
 
   signal windowActivated(var win)
   signal windowClosed(var win)
   signal windowPinToggled(var win)
+  signal snapGroupActivated(var group)
 
   readonly property var windows: root.item && root.item.windows ? root.item.windows : []
   readonly property bool verticalBar: !!root.bar && root.bar.vertical
@@ -28,9 +30,11 @@ PopupCard {
   readonly property int headerH: Style.space(24)
   readonly property int tileH: Style.spacing.xs + headerH + Style.spacing.xs + thumbH + Style.spacing.sm
   readonly property int horizontalInset: padding * 2 + Border.left(borderSpec) + Border.right(borderSpec)
-  readonly property int count: Math.max(1, root.windows.length)
+  readonly property int count: Math.max(1, root.windows.length + (root.snapGroups ? root.snapGroups.length : 0))
   readonly property int desiredContentW: root.verticalBar ? tileW : (count * tileW + Math.max(0, count - 1) * tileGap)
   readonly property int desiredContentH: root.verticalBar ? (count * tileH + Math.max(0, count - 1) * tileGap) : tileH
+
+  onCountChanged: refreshAnchor()
 
   function refreshAnchor() {
     if (root.open && root.anchor && typeof root.anchor.updateAnchor === "function") {
@@ -83,7 +87,7 @@ PopupCard {
 
     Grid {
       id: previewGrid
-      columns: root.verticalBar ? 1 : Math.max(1, root.windows.length)
+      columns: root.verticalBar ? 1 : root.count
       columnSpacing: root.tileGap
       rowSpacing: root.tileGap
 
@@ -332,6 +336,205 @@ PopupCard {
                   opacity: hasContent ? 1.0 : 0.0
 
                   Behavior on opacity { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      Repeater {
+        model: root.snapGroups || []
+
+        delegate: Rectangle {
+          id: groupTile
+          required property var modelData
+
+          readonly property bool tileHovered: groupMouse.containsMouse
+          readonly property var members: groupTile.modelData && groupTile.modelData.members ? groupTile.modelData.members : []
+
+          width: root.tileW
+          height: root.tileH
+          radius: Math.max(Style.space(6), Style.cornerRadius)
+          color: tileHovered ? Style.hoverFill : Util.alpha(Commons.Color.accent, 0.06)
+          border.width: 1
+          border.color: tileHovered ? Commons.Color.accent : Util.alpha(Commons.Color.accent, 0.45)
+
+          Behavior on color { ColorAnimation { duration: Style.duration(90) } }
+
+          MouseArea {
+            id: groupMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+              root.snapGroupActivated(groupTile.modelData)
+              root.close()
+            }
+          }
+
+          RowLayout {
+            id: groupHeaderRow
+            anchors.top: parent.top
+            anchors.topMargin: Style.spacing.xs
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Style.spacing.sm
+            anchors.rightMargin: Style.spacing.sm
+            height: root.headerH
+            spacing: Style.spacing.xs
+
+            Grid {
+              Layout.preferredWidth: Style.space(14)
+              Layout.preferredHeight: Style.space(14)
+              Layout.alignment: Qt.AlignVCenter
+              columns: 2
+              spacing: 2
+
+              Repeater {
+                model: 4
+                delegate: Rectangle {
+                  width: Style.space(6)
+                  height: Style.space(6)
+                  radius: 1
+                  color: Commons.Color.accent
+                }
+              }
+            }
+
+            Text {
+              Layout.fillWidth: true
+              Layout.alignment: Qt.AlignVCenter
+              elide: Text.ElideRight
+              textFormat: Text.PlainText
+              text: root.strings.t("taskbar.snapGroup")
+              color: Commons.Color.popups.text
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.bold: true
+            }
+
+            Text {
+              Layout.alignment: Qt.AlignVCenter
+              visible: groupTile.modelData && groupTile.modelData.workspaceId >= 1
+              textFormat: Text.PlainText
+              text: TaskbarModel.formatTemplate(
+                root.strings.t("taskbar.workspaceBadge"),
+                Commons.I18n.formatNumber(groupTile.modelData.workspaceId)
+              )
+              color: Commons.Color.popups.text
+              opacity: 0.55
+              font.family: Style.font.family
+              font.pixelSize: Math.max(9, Style.font.caption - 1)
+            }
+
+            Rectangle {
+              Layout.preferredWidth: Math.max(Style.space(18), groupCountTxt.implicitWidth + Style.space(6))
+              Layout.preferredHeight: Style.space(16)
+              Layout.alignment: Qt.AlignVCenter
+              radius: height / 2
+              color: Util.alpha(Commons.Color.accent, 0.22)
+
+              Text {
+                id: groupCountTxt
+                anchors.centerIn: parent
+                textFormat: Text.PlainText
+                text: Commons.I18n.formatNumber(groupTile.members.length)
+                color: Commons.Color.accent
+                font.family: Style.font.family
+                font.pixelSize: Math.max(9, Style.font.caption - 1)
+                font.bold: true
+              }
+            }
+          }
+
+          Rectangle {
+            id: groupThumbBox
+            anchors.top: groupHeaderRow.bottom
+            anchors.topMargin: Style.spacing.xs
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: root.thumbW
+            height: root.thumbH
+            radius: Math.max(Style.space(4), Math.round(Style.cornerRadius * 0.75))
+            clip: true
+            color: Util.alpha(Commons.Color.popups.text, 0.06)
+            border.width: 1
+            border.color: Util.alpha(Commons.Color.accent, 0.4)
+
+            Repeater {
+              model: groupTile.members
+
+              delegate: Rectangle {
+                id: paneBox
+                required property var modelData
+
+                readonly property var winObj: modelData.window || null
+                readonly property var paneToplevel: winObj && winObj.toplevel ? winObj.toplevel : null
+                readonly property int pad: 2
+
+                x: Math.round(modelData.rx * groupThumbBox.width) + pad
+                y: Math.round(modelData.ry * groupThumbBox.height) + pad
+                width: Math.max(Style.space(12), Math.round(modelData.rw * groupThumbBox.width) - pad * 2)
+                height: Math.max(Style.space(12), Math.round(modelData.rh * groupThumbBox.height) - pad * 2)
+                radius: Math.max(Style.space(3), Math.round(Style.cornerRadius * 0.5))
+                clip: true
+                color: Util.alpha(Commons.Color.popups.text, 0.08)
+                border.width: 1
+                border.color: Util.alpha(Commons.Color.popups.border, 0.55)
+
+                Image {
+                  anchors.centerIn: parent
+                  width: Math.min(parent.width - 4, Style.space(20))
+                  height: Math.min(parent.height - 4, Style.space(20))
+                  sourceSize: Qt.size(Style.space(40), Style.space(40))
+                  source: paneBox.winObj ? (paneBox.winObj.iconSource || "") : ""
+                  fillMode: Image.PreserveAspectFit
+                  asynchronous: true
+                  smooth: true
+                  mipmap: true
+                  visible: !paneLoader.hasLiveFrame
+                }
+
+                Loader {
+                  id: paneLoader
+                  anchors.centerIn: parent
+                  active: root.open && !!paneBox.paneToplevel
+                  readonly property bool hasLiveFrame: !!item && !!item.hasContent
+
+                  sourceComponent: Component {
+                    ScreencopyView {
+                      captureSource: paneBox.paneToplevel
+                      live: root.open
+                      paintCursor: false
+                      constraintSize: Qt.size(paneBox.width, paneBox.height)
+                      opacity: hasContent ? 1.0 : 0.0
+
+                      Behavior on opacity { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
+                    }
+                  }
+                }
+
+                Rectangle {
+                  visible: paneLoader.hasLiveFrame && !!paneBox.winObj && !!paneBox.winObj.iconSource
+                  anchors.right: parent.right
+                  anchors.bottom: parent.bottom
+                  anchors.margins: 2
+                  width: Style.space(16)
+                  height: Style.space(16)
+                  radius: Style.space(4)
+                  color: Util.alpha(Commons.Color.popups.background, 0.85)
+
+                  Image {
+                    anchors.centerIn: parent
+                    width: Style.space(12)
+                    height: Style.space(12)
+                    sourceSize: Qt.size(Style.space(24), Style.space(24))
+                    source: paneBox.winObj ? (paneBox.winObj.iconSource || "") : ""
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    smooth: true
+                    mipmap: true
+                  }
                 }
               }
             }

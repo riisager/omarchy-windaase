@@ -110,6 +110,8 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stderr)
         res = self.run_helper("hypr-set", "ultrawide_layout", "true", "--no-reload")
         self.assertEqual(res.returncode, 0, res.stderr)
+        res = self.run_helper("hypr-set", "alt_tab", "false", "--no-reload")
+        self.assertEqual(res.returncode, 0, res.stderr)
 
         cfg_path = os.path.join(self.omarchy_dir, "windaase.json")
         loaded = self.read_json(cfg_path)
@@ -121,6 +123,7 @@ class ConfigHelperTests(unittest.TestCase):
                 "snap_assist": False,
                 "snap_resize": False,
                 "ultrawide_layout": True,
+                "alt_tab": False,
             },
         )
 

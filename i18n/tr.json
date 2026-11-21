@@ -63,5 +63,7 @@
   "appGrid.settings": "Ayarlar",
   "appGrid.lock": "Kilitle",
   "appGrid.power": "Güç",
-  "taskbar.alwaysOnTop": "Her zaman üstte"
+  "taskbar.alwaysOnTop": "Her zaman üstte",
+  "taskbar.snapGroup": "Snap Grubu",
+  "settings.altTab": "Windows Alt+Tab pencere değiştirici"
 }

@@ -63,5 +63,7 @@
   "appGrid.settings": "सेटिंग्स",
   "appGrid.lock": "लॉक करें",
   "appGrid.power": "पावर",
-  "taskbar.alwaysOnTop": "हमेशा सबसे ऊपर"
+  "taskbar.alwaysOnTop": "हमेशा सबसे ऊपर",
+  "taskbar.snapGroup": "स्नैप समूह",
+  "settings.altTab": "Windows शैली का Alt+Tab स्विचर"
 }

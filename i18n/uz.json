@@ -63,5 +63,7 @@
   "appGrid.settings": "Sozlamalar",
   "appGrid.lock": "Qulflash",
   "appGrid.power": "Quvvat",
-  "taskbar.alwaysOnTop": "Har doim yuqorida"
+  "taskbar.alwaysOnTop": "Har doim yuqorida",
+  "taskbar.snapGroup": "Snap guruhi",
+  "settings.altTab": "Windows uslubidagi Alt+Tab almashtirgich"
 }

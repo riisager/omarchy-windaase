@@ -63,5 +63,7 @@
   "appGrid.settings": "Ρυθμίσεις",
   "appGrid.lock": "Κλείδωμα",
   "appGrid.power": "Τροφοδοσία",
-  "taskbar.alwaysOnTop": "Πάντα στην κορυφή"
+  "taskbar.alwaysOnTop": "Πάντα στην κορυφή",
+  "taskbar.snapGroup": "Ομάδα Snap",
+  "settings.altTab": "Εναλλαγή παραθύρων Alt+Tab τύπου Windows"
 }

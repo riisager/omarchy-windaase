@@ -63,5 +63,7 @@
   "appGrid.settings": "Cài đặt",
   "appGrid.lock": "Khóa",
   "appGrid.power": "Nguồn",
-  "taskbar.alwaysOnTop": "Luôn ở trên cùng"
+  "taskbar.alwaysOnTop": "Luôn ở trên cùng",
+  "taskbar.snapGroup": "Nhóm Snap",
+  "settings.altTab": "Trình chuyển cửa sổ Alt+Tab kiểu Windows"
 }

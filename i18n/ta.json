@@ -63,5 +63,7 @@
   "appGrid.settings": "அமைப்புகள்",
   "appGrid.lock": "பூட்டு",
   "appGrid.power": "மின்சக்தி",
-  "taskbar.alwaysOnTop": "எப்போதும் மேலே"
+  "taskbar.alwaysOnTop": "எப்போதும் மேலே",
+  "taskbar.snapGroup": "Snap குழு",
+  "settings.altTab": "Windows Alt+Tab சாளர மாற்றி"
 }

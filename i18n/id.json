@@ -63,5 +63,7 @@
   "appGrid.settings": "Pengaturan",
   "appGrid.lock": "Kunci",
   "appGrid.power": "Daya",
-  "taskbar.alwaysOnTop": "Selalu di atas"
+  "taskbar.alwaysOnTop": "Selalu di atas",
+  "taskbar.snapGroup": "Grup Snap",
+  "settings.altTab": "Pengalih jendela Alt+Tab gaya Windows"
 }

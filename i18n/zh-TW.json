@@ -63,5 +63,7 @@
   "appGrid.settings": "設定",
   "appGrid.lock": "鎖定",
   "appGrid.power": "電源",
-  "taskbar.alwaysOnTop": "最上層顯示"
+  "taskbar.alwaysOnTop": "最上層顯示",
+  "taskbar.snapGroup": "貼齊群組",
+  "settings.altTab": "Windows 風格 Alt+Tab 切換器"
 }

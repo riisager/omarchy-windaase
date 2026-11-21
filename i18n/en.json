@@ -63,5 +63,7 @@
   "appGrid.settings": "Settings",
   "appGrid.lock": "Lock",
   "appGrid.power": "Power",
-  "taskbar.alwaysOnTop": "Always on top"
+  "taskbar.alwaysOnTop": "Always on top",
+  "taskbar.snapGroup": "Snap Group",
+  "settings.altTab": "Windows Alt+Tab switcher"
 }

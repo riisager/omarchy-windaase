@@ -63,5 +63,7 @@
   "appGrid.settings": "ترتیبات",
   "appGrid.lock": "لاک کریں",
   "appGrid.power": "پاور",
-  "taskbar.alwaysOnTop": "ہمیشہ اوپر"
+  "taskbar.alwaysOnTop": "ہمیشہ اوپر",
+  "taskbar.snapGroup": "اسنیپ گروپ",
+  "settings.altTab": "Windows طرز کا Alt+Tab سوئچر"
 }

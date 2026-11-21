@@ -63,5 +63,7 @@
   "appGrid.settings": "Ustawienia",
   "appGrid.lock": "Zablokuj",
   "appGrid.power": "Zasilanie",
-  "taskbar.alwaysOnTop": "Zawsze na wierzchu"
+  "taskbar.alwaysOnTop": "Zawsze na wierzchu",
+  "taskbar.snapGroup": "Grupa przyciągania",
+  "settings.altTab": "Przełącznik okien Alt+Tab w stylu Windows"
 }

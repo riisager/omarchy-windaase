@@ -63,5 +63,7 @@
   "appGrid.settings": "Socruithe",
   "appGrid.lock": "Glasáil",
   "appGrid.power": "Cumhacht",
-  "taskbar.alwaysOnTop": "I gcónaí ar bharr"
+  "taskbar.alwaysOnTop": "I gcónaí ar bharr",
+  "taskbar.snapGroup": "Grúpa Snap",
+  "settings.altTab": "Aistritheoir fuinneoga Alt+Tab ar stíl Windows"
 }

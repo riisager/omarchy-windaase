@@ -360,6 +360,7 @@ function run() {
     soft_maximize: true,
     auto_raise: true,
     shortcuts: true,
+    alt_tab: true,
     ultrawide_layout: false
   });
 
@@ -374,6 +375,7 @@ function run() {
       soft_maximize: true,
       auto_raise: true,
       shortcuts: true,
+      alt_tab: true,
       ultrawide_layout: true
     }
   );
@@ -546,6 +548,55 @@ function run() {
     null
   );
 
+  // Snap Groups detection + alt_tab setting default/parsing
+  const snapDefaults = TaskbarModel.defaultHyprSettings();
+  assert.strictEqual(snapDefaults.alt_tab, true);
+  assert.strictEqual(TaskbarModel.parseHyprSettings('{"alt_tab":false}').alt_tab, false);
+
+  const halfSideBySide = [
+    { address: "0xa1", workspaceId: 1, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 10, y: 40, w: 940, h: 1100, appKey: "google-chrome" },
+    { address: "0xa2", workspaceId: 1, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 966, y: 40, w: 940, h: 1100, appKey: "code" }
+  ];
+  const gHalf = TaskbarModel.detectSnapGroups(halfSideBySide, [halfSideBySide[0]]);
+  assert.strictEqual(gHalf.length, 1);
+  assert.strictEqual(gHalf[0].members.length, 2);
+  assert.strictEqual(gHalf[0].focusAddr, "0xa1");
+  assert.ok(gHalf[0].members[0].rw < 0.55 && gHalf[0].members[0].rx === 0);
+
+  // 50 | 25/25 3-pane layout + deduplication when target item owns two panes
+  const threePane = [
+    { address: "0xb1", workspaceId: 2, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 10, y: 40, w: 940, h: 1100, appKey: "firefox" },
+    { address: "0xb2", workspaceId: 2, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 966, y: 40, w: 940, h: 520, appKey: "foot" },
+    { address: "0xb3", workspaceId: 2, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 966, y: 602, w: 940, h: 538, appKey: "foot" }
+  ];
+  const gThree = TaskbarModel.detectSnapGroups(threePane, [threePane[1], threePane[2]]);
+  assert.strictEqual(gThree.length, 1, "Two target panes in same 3-pane Snap Group must deduplicate");
+  assert.strictEqual(gThree[0].members.length, 3);
+  assert.strictEqual(gThree[0].focusAddr, "0xb2");
+
+  // Overlapping floating windows must NOT form a Snap Group
+  const overlapping = [
+    { address: "0xc1", workspaceId: 1, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 100, y: 100, w: 900, h: 700 },
+    { address: "0xc2", workspaceId: 1, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 800, y: 100, w: 900, h: 700 }
+  ];
+  assert.deepStrictEqual(TaskbarModel.detectSnapGroups(overlapping, [overlapping[0]]), []);
+
+  // Mismatched-height dialog beside large snapped pane (fills < 0.72 bbox and/or < 0.40 overlap) rejected
+  const dialogBeside = [
+    { address: "0xd1", workspaceId: 1, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 10, y: 40, w: 940, h: 1100 },
+    { address: "0xd2", workspaceId: 1, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 966, y: 300, w: 420, h: 320 }
+  ];
+  assert.deepStrictEqual(TaskbarModel.detectSnapGroups(dialogBeside, [dialogBeside[0]]), []);
+
+  // Minimized, fullscreen, and tiled windows must be ignored
+  const nonEligible = [
+    { address: "0xe1", workspaceId: 1, monitorName: "DP-1", floating: true, minimized: false, fullscreen: false, x: 10, y: 40, w: 940, h: 1100 },
+    { address: "0xe2", workspaceId: 1, monitorName: "DP-1", floating: true, minimized: true, fullscreen: false, x: 966, y: 40, w: 940, h: 1100 },
+    { address: "0xe3", workspaceId: 1, monitorName: "DP-1", floating: false, minimized: false, fullscreen: false, x: 966, y: 40, w: 940, h: 1100 },
+    { address: "0xe4", workspaceId: 1, monitorName: "DP-1", floating: true, minimized: false, fullscreen: true, x: 966, y: 40, w: 940, h: 1100 }
+  ];
+  assert.deepStrictEqual(TaskbarModel.detectSnapGroups(nonEligible, [nonEligible[0]]), []);
+
   // Verify i18n JSON files cover all 50 Omarchy locales cleanly with exact key & placeholder parity
   const i18nDir = path.join(__dirname, "../i18n");
   const omarchyLocalesPath = "/usr/share/omarchy/default/i18n/locales.json";
@@ -574,7 +625,7 @@ function run() {
 
   const en = JSON.parse(fs.readFileSync(path.join(i18nDir, "en.json"), "utf8"));
   const enKeys = Object.keys(en).sort();
-  assert.strictEqual(enKeys.length, 65, "Expected 65 keys in en.json");
+  assert.strictEqual(enKeys.length, 67, "Expected 67 keys in en.json");
 
   const placeholders = (str) => [...(str.match(/%[12]/g) || [])].sort();
 

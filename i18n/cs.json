@@ -63,5 +63,7 @@
   "appGrid.settings": "Nastavení",
   "appGrid.lock": "Zamknout",
   "appGrid.power": "Napájení",
-  "taskbar.alwaysOnTop": "Vždy navrchu"
+  "taskbar.alwaysOnTop": "Vždy navrchu",
+  "taskbar.snapGroup": "Skupina přichycení",
+  "settings.altTab": "Přepínač oken Alt+Tab ve stylu Windows"
 }

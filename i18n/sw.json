@@ -63,5 +63,7 @@
   "appGrid.settings": "Mipangilio",
   "appGrid.lock": "Funga",
   "appGrid.power": "Nishati",
-  "taskbar.alwaysOnTop": "Kaa juu daima"
+  "taskbar.alwaysOnTop": "Kaa juu daima",
+  "taskbar.snapGroup": "Kikundi cha Snap",
+  "settings.altTab": "Kibadilisha madirisha Alt+Tab kama Windows"
 }

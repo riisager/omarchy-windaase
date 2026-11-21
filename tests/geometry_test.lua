@@ -286,4 +286,23 @@ assert(moved_float.y >= dst_area.y and moved_float.y + moved_float.h <= dst_area
 local oversized_float = geometry.map_rect_between_areas({ x = 0, y = 0, w = 3000, h = 2000 }, dst_area, src_area, nil, nil)
 assert(oversized_float and oversized_float.w == src_area.w and oversized_float.h == src_area.h and oversized_float.x == src_area.x and oversized_float.y == src_area.y, "oversized window must clamp to smaller target monitor work area")
 
+-- 12. Alt+Tab MRU ordering and cyclic stepping
+local alt_ordered = geometry.order_alttab_windows({
+  { address = "0xmin1", mapped = true, focus_history_id = 1, workspace = { id = -98, name = "special:minimized" } },
+  { address = "0xopen2", mapped = true, focus_history_id = 3, workspace = { id = 2, name = "2" } },
+  { address = "0xunmapped", mapped = false, focus_history_id = 0, workspace = { id = 1, name = "1" } },
+  { address = "0xopen1", mapped = true, focus_history_id = 1, workspace = { id = 1, name = "1" } },
+  { address = "0xact", mapped = true, focus_history_id = 2, workspace = { id = 1, name = "1" } },
+}, "0xact")
+assert(#alt_ordered == 4, "unmapped windows must be excluded from Alt+Tab list")
+assert(alt_ordered[1].address == "0xact", "active window must come first")
+assert(alt_ordered[2].address == "0xopen1", "second window must follow focus_history_id order")
+assert(alt_ordered[3].address == "0xopen2", "third window must follow focus_history_id order")
+assert(alt_ordered[4].address == "0xmin1", "minimized windows must appear after non-minimized windows")
+
+assert(geometry.step_index(1, 4, 1) == 2, "step forward failed")
+assert(geometry.step_index(4, 4, 1) == 1, "step forward wrap failed")
+assert(geometry.step_index(1, 4, -1) == 4, "step backward wrap failed")
+assert(geometry.step_index(1, 0, 1) == 0, "empty list step failed")
+
 print("ALL GEOMETRY LUA TESTS PASSED")

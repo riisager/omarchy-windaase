@@ -63,5 +63,7 @@
   "appGrid.settings": "Nastavitve",
   "appGrid.lock": "Zakleni",
   "appGrid.power": "Napajanje",
-  "taskbar.alwaysOnTop": "Vedno na vrhu"
+  "taskbar.alwaysOnTop": "Vedno na vrhu",
+  "taskbar.snapGroup": "Skupina pripenjanja",
+  "settings.altTab": "Preklopnik oken Alt+Tab v slogu Windows"
 }

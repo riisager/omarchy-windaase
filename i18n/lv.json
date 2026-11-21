@@ -63,5 +63,7 @@
   "appGrid.settings": "Iestatījumi",
   "appGrid.lock": "Bloķēt",
   "appGrid.power": "Barošana",
-  "taskbar.alwaysOnTop": "Vienmēr virspusē"
+  "taskbar.alwaysOnTop": "Vienmēr virspusē",
+  "taskbar.snapGroup": "Piespraušanas grupa",
+  "settings.altTab": "Windows stila Alt+Tab logu pārslēdzējs"
 }

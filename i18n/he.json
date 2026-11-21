@@ -63,5 +63,7 @@
   "appGrid.settings": "הגדרות",
   "appGrid.lock": "נעילה",
   "appGrid.power": "הפעלה/כיבוי",
-  "taskbar.alwaysOnTop": "תמיד מעל כולם"
+  "taskbar.alwaysOnTop": "תמיד מעל כולם",
+  "taskbar.snapGroup": "קבוצת הצמדה",
+  "settings.altTab": "מחליף חלונות Alt+Tab בסגנון Windows"
 }

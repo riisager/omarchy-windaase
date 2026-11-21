@@ -63,5 +63,7 @@
   "appGrid.settings": "Asetukset",
   "appGrid.lock": "Lukitse",
   "appGrid.power": "Virta",
-  "taskbar.alwaysOnTop": "Aina päällimmäisenä"
+  "taskbar.alwaysOnTop": "Aina päällimmäisenä",
+  "taskbar.snapGroup": "Snap-ryhmä",
+  "settings.altTab": "Windows-tyylinen Alt+Tab-ikkunanvaihtaja"
 }
