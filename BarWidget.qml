@@ -372,11 +372,11 @@ BarWidget {
     }
   }
 
-  onBarChanged: syncBrowserProfiles()
+  onBarChanged: Qt.callLater(root.syncBrowserProfiles)
   onItemsChanged: {
     syncItemModel()
-    syncBrowserProfiles()
-    syncUrgentAddresses()
+    Qt.callLater(root.syncBrowserProfiles)
+    Qt.callLater(root.syncUrgentAddresses)
   }
   Component.onCompleted: {
     var userRaw = userShellFile.text()

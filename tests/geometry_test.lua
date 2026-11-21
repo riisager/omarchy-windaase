@@ -249,13 +249,14 @@ local mons = {
   { name = "DP-2", x = 1920, y = 0, width = 2560, height = 1440, scale = 1 },
   { name = "eDP-1", x = 0, y = 120, width = 1920, height = 1200, scale = 1 },
   { name = "HDMI-1", x = 4480, y = 0, width = 1920, height = 1080, scale = 1, disabled = true },
+  { name = "DP-4", x = 4480, y = 0, width = 1920, height = 1080, scale = 1, is_mirror = true },
   { name = "DP-3", x = -1920, y = 0, width = 1920, height = 1080, scale = 1 },
 }
 assert(geometry.pick_adjacent_monitor({ mons[1] }, "DP-2", "r") == nil, "single monitor must return nil")
 assert(geometry.pick_adjacent_monitor(mons, "eDP-1", "r").name == "DP-2", "right neighbor from eDP-1 should be DP-2")
 assert(geometry.pick_adjacent_monitor(mons, "eDP-1", "l").name == "DP-3", "left neighbor from eDP-1 should be DP-3")
-assert(geometry.pick_adjacent_monitor(mons, "DP-3", "l").name == "DP-2", "left wrap from DP-3 should skip disabled and land on DP-2")
-assert(geometry.pick_adjacent_monitor(mons, "DP-2", "r").name == "DP-3", "right wrap from DP-2 should land on DP-3")
+assert(geometry.pick_adjacent_monitor(mons, "DP-3", "l").name == "DP-2", "left wrap from DP-3 should skip disabled/mirror and land on DP-2")
+assert(geometry.pick_adjacent_monitor(mons, "DP-2", "r").name == "DP-3", "right wrap from DP-2 should skip disabled/mirror and land on DP-3")
 
 local src_area = geometry.get_work_area({ x = 0, y = 0, width = 1920, height = 1200, reserved = { 0, 26, 0, 0 } }, 8, 8)
 local dst_area = geometry.get_work_area({ x = 1920, y = 0, width = 2560, height = 1440, reserved = { 0, 0, 0, 40 } }, 8, 8)

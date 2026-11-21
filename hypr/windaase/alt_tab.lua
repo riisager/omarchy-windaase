@@ -12,6 +12,7 @@ local session = nil
 local transient_binds = {}
 local release_binds = {}
 local destroy_hook_registered = false
+local active_hook_registered = false
 
 local function bind_alive(kb)
   return kb ~= nil and tostring(kb) ~= "HL.Keybind(expired)"
@@ -88,6 +89,10 @@ end
 
 function M.step(delta)
   delta = tonumber(delta) or 1
+  if session and not read_state_open() then
+    session = nil
+    set_transient_binds_enabled(false)
+  end
   if not session then
     local active = hl.get_active_window()
     local active_addr = active and active.address or ""
@@ -253,6 +258,16 @@ function M.setup(opts)
         selected = session.selected,
         addrs = session.addrs,
       })
+    end)
+  end
+
+  if not active_hook_registered then
+    active_hook_registered = true
+    hl.on("window.active", function()
+      if session and not read_state_open() then
+        session = nil
+        set_transient_binds_enabled(false)
+      end
     end)
   end
 end

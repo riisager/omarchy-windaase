@@ -1073,13 +1073,18 @@ function M.named_zone_spec(zone_name)
   }
 end
 
+local function is_object(v)
+  local t = type(v)
+  return t == "table" or t == "userdata"
+end
+
 function M.pick_adjacent_monitor(monitors, current_name, direction)
-  if type(monitors) ~= "table" or type(current_name) ~= "string" or current_name == "" then
+  if not is_object(monitors) or type(current_name) ~= "string" or current_name == "" then
     return nil
   end
   local active = {}
   for _, m in ipairs(monitors) do
-    if type(m) == "table" and m.disabled ~= true and type(m.name) == "string" and m.name ~= "" then
+    if is_object(m) and m.disabled ~= true and m.is_mirror ~= true and type(m.name) == "string" and m.name ~= "" then
       active[#active + 1] = m
     end
   end
@@ -1212,7 +1217,7 @@ function M.map_rect_between_areas(outer, src_area, dst_area, zone_name, custom_z
 end
 
 function M.order_alttab_windows(windows, active_addr)
-  if type(windows) ~= "table" then
+  if not is_object(windows) then
     return {}
   end
 
@@ -1221,7 +1226,7 @@ function M.order_alttab_windows(windows, active_addr)
   local active_low = type(active_addr) == "string" and active_addr:lower() or ""
 
   for _, w in ipairs(windows) do
-    if type(w) == "table" and w.mapped ~= false and type(w.address) == "string" and w.address ~= "" then
+    if is_object(w) and w.mapped ~= false and type(w.address) == "string" and w.address ~= "" then
       local ws = w.workspace
       local ws_id = (ws and tonumber(ws.id)) or -1
       local ws_name = (ws and tostring(ws.name or "")) or ""
