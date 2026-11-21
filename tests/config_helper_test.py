@@ -1034,6 +1034,14 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertFalse(os.path.exists(escaped_target))
         self.assertIsNone(mod.create_new_text_file(os.path.join(work_dir, "missing")))
 
+        # is_plugin_installed tracks presence of installed riisager.windaase manifest.json
+        self.assertFalse(mod.is_plugin_installed(home_dir=self.home))
+        plugin_root = os.path.join(self.omarchy_dir, "plugins", "riisager.windaase")
+        os.makedirs(plugin_root, exist_ok=True)
+        with open(os.path.join(plugin_root, "manifest.json"), "w", encoding="utf-8") as handle:
+            handle.write('{"id":"riisager.windaase"}\n')
+        self.assertTrue(mod.is_plugin_installed(home_dir=self.home))
+
         # load_labels locale resolution + traversal rejection
         plugin_i18n = os.path.join(self.omarchy_dir, "plugins", "riisager.windaase", "i18n")
         os.makedirs(plugin_i18n, exist_ok=True)

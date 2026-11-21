@@ -70,9 +70,12 @@ if [[ -n "${CONFIG_HELPER}" ]]; then
   python3 "${CONFIG_HELPER}" nautilus-menu off >/dev/null 2>&1 || true
 else
   NAUTILUS_EXT="${HOME}/.local/share/nautilus-python/extensions/windaase_context_menu.py"
-  if [[ -f "${NAUTILUS_EXT}" && ! -L "${NAUTILUS_EXT}" ]] && grep -qF "Managed by Omarchy-windåse" "${NAUTILUS_EXT}"; then
+  if [[ -f "${NAUTILUS_EXT}" && ! -L "${NAUTILUS_EXT}" ]] && grep -qF "# Managed by Omarchy-windåse (riisager.windaase)" "${NAUTILUS_EXT}"; then
     rm -f "${NAUTILUS_EXT}"
-    rm -f "${HOME}/.local/share/nautilus-python/extensions/__pycache__/windaase_context_menu"*.pyc
+    for pyc in "${HOME}/.local/share/nautilus-python/extensions/__pycache__/windaase_context_menu"*.pyc; do
+      [[ -f "${pyc}" && ! -L "${pyc}" ]] || continue
+      rm -f "${pyc}"
+    done
   fi
 fi
 

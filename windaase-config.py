@@ -84,11 +84,10 @@ GENERIC_BROWSER_TITLES = frozenset({
 })
 
 
-def atomic_write(path, content):
+def atomic_write(path, content, mode=None):
     parent = os.path.dirname(os.path.abspath(path))
     os.makedirs(parent, exist_ok=True)
-    mode = None
-    if os.path.exists(path):
+    if mode is None and os.path.exists(path):
         mode = os.stat(path).st_mode & 0o777
     fd, tmp_path = tempfile.mkstemp(prefix=".windaase-", suffix=".tmp", dir=parent)
     try:
@@ -1205,8 +1204,7 @@ def cmd_nautilus_menu(args):
                 if NAUTILUS_EXT_MARKER not in handle.read():
                     raise ValueError(f"Refusing to overwrite unmanaged file at {dest}")
 
-        atomic_write(dest, content)
-        os.chmod(dest, 0o644)
+        atomic_write(dest, content, mode=0o644)
         return
 
     # action == "off"

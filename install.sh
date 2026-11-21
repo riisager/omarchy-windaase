@@ -127,8 +127,11 @@ else
 fi
 
 if [[ "$(python3 "${PLUGIN_DEST}/windaase-config.py" nautilus-menu status 2>/dev/null || true)" == "installed" ]]; then
-  python3 "${PLUGIN_DEST}/windaase-config.py" nautilus-menu on
-  echo "==> Refreshed opt-in Nautilus context menu extension"
+  if python3 "${PLUGIN_DEST}/windaase-config.py" nautilus-menu on; then
+    echo "==> Refreshed opt-in Nautilus context menu extension"
+  else
+    echo "Warning: could not refresh opt-in Nautilus context menu extension; continuing install." >&2
+  fi
 fi
 
 if [[ "$MODE" != "shell-only" ]]; then

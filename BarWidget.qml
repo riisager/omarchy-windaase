@@ -73,6 +73,7 @@ BarWidget {
   property bool companionInstalled: false
   property bool hasLocalInstaller: false
   property bool nautilusMenuInstalled: false
+  readonly property string nautilusExtMarker: "# Managed by Omarchy-windåse (riisager.windaase)"
   readonly property string companionInstallCmd: root.hasLocalInstaller
     ? "~/.config/omarchy/plugins/riisager.windaase/install.sh"
     : "git clone https://github.com/riisager/omarchy-windaase.git && ./omarchy-windaase/install.sh"
@@ -153,7 +154,7 @@ BarWidget {
     blockLoading: true
     printErrors: false
     onFileChanged: reload()
-    onLoaded: root.nautilusMenuInstalled = String(text() || "").indexOf("Managed by Omarchy-windåse") >= 0
+    onLoaded: root.nautilusMenuInstalled = String(text() || "").indexOf(root.nautilusExtMarker) >= 0
     onLoadFailed: root.nautilusMenuInstalled = false
   }
 
@@ -392,7 +393,7 @@ BarWidget {
     root.hyprSettings = TaskbarModel.parseHyprSettings(hyprSettingsFile.text())
     root.companionInstalled = String(companionLuaFile.text() || "").length > 0
     root.hasLocalInstaller = String(localInstallerFile.text() || "").length > 0
-    root.nautilusMenuInstalled = String(nautilusMenuFile.text() || "").indexOf("Managed by Omarchy-windåse") >= 0
+    root.nautilusMenuInstalled = String(nautilusMenuFile.text() || "").indexOf(root.nautilusExtMarker) >= 0
     syncItemModel()
     syncBrowserProfiles()
   }

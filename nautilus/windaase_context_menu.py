@@ -32,6 +32,13 @@ def _normalize_locale(raw):
     return text
 
 
+def is_plugin_installed(home_dir=None):
+    """Return True only while riisager.windaase is installed in ~/.config/omarchy/plugins."""
+    home = os.path.expanduser(home_dir) if home_dir else os.path.expanduser("~")
+    manifest = os.path.join(home, ".config", "omarchy", "plugins", "riisager.windaase", "manifest.json")
+    return os.path.isfile(manifest)
+
+
 def load_labels(home_dir=None, lang_env=None):
     """Load localized context-menu labels from the installed Windåse plugin."""
     labels = dict(DEFAULT_LABELS)
@@ -62,7 +69,7 @@ def load_labels(home_dir=None, lang_env=None):
     i18n_dir = os.path.realpath(os.path.join(omarchy_cfg, "plugins", "riisager.windaase", "i18n"))
     for cand in candidates:
         cand_path = os.path.realpath(os.path.join(i18n_dir, f"{cand}.json"))
-        if cand_path != i18n_dir and not cand_path.startswith(i18n_dir + os.sep):
+        if not cand_path.startswith(i18n_dir + os.sep):
             continue
         try:
             with open(cand_path, "r", encoding="utf-8") as handle:
@@ -219,6 +226,8 @@ if _HAS_NAUTILUS:
             create_new_text_file(folder_path)
 
         def get_file_items(self, *args):
+            if not is_plugin_installed():
+                return []
             if not args:
                 return []
             files = args[0] if len(args) == 1 else args[1]
@@ -261,6 +270,8 @@ if _HAS_NAUTILUS:
             return items
 
         def get_background_items(self, *args):
+            if not is_plugin_installed():
+                return []
             if not args:
                 return []
             folder = args[0] if len(args) == 1 else args[1]
