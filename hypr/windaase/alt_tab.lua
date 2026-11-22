@@ -10,6 +10,7 @@ local state_path = (os.getenv("XDG_RUNTIME_DIR") or os.getenv("XDG_CACHE_HOME") 
   .. "/omarchy-windaase-alttab.json"
 
 local session = nil
+local commit_seq = 0
 local transient_binds = {}
 local release_binds = {}
 local destroy_hook_registered = false
@@ -65,7 +66,11 @@ local TRANSIENT_KEYS = {
   { keys = "RETURN", action = function() M.commit() end },
 }
 
-local function set_transient_binds_enabled(enabled)
+local RELEASE_KEYS = { "Alt_L", "Alt_R" }
+-- Transparent and non-consuming so Omarchy's ALT+Alt_R dictation hold/release keeps working.
+local RELEASE_OPTS = { release = true, transparent = true, ignore_mods = true, non_consuming = true }
+
+local function set_session_binds_enabled(enabled)
   for _, spec in ipairs(TRANSIENT_KEYS) do
     local kb = transient_binds[spec.keys]
     if enabled and not bind_alive(kb) then
@@ -76,13 +81,25 @@ local function set_transient_binds_enabled(enabled)
       kb:set_enabled(enabled)
     end
   end
+
+  for _, sym in ipairs(RELEASE_KEYS) do
+    local kb = release_binds[sym]
+    if enabled and not bind_alive(kb) then
+      kb = hl.bind(sym, function() M.commit(true) end, RELEASE_OPTS)
+      release_binds[sym] = kb
+    end
+    if bind_alive(kb) then
+      kb:set_enabled(enabled)
+    end
+  end
 end
 
 function M.step(delta)
   delta = tonumber(delta) or 1
+  commit_seq = commit_seq + 1
   if session and not read_state_open() then
     session = nil
-    set_transient_binds_enabled(false)
+    set_session_binds_enabled(false)
   end
   if not session then
     local active = hl.get_active_window()
@@ -112,7 +129,7 @@ function M.step(delta)
       by_addr = by_addr,
       selected = initial_sel,
     }
-    set_transient_binds_enabled(true)
+    set_session_binds_enabled(true)
     write_state({
       open = true,
       monitor = session.monitor,
@@ -139,7 +156,8 @@ end
 
 function M.cancel()
   session = nil
-  set_transient_binds_enabled(false)
+  commit_seq = commit_seq + 1
+  set_session_binds_enabled(false)
   write_state({ open = false })
 end
 
@@ -172,26 +190,46 @@ local function activate_addr(addr, monitor_name)
   return true
 end
 
-function M.commit()
+function M.commit(defer_focus)
   if not session then
     return false
   end
   local s = session
   session = nil
-  set_transient_binds_enabled(false)
+  commit_seq = commit_seq + 1
+  set_session_binds_enabled(false)
 
   if not read_state_open() then
     return false
   end
   write_state({ open = false })
 
-  return activate_addr(s.addrs[s.selected], s.monitor)
+  local target_addr = s.addrs[s.selected]
+  local target_mon = s.monitor
+  if type(target_addr) ~= "string" or not target_addr:match("^0x[0-9a-fA-F]+$") then
+    return false
+  end
+
+  if defer_focus then
+    -- Defer focus past Alt key-release processing so the newly focused Wayland client does not receive a stuck Alt modifier.
+    local seq = commit_seq
+    hl.timer(function()
+      if seq ~= commit_seq or session ~= nil then
+        return
+      end
+      activate_addr(target_addr, target_mon)
+    end, { type = "oneshot", timeout = 10 })
+    return true
+  end
+
+  return activate_addr(target_addr, target_mon)
 end
 
 function M.commit_addr(addr)
   local monitor_name = session and session.monitor or ""
   session = nil
-  set_transient_binds_enabled(false)
+  commit_seq = commit_seq + 1
+  set_session_binds_enabled(false)
   write_state({ open = false })
 
   return activate_addr(addr, monitor_name)
@@ -199,29 +237,23 @@ end
 
 function M.setup(opts)
   session = nil
-  set_transient_binds_enabled(false)
+  commit_seq = commit_seq + 1
+  set_session_binds_enabled(false)
   write_state({ open = false })
 
   if opts and opts.alt_tab == false then
-    for _, kb in pairs(release_binds) do
-      if bind_alive(kb) then
-        kb:set_enabled(false)
-      end
-    end
     return
   end
 
   o.rebind("ALT + TAB", "Switch to next window", function() M.step(1) end, { repeating = true })
   o.rebind("ALT + SHIFT + TAB", "Switch to previous window", function() M.step(-1) end, { repeating = true })
 
-  -- Transparent and non-consuming so Omarchy's ALT+Alt_R dictation hold/release keeps working.
-  local release_opts = { release = true, transparent = true, ignore_mods = true, non_consuming = true }
-  for _, sym in ipairs({ "Alt_L", "Alt_R" }) do
+  for _, sym in ipairs(RELEASE_KEYS) do
     if not bind_alive(release_binds[sym]) then
-      release_binds[sym] = hl.bind(sym, function() M.commit() end, release_opts)
+      release_binds[sym] = hl.bind(sym, function() M.commit(true) end, RELEASE_OPTS)
     end
     if bind_alive(release_binds[sym]) then
-      release_binds[sym]:set_enabled(true)
+      release_binds[sym]:set_enabled(false)
     end
   end
 
@@ -265,7 +297,8 @@ function M.setup(opts)
     hl.on("window.active", function()
       if session and not read_state_open() then
         session = nil
-        set_transient_binds_enabled(false)
+        commit_seq = commit_seq + 1
+        set_session_binds_enabled(false)
       end
     end)
   end
