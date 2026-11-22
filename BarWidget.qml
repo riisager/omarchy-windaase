@@ -734,7 +734,6 @@ BarWidget {
       var address = TaskbarModel.normalizeAddress(win.address)
       if (!address) continue
       var target = "window = \"address:" + address + "\""
-      lastTarget = target
       if (win.minimized) {
         if (!(workspace >= 1)) continue
         var tags = win.tags || []
@@ -748,7 +747,10 @@ BarWidget {
         steps.push("hl.dsp.window.move({ workspace = \"" + workspace + "\", " + target + " })")
         after.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"unset\", " + target + " })")
       }
-      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + target + " })")
+      if (lastTarget && lastTarget !== target) {
+        steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + lastTarget + " })")
+      }
+      lastTarget = target
     }
     if (lastTarget) {
       steps.push("hl.dsp.focus({ " + lastTarget + " })")

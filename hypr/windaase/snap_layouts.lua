@@ -489,7 +489,11 @@ function M.apply_click_zone(addr, mon_name, rx, ry, rw, rh, is_max)
     return false
   end
 
-  return snap.apply_snap_zone(w, m, { rx = rx, ry = ry, rw = rw, rh = rh, max = (is_max == true) }, nil, false)
+  local ok = snap.apply_snap_zone(w, m, { rx = rx, ry = ry, rw = rw, rh = rh, max = (is_max == true) }, nil, false)
+  if ok then
+    hl.dispatch(hl.dsp.focus({ window = w }))
+  end
+  return ok
 end
 
 function M.apply_assist_addr(target_addr)
