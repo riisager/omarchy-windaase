@@ -151,7 +151,7 @@ Item {
 
   function open() {
     root.selectedIndex = 0
-    root.refreshIcons()
+    if (Object.keys(root.iconIndex).length === 0) root.refreshIcons()
     if (root.appsStale || root.filterText !== "" || root.apps.length === 0) {
       root.filterText = ""
       root.rebuild()
@@ -308,7 +308,7 @@ Item {
   Connections {
     target: DesktopEntries.applications
     function onValuesChanged() {
-      hiddenEntryScan.running = true
+      if (!hiddenEntryScan.running) hiddenEntryScan.running = true
       iconIndexDebounce.restart()
       if (root.opened) root.rebuild()
       else root.appsStale = true
@@ -492,7 +492,7 @@ Item {
                 sourceSize: Qt.size(root.iconSize * 2, root.iconSize * 2)
                 source: root.iconSource(cell.modelData.icon)
                 fillMode: Image.PreserveAspectFit
-                asynchronous: false
+                asynchronous: true
                 smooth: true
                 mipmap: true
               }

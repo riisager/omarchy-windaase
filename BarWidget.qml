@@ -645,14 +645,12 @@ BarWidget {
 
   function iconFor(item) {
     var entry = entryFor(item)
-    var icon = entry && entry.icon ? entry.icon : (item ? (item.appKey || item.key) : "")
-    var value = String(icon || "")
-    if (value.length === 0) return Quickshell.iconPath("application-x-executable", true)
-    if (value.indexOf("file://") === 0 || value.indexOf("image://") === 0) return value
-    if (value.charAt(0) === "/") return Util.fileUrl(value)
-    var themed = Quickshell.iconPath(value, true)
-    if (themed && themed.length > 0) return themed
-    return Quickshell.iconPath("application-x-executable", true)
+    return TaskbarModel.resolveIconSource(
+      entry,
+      item ? (item.appKey || item.key) : "",
+      function(name) { return Quickshell.iconPath(name, true) },
+      function(p) { return Util.fileUrl(p) }
+    )
   }
 
   function labelFor(item) {
@@ -719,37 +717,52 @@ BarWidget {
   }
 
   // Uses hyprctl dispatch directly (not hypr.windaase) so shell-only Marketplace installs stay self-contained.
-  function bringForward(window) {
-    if (!window) return
-    var address = TaskbarModel.normalizeAddress(window.address)
-    if (!address) {
-      if (window.toplevel) window.toplevel.activate()
+  function restoreWindows(windows) {
+    if (!windows || windows.length === 0) return
+    if (windows.length === 1 && !TaskbarModel.normalizeAddress(windows[0] && windows[0].address)) {
+      if (windows[0] && windows[0].toplevel) windows[0].toplevel.activate()
       return
     }
-    var target = "window = \"address:" + address + "\""
+    var monitor = Hyprland.focusedMonitor
+    var workspace = monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : -1
     var steps = []
     var after = []
-    if (window.minimized) {
-      var monitor = Hyprland.focusedMonitor
-      var workspace = monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : -1
-      if (!(workspace >= 1)) return
-      var tags = window.tags || []
-      for (var i = 0; i < tags.length; i++) {
-        var tag = String(tags[i] || "")
-        if (/^omarchy-(minimized-from|showdesktop|minimize-others)-[0-9]+$/.test(tag)) {
-          steps.push("hl.dsp.window.tag({ tag = \"-" + tag + "\", " + target + " })")
+    var lastTarget = ""
+    for (var i = 0; i < windows.length; i++) {
+      var win = windows[i]
+      if (!win) continue
+      var address = TaskbarModel.normalizeAddress(win.address)
+      if (!address) continue
+      var target = "window = \"address:" + address + "\""
+      lastTarget = target
+      if (win.minimized) {
+        if (!(workspace >= 1)) continue
+        var tags = win.tags || []
+        for (var j = 0; j < tags.length; j++) {
+          var tag = String(tags[j] || "")
+          if (/^omarchy-(minimized-from|showdesktop|minimize-others)-[0-9]+$/.test(tag)) {
+            steps.push("hl.dsp.window.tag({ tag = \"-" + tag + "\", " + target + " })")
+          }
         }
+        steps.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"1\", " + target + " })")
+        steps.push("hl.dsp.window.move({ workspace = \"" + workspace + "\", " + target + " })")
+        after.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"unset\", " + target + " })")
       }
-      steps.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"1\", " + target + " })")
-      steps.push("hl.dsp.window.move({ workspace = \"" + workspace + "\", " + target + " })")
-      after.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"unset\", " + target + " })")
+      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + target + " })")
     }
-    steps.push("hl.dsp.focus({ " + target + " })")
-    steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + target + " })")
+    if (lastTarget) {
+      steps.push("hl.dsp.focus({ " + lastTarget + " })")
+      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + lastTarget + " })")
+    }
+    if (steps.length === 0) return
     var dispatch = function(step) { return "hyprctl dispatch " + Util.shellQuote(step) }
     var command = steps.map(dispatch).join(" && ")
     if (after.length > 0) command += "; sleep 0.4; " + after.map(dispatch).join("; ")
     Util.execDetached(command)
+  }
+
+  function bringForward(window) {
+    if (window) root.restoreWindows([window])
   }
 
   function minimizeWindows(windows) {
@@ -793,9 +806,11 @@ BarWidget {
 
   function restoreAll(item) {
     if (!item || !item.windows) return
+    var mins = []
     for (var i = 0; i < item.windows.length; i++) {
-      if (item.windows[i].minimized) root.bringForward(item.windows[i])
+      if (item.windows[i] && item.windows[i].minimized) mins.push(item.windows[i])
     }
+    root.restoreWindows(mins)
   }
 
   function activateWindow(window) {

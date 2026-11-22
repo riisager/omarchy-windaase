@@ -4,26 +4,42 @@
 
 local M = {}
 
+local enabled = false
+local hooks_registered = false
+
 local function enforce_follow_mouse()
+  if not enabled then
+    return
+  end
   if hl.get_config("input.follow_mouse") ~= 2 then
     hl.config({ input = { follow_mouse = 2 } })
   end
 end
 
-function M.setup()
-  hl.config({
-    input = {
-      follow_mouse = 2,
-    },
-  })
+function M.setup(is_enabled)
+  enabled = is_enabled ~= false
+  if enabled then
+    hl.config({
+      input = {
+        follow_mouse = 2,
+      },
+    })
+    hl.timer(enforce_follow_mouse, { type = "oneshot", timeout = 50 })
+  end
 
-  hl.timer(enforce_follow_mouse, { type = "oneshot", timeout = 50 })
-  hl.on("workspace.active", function()
-    hl.timer(enforce_follow_mouse, { type = "oneshot", timeout = 1 })
-  end)
-  hl.on("monitor.focused", function()
-    hl.timer(enforce_follow_mouse, { type = "oneshot", timeout = 1 })
-  end)
+  if not hooks_registered then
+    hooks_registered = true
+    hl.on("workspace.active", function()
+      if enabled then
+        hl.timer(enforce_follow_mouse, { type = "oneshot", timeout = 1 })
+      end
+    end)
+    hl.on("monitor.focused", function()
+      if enabled then
+        hl.timer(enforce_follow_mouse, { type = "oneshot", timeout = 1 })
+      end
+    end)
+  end
 end
 
 return M

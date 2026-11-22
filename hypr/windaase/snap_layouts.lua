@@ -14,14 +14,22 @@ local gap_out = 8
 local gap_in = 8
 local snap_layouts_enabled = true
 local snap_assist_enabled = true
+local aero_snap_enabled = true
 local ultrawide_enabled = false
 local assist_seq = 0
+local pending_assist = nil
 
 local mouse_drag_state = nil
 local prev_sample = nil
 local suppress_snap_ticks = 0
 local monitor_running = false
 local monitor_token = 0
+local hooks_registered = false
+local mouse_binds = {}
+
+local function bind_alive(kb)
+  return kb ~= nil and tostring(kb) ~= "HL.Keybind(expired)"
+end
 
 local function read_snap_state_raw()
   local f = io.open(snap_state_path, "r")
@@ -81,12 +89,20 @@ end
 
 M.write_state = write_snap_state
 
+function M.cancel_overlay()
+  assist_seq = assist_seq + 1
+  pending_assist = nil
+  snap_resize.clear_flash()
+  write_snap_state({ open = false })
+end
+
 function M.suppress(ticks)
   local n = tonumber(ticks) or 6
   if n > suppress_snap_ticks then
     suppress_snap_ticks = n
   end
   assist_seq = assist_seq + 1
+  pending_assist = nil
   snap_resize.clear_flash()
   local raw = read_snap_state_raw()
   if raw:find('"open":true') and (raw:find('"mode":"assist"') or raw:find('"mode":"click"') or raw:find('"mode":"resize"')) then
@@ -318,6 +334,9 @@ local function tick(expected_token)
 end
 
 local function ensure_monitor_running()
+  if not aero_snap_enabled and not snap_layouts_enabled then
+    return
+  end
   local cur = hl.get_active_window()
   if not cur or not cur.floating or (cur.fullscreen or 0) ~= 0 then
     return
@@ -385,6 +404,11 @@ function M.schedule_assist(window, m, snapped_zone)
     if not has_assist_candidate(ws_id, exclude_addr) then
       return
     end
+    pending_assist = {
+      monitor = mon_name or "",
+      zone = comp,
+      snapped_addr = exclude_addr or "",
+    }
     write_snap_state({
       open = true,
       mode = "assist",
@@ -405,6 +429,7 @@ end
 
 function M.toggle_click_overlay()
   assist_seq = assist_seq + 1
+  pending_assist = nil
   snap_resize.clear_flash()
   local raw = read_snap_state_raw()
   if raw:find('"open":true') and (raw:find('"mode":"click"') or raw:find('"mode":"assist"')) then
@@ -437,11 +462,65 @@ function M.toggle_click_overlay()
   })
 end
 
+function M.apply_click_zone(addr, mon_name, rx, ry, rw, rh, is_max)
+  rx = tonumber(rx)
+  ry = tonumber(ry)
+  rw = tonumber(rw)
+  rh = tonumber(rh)
+  if not rx or not ry or not rw or not rh
+    or rx < 0 or rx >= 1 or ry < 0 or ry >= 1
+    or rw <= 0 or rw > 1 or rh <= 0 or rh > 1 then
+    M.cancel_overlay()
+    return false
+  end
+
+  local w = (type(addr) == "string" and addr:match("^0x[0-9a-fA-F]+$") and hl.get_window("address:" .. addr))
+    or hl.get_active_window()
+  if not w or not w.floating then
+    M.cancel_overlay()
+    return false
+  end
+
+  local m = (type(mon_name) == "string" and mon_name ~= "" and hl.get_monitor(mon_name))
+    or w.monitor
+    or hl.get_active_monitor()
+  M.cancel_overlay()
+  if not m then
+    return false
+  end
+
+  return snap.apply_snap_zone(w, m, { rx = rx, ry = ry, rw = rw, rh = rh, max = (is_max == true) }, nil, false)
+end
+
+function M.apply_assist_addr(target_addr)
+  local pa = pending_assist
+  M.cancel_overlay()
+  if not pa or type(target_addr) ~= "string" or not target_addr:match("^0x[0-9a-fA-F]+$") then
+    return false
+  end
+
+  local w = hl.get_window("address:" .. target_addr)
+  if not w or not w.floating then
+    return false
+  end
+
+  local m = (pa.monitor ~= "" and hl.get_monitor(pa.monitor)) or w.monitor or hl.get_active_monitor()
+  if not m then
+    return false
+  end
+
+  local ok = snap.apply_snap_zone(w, m, pa.zone, nil, true)
+  hl.dispatch(hl.dsp.focus({ window = "address:" .. target_addr }))
+  hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = "address:" .. target_addr }))
+  return ok
+end
+
 function M.setup(opts)
   ultrawide_enabled = opts.ultrawide_layout == true
   layouts_cfg = geometry.resolve_layouts_config(geometry.load_layouts_config(), ultrawide_enabled)
   gap_out = opts.gap_out or 8
   gap_in = opts.gap_in or 8
+  aero_snap_enabled = opts.aero_snap ~= false
   snap_layouts_enabled = opts.snap_layouts ~= false
   snap_assist_enabled = opts.snap_assist ~= false
 
@@ -449,11 +528,13 @@ function M.setup(opts)
   monitor_running = false
   mouse_drag_state = nil
   prev_sample = nil
+  pending_assist = nil
+  assist_seq = assist_seq + 1
+  snap_resize.clear_flash()
   write_snap_state({ open = false })
 
-  if opts.aero_snap ~= false or snap_layouts_enabled then
-    ensure_monitor_running()
-
+  if not hooks_registered then
+    hooks_registered = true
     local function wake_later()
       hl.timer(ensure_monitor_running, { type = "oneshot", timeout = 10 })
     end
@@ -463,8 +544,12 @@ function M.setup(opts)
     hl.on("window.fullscreen", wake_later)
     hl.on("workspace.active", wake_later)
     hl.on("monitor.focused", wake_later)
+  end
 
-    hl.bind("mouse:272", function()
+  local release_opts = { release = true, transparent = true, ignore_mods = true, non_consuming = true }
+  local drag_watch = aero_snap_enabled or snap_layouts_enabled
+  if drag_watch and not bind_alive(mouse_binds["mouse:272"]) then
+    mouse_binds["mouse:272"] = hl.bind("mouse:272", function()
       if snap_resize.is_active() then
         snap_resize.finish_active_resize()
         prev_sample = nil
@@ -476,20 +561,31 @@ function M.setup(opts)
       local cur = hl.get_active_window()
       local c = hl.get_cursor_pos()
       finish_active_drag(cur, c)
-    end, { release = true, transparent = true, ignore_mods = true, non_consuming = true })
+    end, release_opts)
+  end
+  if bind_alive(mouse_binds["mouse:272"]) then
+    mouse_binds["mouse:272"]:set_enabled(drag_watch)
+  end
 
-    if opts.snap_resize ~= false and opts.aero_snap ~= false then
-      hl.bind("mouse:273", function()
-        if snap_resize.is_active() then
-          snap_resize.finish_active_resize()
-          prev_sample = nil
-        end
-      end, { release = true, transparent = true, ignore_mods = true, non_consuming = true })
-    end
+  local resize_watch = aero_snap_enabled and opts.snap_resize ~= false
+  if resize_watch and not bind_alive(mouse_binds["mouse:273"]) then
+    mouse_binds["mouse:273"] = hl.bind("mouse:273", function()
+      if snap_resize.is_active() then
+        snap_resize.finish_active_resize()
+        prev_sample = nil
+      end
+    end, release_opts)
+  end
+  if bind_alive(mouse_binds["mouse:273"]) then
+    mouse_binds["mouse:273"]:set_enabled(resize_watch)
+  end
+
+  if drag_watch then
+    ensure_monitor_running()
   end
 
   if snap_layouts_enabled then
-    o.bind("SUPER + Z", "Snap Layouts", M.toggle_click_overlay)
+    o.rebind("SUPER + Z", "Snap Layouts", M.toggle_click_overlay)
   end
 end
 

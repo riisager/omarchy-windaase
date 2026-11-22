@@ -640,6 +640,20 @@ function run() {
     1
   );
 
+  // resolveIconSource handles empty fallback, file/image URLs, absolute paths, and themed icons
+  const fakeIcons = {
+    "application-x-executable": "/icons/fallback.svg",
+    firefox: "/icons/firefox.svg"
+  };
+  const fakeLookup = (name) => fakeIcons[name] || "";
+  const fakeFileUrl = (p) => `file://${p}`;
+  assert.strictEqual(TaskbarModel.resolveIconSource(null, "", fakeLookup, fakeFileUrl), "/icons/fallback.svg");
+  assert.strictEqual(TaskbarModel.resolveIconSource({ icon: "file:///a.png" }, "x", fakeLookup, fakeFileUrl), "file:///a.png");
+  assert.strictEqual(TaskbarModel.resolveIconSource({ icon: "image://theme/x" }, "x", fakeLookup, fakeFileUrl), "image://theme/x");
+  assert.strictEqual(TaskbarModel.resolveIconSource({ icon: "/usr/share/pixmaps/app.png" }, "x", fakeLookup, fakeFileUrl), "file:///usr/share/pixmaps/app.png");
+  assert.strictEqual(TaskbarModel.resolveIconSource({ icon: "firefox" }, "ignored", fakeLookup, fakeFileUrl), "/icons/firefox.svg");
+  assert.strictEqual(TaskbarModel.resolveIconSource({ icon: "missing-icon" }, "", fakeLookup, fakeFileUrl), "/icons/fallback.svg");
+
   // Verify i18n JSON files cover all 50 Omarchy locales cleanly with exact key & placeholder parity
   const i18nDir = path.join(__dirname, "../i18n");
   const omarchyLocalesPath = "/usr/share/omarchy/default/i18n/locales.json";

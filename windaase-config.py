@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Atomic configuration helper for Omarchy-windåse."""
 
+import contextlib
+import fcntl
 import glob
 import json
 import os
@@ -107,6 +109,22 @@ def omarchy_dir():
     return os.path.join(home, ".config", "omarchy")
 
 
+@contextlib.contextmanager
+def config_lock():
+    cfg_dir = omarchy_dir()
+    os.makedirs(cfg_dir, exist_ok=True)
+    lock_path = os.path.join(cfg_dir, ".windaase.lock")
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+
 def cmd_bar_height(args):
     if len(args) != 1 or not re.fullmatch(r"\d+", args[0]):
         raise ValueError("Expected integer bar height between 24 and 64")
@@ -114,110 +132,112 @@ def cmd_bar_height(args):
     if height < 24 or height > 64:
         raise ValueError("Bar height must be between 24 and 64")
 
-    path = os.path.join(omarchy_dir(), "shell.toml")
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as handle:
-            text = handle.read()
-    else:
-        text = ""
-    lines = text.splitlines(keepends=True)
+    with config_lock():
+        path = os.path.join(omarchy_dir(), "shell.toml")
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as handle:
+                text = handle.read()
+        else:
+            text = ""
+        lines = text.splitlines(keepends=True)
 
-    sec_re = re.compile(r"^\s*\[([A-Za-z0-9_-]+)\]\s*(?:#.*)?$")
-    key_re = re.compile(r"^(\s*size-horizontal\s*=\s*)([^\r\n#]*)(.*)$")
+        sec_re = re.compile(r"^\s*\[([A-Za-z0-9_-]+)\]\s*(?:#.*)?$")
+        key_re = re.compile(r"^(\s*size-horizontal\s*=\s*)([^\r\n#]*)(.*)$")
 
-    in_bar = False
-    found_bar = False
-    updated = False
-    out = []
+        in_bar = False
+        found_bar = False
+        updated = False
+        out = []
 
-    for line in lines:
-        sec_m = sec_re.match(line)
-        if sec_m:
-            if in_bar and not updated:
-                out.append(f"size-horizontal = {height}\n")
-                updated = True
-            in_bar = sec_m.group(1) == "bar"
-            if in_bar:
-                found_bar = True
-            out.append(line)
-            continue
-        if in_bar:
-            key_m = key_re.match(line)
-            if key_m:
-                line_ending = "\n" if line.endswith("\n") else ""
-                suffix = key_m.group(3).rstrip("\r\n")
-                out.append(f"{key_m.group(1)}{height}{suffix}{line_ending}")
-                updated = True
+        for line in lines:
+            sec_m = sec_re.match(line)
+            if sec_m:
+                if in_bar and not updated:
+                    out.append(f"size-horizontal = {height}\n")
+                    updated = True
+                in_bar = sec_m.group(1) == "bar"
+                if in_bar:
+                    found_bar = True
+                out.append(line)
                 continue
-        out.append(line)
+            if in_bar:
+                key_m = key_re.match(line)
+                if key_m:
+                    line_ending = "\n" if line.endswith("\n") else ""
+                    suffix = key_m.group(3).rstrip("\r\n")
+                    out.append(f"{key_m.group(1)}{height}{suffix}{line_ending}")
+                    updated = True
+                    continue
+            out.append(line)
 
-    if in_bar and not updated:
-        if out and not out[-1].endswith("\n"):
-            out[-1] += "\n"
-        out.append(f"size-horizontal = {height}\n")
-    elif not found_bar:
-        if out and out[-1].strip():
-            if not out[-1].endswith("\n"):
+        if in_bar and not updated:
+            if out and not out[-1].endswith("\n"):
                 out[-1] += "\n"
-            out.append("\n")
-        out.append(f"[bar]\nsize-horizontal = {height}\n")
+            out.append(f"size-horizontal = {height}\n")
+        elif not found_bar:
+            if out and out[-1].strip():
+                if not out[-1].endswith("\n"):
+                    out[-1] += "\n"
+                out.append("\n")
+            out.append(f"[bar]\nsize-horizontal = {height}\n")
 
-    atomic_write(path, "".join(out))
+        atomic_write(path, "".join(out))
 
 
 def cmd_bar_height_reset(args):
     if args:
         raise ValueError("bar-height-reset takes no arguments")
 
-    path = os.path.join(omarchy_dir(), "shell.toml")
-    if not os.path.exists(path):
-        return
+    with config_lock():
+        path = os.path.join(omarchy_dir(), "shell.toml")
+        if not os.path.exists(path):
+            return
 
-    with open(path, "r", encoding="utf-8") as handle:
-        lines = handle.read().splitlines(keepends=True)
+        with open(path, "r", encoding="utf-8") as handle:
+            lines = handle.read().splitlines(keepends=True)
 
-    sec_re = re.compile(r"^\s*\[([A-Za-z0-9_-]+)\]\s*(?:#.*)?$")
-    key_re = re.compile(r"^\s*size-horizontal\s*=")
+        sec_re = re.compile(r"^\s*\[([A-Za-z0-9_-]+)\]\s*(?:#.*)?$")
+        key_re = re.compile(r"^\s*size-horizontal\s*=")
 
-    blocks = []
-    current_name = None
-    current_header = ""
-    current_body = []
+        blocks = []
+        current_name = None
+        current_header = ""
+        current_body = []
 
-    for line in lines:
-        sec_m = sec_re.match(line)
-        if sec_m:
-            blocks.append((current_name, current_header, current_body))
-            current_name = sec_m.group(1)
-            current_header = line
-            current_body = []
-        else:
-            current_body.append(line)
-    blocks.append((current_name, current_header, current_body))
+        for line in lines:
+            sec_m = sec_re.match(line)
+            if sec_m:
+                blocks.append((current_name, current_header, current_body))
+                current_name = sec_m.group(1)
+                current_header = line
+                current_body = []
+            else:
+                current_body.append(line)
+        blocks.append((current_name, current_header, current_body))
 
-    out = []
-    for name, header, body in blocks:
-        if name == "bar":
-            filtered = [line for line in body if not key_re.match(line)]
-            has_keys = any(line.strip() and not line.lstrip().startswith("#") for line in filtered)
-            if not has_keys:
-                continue
-            out.append(header)
-            out.extend(filtered)
-        else:
-            if header:
+        out = []
+        for name, header, body in blocks:
+            if name == "bar":
+                filtered = [line for line in body if not key_re.match(line)]
+                has_keys = any(line.strip() and not line.lstrip().startswith("#") for line in filtered)
+                if not has_keys:
+                    continue
                 out.append(header)
-            out.extend(body)
+                out.extend(filtered)
+            else:
+                if header:
+                    out.append(header)
+                out.extend(body)
 
-    result = "".join(out)
-    if not result.strip():
-        os.unlink(path)
-        return
+        result = "".join(out)
+        if not result.strip():
+            os.unlink(path)
+            return
 
-    result = re.sub(r"\n{3,}", "\n\n", result.lstrip("\n"))
-    if not result.endswith("\n"):
-        result += "\n"
-    atomic_write(path, result)
+        result = re.sub(r"\n{3,}", "\n\n", result.lstrip("\n"))
+        if not result.endswith("\n"):
+            result += "\n"
+        atomic_write(path, result)
 
 
 def cmd_two_line_clock(args):
@@ -225,23 +245,24 @@ def cmd_two_line_clock(args):
         raise ValueError("Expected 'on' or 'off' for two-line-clock")
     fmt = TWO_LINE_CLOCK_FORMAT if args[0] == "on" else DEFAULT_CLOCK_FORMAT
 
-    path = os.path.join(omarchy_dir(), "shell.json")
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Missing shell config: {path}")
+    with config_lock():
+        path = os.path.join(omarchy_dir(), "shell.json")
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Missing shell config: {path}")
 
-    with open(path, "r", encoding="utf-8") as handle:
-        data = json.load(handle)
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
 
-    layout = data.get("bar", {}).get("layout", {})
-    if isinstance(layout, dict):
-        for items in layout.values():
-            if not isinstance(items, list):
-                continue
-            for entry in items:
-                if isinstance(entry, dict) and entry.get("id") == "omarchy.clock":
-                    entry["format"] = fmt
+        layout = data.get("bar", {}).get("layout", {})
+        if isinstance(layout, dict):
+            for items in layout.values():
+                if not isinstance(items, list):
+                    continue
+                for entry in items:
+                    if isinstance(entry, dict) and entry.get("id") == "omarchy.clock":
+                        entry["format"] = fmt
 
-    atomic_write(path, json.dumps(data, indent=2) + "\n")
+        atomic_write(path, json.dumps(data, indent=2) + "\n")
 
 
 def cmd_hypr_set(args):
@@ -262,19 +283,20 @@ def cmd_hypr_set(args):
         raise ValueError(f"Expected 'true' or 'false', got: {raw_val}")
     val = raw_val == "true"
 
-    path = os.path.join(omarchy_dir(), "windaase.json")
-    data = {}
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as handle:
-                loaded = json.load(handle)
-                if isinstance(loaded, dict):
-                    data = loaded
-        except (OSError, ValueError):
-            data = {}
+    with config_lock():
+        path = os.path.join(omarchy_dir(), "windaase.json")
+        data = {}
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as handle:
+                    loaded = json.load(handle)
+                    if isinstance(loaded, dict):
+                        data = loaded
+            except (OSError, ValueError):
+                data = {}
 
-    data[key] = val
-    atomic_write(path, json.dumps(data, indent=2) + "\n")
+        data[key] = val
+        atomic_write(path, json.dumps(data, indent=2) + "\n")
 
     if not no_reload:
         subprocess.run(["hyprctl", "reload"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -1195,29 +1217,31 @@ def cmd_nautilus_menu(args):
         if NAUTILUS_EXT_MARKER not in content:
             raise ValueError(f"Nautilus extension source is missing marker: {src}")
 
-        if os.path.islink(dest):
-            raise ValueError(f"Refusing to overwrite symlink at {dest}")
-        if os.path.lexists(dest):
-            if not os.path.isfile(dest):
-                raise ValueError(f"Refusing to overwrite non-file entry at {dest}")
-            with open(dest, "r", encoding="utf-8", errors="ignore") as handle:
-                if NAUTILUS_EXT_MARKER not in handle.read():
-                    raise ValueError(f"Refusing to overwrite unmanaged file at {dest}")
+        with config_lock():
+            if os.path.islink(dest):
+                raise ValueError(f"Refusing to overwrite symlink at {dest}")
+            if os.path.lexists(dest):
+                if not os.path.isfile(dest):
+                    raise ValueError(f"Refusing to overwrite non-file entry at {dest}")
+                with open(dest, "r", encoding="utf-8", errors="ignore") as handle:
+                    if NAUTILUS_EXT_MARKER not in handle.read():
+                        raise ValueError(f"Refusing to overwrite unmanaged file at {dest}")
 
-        atomic_write(dest, content, mode=0o644)
+            atomic_write(dest, content, mode=0o644)
         return
 
     # action == "off"
-    if os.path.islink(dest):
-        raise ValueError(f"Refusing to remove symlink at {dest}")
-    if os.path.lexists(dest):
-        if not os.path.isfile(dest):
-            raise ValueError(f"Refusing to remove non-file entry at {dest}")
-        with open(dest, "r", encoding="utf-8", errors="ignore") as handle:
-            if NAUTILUS_EXT_MARKER not in handle.read():
-                raise ValueError(f"Refusing to remove unmanaged file at {dest}")
-        os.unlink(dest)
-    _remove_nautilus_pycache(dest)
+    with config_lock():
+        if os.path.islink(dest):
+            raise ValueError(f"Refusing to remove symlink at {dest}")
+        if os.path.lexists(dest):
+            if not os.path.isfile(dest):
+                raise ValueError(f"Refusing to remove non-file entry at {dest}")
+            with open(dest, "r", encoding="utf-8", errors="ignore") as handle:
+                if NAUTILUS_EXT_MARKER not in handle.read():
+                    raise ValueError(f"Refusing to remove unmanaged file at {dest}")
+            os.unlink(dest)
+        _remove_nautilus_pycache(dest)
 
 
 def main(argv):

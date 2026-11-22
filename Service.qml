@@ -58,7 +58,6 @@ Item {
   })
 
   property var hyprSettings: TaskbarModel.defaultHyprSettings()
-  readonly property bool snapAssistEnabled: root.hyprSettings.snap_assist !== false
   readonly property bool ultrawideLayout: root.hyprSettings.ultrawide_layout === true
 
   property var layoutsConfig: defaultLayoutsConfig
@@ -78,7 +77,6 @@ Item {
 
   readonly property string statePath: (Quickshell.env("XDG_RUNTIME_DIR") || Quickshell.env("XDG_CACHE_HOME") || (Commons.Color.home + "/.cache")) + "/omarchy-windaase-snap.json"
   property var snapState: emptyState()
-  property int _writeSeq: 0
 
   readonly property string altTabStatePath: (Quickshell.env("XDG_RUNTIME_DIR") || Quickshell.env("XDG_CACHE_HOME") || (Commons.Color.home + "/.cache")) + "/omarchy-windaase-alttab.json"
   property var altTabState: emptyAltTabState()
@@ -98,14 +96,12 @@ Item {
   }
 
   function iconSourceFor(entry, fallbackId) {
-    var raw = entry && entry.icon ? entry.icon : String(fallbackId || "")
-    var value = String(raw || "")
-    if (value.length === 0) return Quickshell.iconPath("application-x-executable", true)
-    if (value.indexOf("file://") === 0 || value.indexOf("image://") === 0) return value
-    if (value.charAt(0) === "/") return Util.fileUrl(value)
-    var themed = Quickshell.iconPath(value, true)
-    if (themed && themed.length > 0) return themed
-    return Quickshell.iconPath("application-x-executable", true)
+    return TaskbarModel.resolveIconSource(
+      entry,
+      fallbackId,
+      function(name) { return Quickshell.iconPath(name, true) },
+      function(p) { return Util.fileUrl(p) }
+    )
   }
 
   function collectAssistCandidates(snappedAddr, workspaceId) {
@@ -207,16 +203,9 @@ Item {
     root.snapState = emptyState()
   }
 
-  function writeStateFile(obj) {
-    var payload = JSON.stringify(obj)
-    root._writeSeq += 1
-    var tmpPath = root.statePath + ".qml." + root._writeSeq + ".tmp"
-    Util.execDetached("printf '%s\\n' " + Util.shellQuote(payload) + " > " + Util.shellQuote(tmpPath) + " && mv -f " + Util.shellQuote(tmpPath) + " " + Util.shellQuote(root.statePath))
-  }
-
   function closeState() {
     root.snapState = emptyState()
-    root.writeStateFile({ open: false })
+    Util.execArgv(["hyprctl", "eval", "require(\"hypr.windaase\").cancel_snap_overlay()"])
   }
 
   function emptyAltTabState() {
@@ -464,71 +453,28 @@ Item {
           return { x: x1, y: y1, w: x2 - x1, h: y2 - y1, max: !!z.max }
         }
 
-        function placeAddressInRect(targetAddr, rect, focusTarget) {
-          var addr = root.validAddress(targetAddr)
-          var target = addr ? ("window = \"address:" + addr + "\"") : ""
-          var monX = monitor ? monitor.x : 0
-          var monY = monitor ? monitor.y : 0
-          var border = root.snapState.border
-          var titlebar = root.snapState.titlebar
-          var cw = Math.round(Math.max(120, rect.w - border * 2))
-          var ch = Math.round(Math.max(120, rect.h - border * 2 - titlebar))
-          var cx = Math.round(monX + rect.x + border)
-          var cy = Math.round(monY + rect.y + border + titlebar)
-          var steps = []
-          steps.push("hl.dsp.window.fullscreen({ mode = \"maximized\", action = \"unset\"" + (target ? (", " + target) : "") + " })")
-          steps.push("hl.dsp.window.resize({ x = " + cw + ", y = " + ch + ", relative = false" + (target ? (", " + target) : "") + " })")
-          steps.push("hl.dsp.window.move({ x = " + cx + ", y = " + cy + ", relative = false" + (target ? (", " + target) : "") + " })")
-          if (focusTarget && target) steps.push("hl.dsp.focus({ " + target + " })")
-          steps.push("hl.dsp.window.alter_zorder({ mode = \"top\"" + (target ? (", " + target) : "") + " })")
-          return steps.map(function(s) { return "hyprctl dispatch " + Util.shellQuote(s) }).join(" && ")
-        }
-
         function applyZoneFromClick(z) {
-          var addr = root.validAddress(root.snapState.addr)
-          var res = monitor && monitor.lastIpcObject && monitor.lastIpcObject.reserved ? monitor.lastIpcObject.reserved : [0, 0, 0, 0]
-          var rLeft = res[0] || 0
-          var rTop = res[1] || 0
-          var rRight = res[2] || 0
-          var rBottom = res[3] || 0
-          var rect = z.max
-            ? { x: rLeft, y: rTop, w: screen.width - rLeft - rRight, h: screen.height - rTop - rBottom }
-            : computeZoneRect(z)
-          var command = placeAddressInRect(addr, rect, false)
-
-          var assistAllowed = (root.snapState.assist !== null && root.snapState.assist !== undefined)
-            ? root.snapState.assist
-            : root.snapAssistEnabled
-          var comp = (!z.max && assistAllowed) ? TaskbarModel.complementaryZone(z) : null
-          var wsId = win.activeAssistWsId
-          var candidates = (comp && wsId >= 1) ? root.collectAssistCandidates(addr, wsId) : []
-          if (comp && candidates.length > 0) {
-            var compRect = computeZoneRect(comp)
-            var nextState = {
-              open: true,
-              mode: "assist",
-              monitor: win.monitorName,
-              card: -1,
-              zone: -1,
-              px: compRect.x,
-              py: compRect.y,
-              pw: compRect.w,
-              ph: compRect.h,
-              addr: addr,
-              border: root.snapState.border,
-              titlebar: root.snapState.titlebar,
-              ws: wsId,
-              uw: root.effectiveUltrawide,
-              assist: assistAllowed,
-              go: root.snapState.go,
-              gi: root.snapState.gi
-            }
-            root.snapState = nextState
-            root.writeStateFile(nextState)
-          } else {
+          if (!z) {
             root.closeState()
+            return
           }
-          Util.execDetached(command)
+          var rx = Number(z.rx)
+          var ry = Number(z.ry)
+          var rw = Number(z.rw)
+          var rh = Number(z.rh)
+          if (!isFinite(rx) || !isFinite(ry) || !isFinite(rw) || !isFinite(rh)) {
+            root.closeState()
+            return
+          }
+          var addr = root.validAddress(root.snapState.addr)
+          var safeMon = /^[A-Za-z0-9_.:-]{1,64}$/.test(win.monitorName) ? win.monitorName : ""
+          // Clear open state before Hyprland shifts focus so HyprlandFocusGrab doesn't emit a redundant cancel.
+          root.snapState = emptyState()
+          Util.execArgv([
+            "hyprctl",
+            "eval",
+            "require(\"hypr.windaase\").apply_click_zone(\"" + addr + "\", \"" + safeMon + "\", " + rx + ", " + ry + ", " + rw + ", " + rh + ", " + (z.max ? "true" : "false") + ")"
+          ])
         }
 
         function applyAssistWindow(candidate) {
@@ -537,15 +483,12 @@ Item {
             root.closeState()
             return
           }
-          var rect = {
-            x: root.snapState.px,
-            y: root.snapState.py,
-            w: root.snapState.pw,
-            h: root.snapState.ph
-          }
-          var command = placeAddressInRect(targetAddr, rect, true)
-          root.closeState()
-          Util.execDetached(command)
+          root.snapState = emptyState()
+          Util.execArgv([
+            "hyprctl",
+            "eval",
+            "require(\"hypr.windaase\").apply_assist_addr(\"" + targetAddr + "\")"
+          ])
         }
 
         readonly property var previewRect: {

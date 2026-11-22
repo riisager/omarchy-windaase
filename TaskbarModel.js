@@ -1319,6 +1319,19 @@ function detectSnapGroups(allWindows, targetWindows) {
   return groups
 }
 
+function resolveIconSource(entry, fallbackId, iconPathFn, fileUrlFn) {
+  var raw = entry && entry.icon ? entry.icon : String(fallbackId || "")
+  var value = String(raw || "")
+  var lookupIcon = typeof iconPathFn === "function" ? iconPathFn : function() { return "" }
+  var toFileUrl = typeof fileUrlFn === "function" ? fileUrlFn : function(p) { return "file://" + p }
+  if (value.length === 0) return lookupIcon("application-x-executable") || ""
+  if (value.indexOf("file://") === 0 || value.indexOf("image://") === 0) return value
+  if (value.charAt(0) === "/") return toFileUrl(value)
+  var themed = lookupIcon(value)
+  if (themed && themed.length > 0) return themed
+  return lookupIcon("application-x-executable") || ""
+}
+
 function resolveSelectedWindowIndex(windows, selectedAddr, fallbackIndex) {
   if (!Array.isArray(windows) || windows.length === 0) return -1
   var target = normalizeAddress(selectedAddr).toLowerCase()
@@ -1383,6 +1396,7 @@ if (typeof module !== "undefined") {
     isItemUrgent: isItemUrgent,
     targetWindowForPin: targetWindowForPin,
     detectSnapGroups: detectSnapGroups,
+    resolveIconSource: resolveIconSource,
     resolveSelectedWindowIndex: resolveSelectedWindowIndex
   }
 }

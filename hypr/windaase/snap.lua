@@ -20,6 +20,7 @@ local options = {
 
 local on_before_snap = nil
 local on_after_snap = nil
+local hooks_registered = false
 
 local function work_area_for_window(window)
   local m = (window and window.monitor) or hl.get_active_monitor()
@@ -172,7 +173,7 @@ function M.apply_snap(window, zone)
   return true
 end
 
-function M.apply_snap_zone(window, m, z, orig_geom)
+function M.apply_snap_zone(window, m, z, orig_geom, skip_after_snap)
   if not window or not window.floating or not m or not z then
     return false
   end
@@ -213,7 +214,7 @@ function M.apply_snap_zone(window, m, z, orig_geom)
   hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
   snap_current_zone[addr] = "custom"
   snap_custom_zone[addr] = { rx = z.rx, ry = z.ry, rw = z.rw, rh = z.rh, max = z.max == true }
-  if on_after_snap then
+  if on_after_snap and not skip_after_snap then
     on_after_snap(window, m, z)
   end
   return true
@@ -389,18 +390,23 @@ function M.setup(opts, before_snap_cb, after_snap_cb)
   on_before_snap = before_snap_cb
   on_after_snap = after_snap_cb
 
-  hl.on("window.destroy", function(window)
-    if not window or not window.address then
-      return
-    end
-    snap_restore_geom[window.address] = nil
-    snap_current_zone[window.address] = nil
-    snap_custom_zone[window.address] = nil
-    last_normal_geom[window.address] = nil
-  end)
+  if not hooks_registered then
+    hooks_registered = true
 
-  if options.auto_raise then
+    hl.on("window.destroy", function(window)
+      if not window or not window.address then
+        return
+      end
+      snap_restore_geom[window.address] = nil
+      snap_current_zone[window.address] = nil
+      snap_custom_zone[window.address] = nil
+      last_normal_geom[window.address] = nil
+    end)
+
     hl.on("window.active", function(window)
+      if not options.auto_raise then
+        return
+      end
       if not window or not window.floating or window.pinned then
         return
       end
@@ -409,10 +415,11 @@ function M.setup(opts, before_snap_cb, after_snap_cb)
       end
       hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
     end)
-  end
 
-  if options.soft_maximize then
     hl.on("window.fullscreen", function(window)
+      if not options.soft_maximize then
+        return
+      end
       if not window or not window.floating or (window.fullscreen or 0) ~= 1 then
         return
       end
@@ -421,7 +428,9 @@ function M.setup(opts, before_snap_cb, after_snap_cb)
         convert_native_maximize(addr)
       end, { type = "oneshot", timeout = 5 })
     end)
+  end
 
+  if options.soft_maximize then
     hl.timer(function()
       for _, w in ipairs(hl.get_windows()) do
         if w.floating and (w.fullscreen or 0) == 1 and geometry.has_floating_workspace_tag(w) then

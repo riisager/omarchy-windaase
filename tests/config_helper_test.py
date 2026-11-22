@@ -1065,6 +1065,33 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(da_labels["nautilus.copyPath"], "Kopiér som sti")
         self.assertEqual(da_labels["nautilus.newTextDocument"], "Nyt tekstdokument")
 
+    def test_concurrent_hypr_set_preserves_all_keys(self):
+        keys = (
+            "aero_snap",
+            "snap_layouts",
+            "snap_assist",
+            "snap_resize",
+            "auto_raise",
+            "hover_scroll",
+        )
+        procs = [
+            subprocess.Popen(
+                [sys.executable, SCRIPT_PATH, "hypr-set", key, "false", "--no-reload"],
+                env=self.env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            for key in keys
+        ]
+        for proc in procs:
+            out, err = proc.communicate(timeout=10)
+            self.assertEqual(proc.returncode, 0, err or out)
+
+        data = json.loads(self.read_text(os.path.join(self.omarchy_dir, "windaase.json")))
+        for key in keys:
+            self.assertIs(data.get(key), False, f"Concurrent update lost key: {key}")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

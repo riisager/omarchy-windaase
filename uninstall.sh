@@ -80,7 +80,7 @@ else
 fi
 
 rm -rf "${PLUGIN_DEST}" "${HYPR_DIR}/windaase.lua" "${HYPR_DIR}/windaase"
-rm -f "${HOME}/.config/omarchy/windaase.json"
+rm -f "${HOME}/.config/omarchy/windaase.json" "${HOME}/.config/omarchy/.windaase.lock"
 
 if [[ "$RESTORE_STOCK" -eq 1 ]] && command -v omarchy >/dev/null 2>&1; then
   omarchy plugin enable omarchy.dock >/dev/null 2>&1 || true

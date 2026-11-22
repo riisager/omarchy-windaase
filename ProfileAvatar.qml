@@ -22,7 +22,7 @@ Item {
     radius: width / 2
     color: "white"
     visible: false
-    layer.enabled: root.picturePath.length > 0
+    layer.enabled: avatarImg.visible
   }
 
   Item {
