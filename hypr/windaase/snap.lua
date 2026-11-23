@@ -20,6 +20,8 @@ local options = {
 
 local on_before_snap = nil
 local on_after_snap = nil
+local is_dragging_fn = nil
+local rescue_seq = 0
 local hooks_registered = false
 
 local function work_area_for_window(window)
@@ -298,6 +300,47 @@ local function convert_native_maximize(addr)
   end
 end
 
+local function remap_restore_geom(addr, border, titlebar, src_area, dst_area)
+  local saved = snap_restore_geom[addr]
+  if not saved then
+    return
+  end
+  local saved_outer = {
+    x = saved.x - border,
+    y = saved.y - border - titlebar,
+    w = saved.w + border * 2,
+    h = saved.h + border * 2 + titlebar,
+  }
+  local remapped_outer = nil
+  if src_area then
+    remapped_outer = geometry.map_rect_between_areas(saved_outer, src_area, dst_area, nil, nil)
+  elseif geometry.rect_needs_rescue(saved_outer, dst_area) then
+    remapped_outer = geometry.rescue_rect_to_area(saved_outer, dst_area, nil, nil, nil)
+  end
+  if remapped_outer then
+    snap_restore_geom[addr] = {
+      x = remapped_outer.x + border,
+      y = remapped_outer.y + border + titlebar,
+      w = math.max(120, remapped_outer.w - border * 2),
+      h = math.max(120, remapped_outer.h - border * 2 - titlebar),
+    }
+  end
+end
+
+local function apply_relocated_state(addr, dst_rect, border, titlebar)
+  if dst_rect.mode == "maximize" then
+    snap_current_zone[addr] = "maximize"
+    snap_custom_zone[addr] = nil
+  elseif dst_rect.mode == "float" then
+    last_normal_geom[addr] = {
+      x = dst_rect.x + border,
+      y = dst_rect.y + border + titlebar,
+      w = math.max(120, dst_rect.w - border * 2),
+      h = math.max(120, dst_rect.h - border * 2 - titlebar),
+    }
+  end
+end
+
 function M.move_to_monitor(window, direction)
   if not window or not window.floating then
     return false
@@ -338,24 +381,7 @@ function M.move_to_monitor(window, direction)
     return false
   end
 
-  if snap_restore_geom[addr] then
-    local saved = snap_restore_geom[addr]
-    local saved_outer = {
-      x = saved.x - border,
-      y = saved.y - border - titlebar,
-      w = saved.w + border * 2,
-      h = saved.h + border * 2 + titlebar,
-    }
-    local remapped_outer = geometry.map_rect_between_areas(saved_outer, src_area, dst_area, nil, nil)
-    if remapped_outer then
-      snap_restore_geom[addr] = {
-        x = remapped_outer.x + border,
-        y = remapped_outer.y + border + titlebar,
-        w = math.max(120, remapped_outer.w - border * 2),
-        h = math.max(120, remapped_outer.h - border * 2 - titlebar),
-      }
-    end
-  end
+  remap_restore_geom(addr, border, titlebar, src_area, dst_area)
 
   if (window.fullscreen or 0) == 1 then
     hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "unset", window = window }))
@@ -367,21 +393,116 @@ function M.move_to_monitor(window, direction)
   hl.dispatch(hl.dsp.focus({ window = moved }))
   hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = moved }))
 
-  if dst_rect.mode == "maximize" then
-    snap_current_zone[addr] = "maximize"
-    snap_custom_zone[addr] = nil
-  elseif dst_rect.mode == "float" then
-    last_normal_geom[addr] = {
-      x = dst_rect.x + border,
-      y = dst_rect.y + border + titlebar,
-      w = math.max(120, dst_rect.w - border * 2),
-      h = math.max(120, dst_rect.h - border * 2 - titlebar),
-    }
-  end
+  apply_relocated_state(addr, dst_rect, border, titlebar)
   return true
 end
 
-function M.setup(opts, before_snap_cb, after_snap_cb)
+-- Reposition a floating window that is stranded off-screen (e.g. after dock/undock or sleep) onto its active monitor.
+function M.rescue_window(window, monitors_opt)
+  if not window or not window.address or not window.floating then
+    return false
+  end
+  if window.mapped == false or window.hidden == true or (window.fullscreen or 0) == 2 then
+    return false
+  end
+  local ws = window.workspace
+  if ws then
+    local ws_name = type(ws.name) == "string" and ws.name or ""
+    local ws_id = tonumber(ws.id)
+    if ws_name:match("^special:") or (ws_id and ws_id < 1) then
+      return false
+    end
+  end
+  if is_dragging_fn and is_dragging_fn() then
+    return false
+  end
+
+  local monitors = monitors_opt or hl.get_monitors()
+  local dst_mon = geometry.resolve_active_monitor_for_window(window, monitors, hl.get_active_monitor())
+  if not dst_mon then
+    return false
+  end
+  local dst_area = geometry.get_work_area(dst_mon, options.gap_out, options.gap_in)
+  if not dst_area then
+    return false
+  end
+
+  local border, titlebar = geometry.get_window_frame_insets(window)
+  local outer = geometry.window_outer_rect(window, border, titlebar)
+  if not outer or not geometry.rect_needs_rescue(outer, dst_area) then
+    return false
+  end
+
+  local addr = window.address
+  local src_mon = geometry.find_containing_monitor(outer, monitors, dst_mon.name)
+  local src_area = src_mon and geometry.get_work_area(src_mon, options.gap_out, options.gap_in) or nil
+  local zone_name = snap_current_zone[addr]
+  if not zone_name and (window.fullscreen or 0) == 1 then
+    zone_name = "maximize"
+  end
+  local dst_rect = geometry.rescue_rect_to_area(outer, dst_area, zone_name, snap_custom_zone[addr], src_area)
+  if not dst_rect then
+    return false
+  end
+
+  if on_before_snap then
+    on_before_snap(6)
+  end
+
+  remap_restore_geom(addr, border, titlebar, src_area, dst_area)
+
+  local need_monitor_move = not window.monitor or window.monitor.name ~= dst_mon.name
+  if (window.fullscreen or 0) == 1 then
+    if not options.soft_maximize then
+      if need_monitor_move then
+        hl.dispatch(hl.dsp.window.move({ monitor = dst_mon.name, window = window }))
+        return true
+      end
+      return false
+    end
+    hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "unset", window = window }))
+  end
+
+  if need_monitor_move then
+    hl.dispatch(hl.dsp.window.move({ monitor = dst_mon.name, window = window }))
+  end
+
+  local target = hl.get_window("address:" .. addr) or window
+  geometry.place_window_in_outer_rect(target, dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h)
+  apply_relocated_state(addr, dst_rect, border, titlebar)
+  return true
+end
+
+function M.rescue_offscreen_windows()
+  if is_dragging_fn and is_dragging_fn() then
+    return 0
+  end
+  local monitors = hl.get_monitors()
+  local rescued = 0
+  for _, w in ipairs(hl.get_windows()) do
+    if M.rescue_window(w, monitors) then
+      rescued = rescued + 1
+    end
+  end
+  return rescued
+end
+
+local function schedule_rescue()
+  rescue_seq = rescue_seq + 1
+  local seq = rescue_seq
+  hl.timer(function()
+    if seq == rescue_seq then
+      M.rescue_offscreen_windows()
+    end
+  end, { type = "oneshot", timeout = 150 })
+  hl.timer(function()
+    if seq == rescue_seq then
+      M.rescue_offscreen_windows()
+    end
+  end, { type = "oneshot", timeout = 750 })
+end
+
+function M.setup(opts, before_snap_cb, after_snap_cb, is_dragging_cb)
   options.aero_snap = opts.aero_snap ~= false
   options.soft_maximize = opts.soft_maximize ~= false
   options.auto_raise = opts.auto_raise ~= false
@@ -389,6 +510,7 @@ function M.setup(opts, before_snap_cb, after_snap_cb)
   options.gap_in = opts.gap_in or 8
   on_before_snap = before_snap_cb
   on_after_snap = after_snap_cb
+  is_dragging_fn = is_dragging_cb
 
   if not hooks_registered then
     hooks_registered = true
@@ -404,13 +526,13 @@ function M.setup(opts, before_snap_cb, after_snap_cb)
     end)
 
     hl.on("window.active", function(window)
-      if not options.auto_raise then
+      if not window or not window.floating then
         return
       end
-      if not window or not window.floating or window.pinned then
-        return
+      if (window.fullscreen or 0) ~= 2 and M.rescue_window(window) then
+        window = (window.address and hl.get_window("address:" .. window.address)) or window
       end
-      if (window.fullscreen or 0) ~= 0 then
+      if not options.auto_raise or window.pinned or (window.fullscreen or 0) ~= 0 then
         return
       end
       hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
@@ -428,7 +550,27 @@ function M.setup(opts, before_snap_cb, after_snap_cb)
         convert_native_maximize(addr)
       end, { type = "oneshot", timeout = 5 })
     end)
+
+    hl.on("monitor.added", schedule_rescue)
+    hl.on("monitor.removed", schedule_rescue)
+    hl.on("monitor.layout_changed", schedule_rescue)
+    hl.on("config.reloaded", schedule_rescue)
+    hl.on("workspace.move_to_monitor", schedule_rescue)
+    hl.on("window.move_to_workspace", function(window)
+      local addr = window and window.address
+      if not addr then
+        return
+      end
+      hl.timer(function()
+        local cur = hl.get_window("address:" .. addr)
+        if cur then
+          M.rescue_window(cur)
+        end
+      end, { type = "oneshot", timeout = 30 })
+    end)
   end
+
+  schedule_rescue()
 
   if options.soft_maximize then
     hl.timer(function()

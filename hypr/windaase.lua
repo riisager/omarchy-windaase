@@ -76,7 +76,8 @@ function M.setup(user_opts)
     end,
     function(window, m, zone_spec)
       snap_layouts.schedule_assist(window, m, zone_spec)
-    end
+    end,
+    snap_layouts.is_dragging
   )
 
   snap_layouts.setup(opts)
@@ -116,6 +117,7 @@ end
 M.snap = snap.apply_snap
 M.snap_resize = snap_resize.resize_by_keyboard
 M.move_to_monitor = snap.move_to_monitor
+M.rescue_offscreen_windows = snap.rescue_offscreen_windows
 M.show_desktop = show_desktop.toggle
 M.minimize_others = show_desktop.toggle_minimize_others
 M.toggle_snap_layouts = snap_layouts.toggle_click_overlay

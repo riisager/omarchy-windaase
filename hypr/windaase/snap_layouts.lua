@@ -593,4 +593,8 @@ function M.setup(opts)
   end
 end
 
+function M.is_dragging()
+  return mouse_drag_state ~= nil or snap_resize.is_active()
+end
+
 return M

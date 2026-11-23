@@ -306,4 +306,65 @@ assert(geometry.step_index(4, 4, 1) == 1, "step forward wrap failed")
 assert(geometry.step_index(1, 4, -1) == 4, "step backward wrap failed")
 assert(geometry.step_index(1, 0, 1) == 0, "empty list step failed")
 
+-- 13. Off-screen window rescue geometry (dock/undock & disabled monitor transitions)
+local dock_mons = {
+  { id = 0, name = "eDP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1.25, transform = 0, reserved = { 0, 0, 0, 40 }, disabled = true },
+  { id = 3, name = "DP-7", x = 1536, y = 0, width = 1920, height = 1200, scale = 1, transform = 0, reserved = { 0, 0, 0, 40 }, active_workspace = { id = 41 } },
+  { id = 1, name = "DP-5", x = 3456, y = 0, width = 1920, height = 1200, scale = 1, transform = 0, reserved = { 0, 0, 0, 40 }, active_workspace = { id = 21 } },
+  { id = 2, name = "DP-6", x = 5376, y = 0, width = 1920, height = 1200, scale = 1, transform = 0, reserved = { 0, 0, 0, 40 }, active_workspace = { id = 31 } },
+}
+local dp7_area = geometry.get_work_area(dock_mons[2], 8, 8)
+local dp6_area = geometry.get_work_area(dock_mons[4], 8, 8)
+
+-- Workspace monitor wins over focused monitor; stale disabled window.monitor is skipped
+local resolved_dp6 = geometry.resolve_active_monitor_for_window({
+  monitor = dock_mons[1],
+  workspace = { id = 31, name = "31", monitor = dock_mons[4] },
+}, dock_mons, dock_mons[2])
+assert(resolved_dp6 and resolved_dp6.name == "DP-6", "window on ws 31 must resolve to DP-6 even when focused monitor is DP-7")
+
+-- Gone/disabled monitor falls back to active monitor, then first active monitor
+local fallback_active = geometry.resolve_active_monitor_for_window({
+  monitor = dock_mons[1],
+  workspace = { id = 9, name = "9", monitor = { name = "HDMI-1" } },
+}, dock_mons, dock_mons[2])
+assert(fallback_active and fallback_active.name == "DP-7", "unplugged monitor window should fall back to active monitor")
+
+local fallback_first = geometry.resolve_active_monitor_for_window({
+  monitor = dock_mons[1],
+  workspace = { id = 9, name = "9", monitor = dock_mons[1] },
+}, dock_mons, dock_mons[1])
+assert(fallback_first and fallback_first.name == "DP-7", "disabled active_mon must fall back to first enabled monitor")
+
+-- Stranded soft-maximized Chrome rect (at [1, 31], size [1532, 886] -> outer [-1, -1, 1536, 920] on eDP-1)
+local stranded_chrome = { x = -1, y = -1, w = 1536, h = 920 }
+assert(geometry.rect_needs_rescue(stranded_chrome, dp6_area) == true, "stranded Chrome must require rescue onto DP-6")
+assert(geometry.rect_needs_rescue({ x = 1546, y = 6, w = 658, h = 1144 }, dp7_area) == false, "healthy DP-7 window must not trigger rescue")
+assert(geometry.rect_needs_rescue({ x = 7000, y = 20, w = 900, h = 700 }, dp6_area) == false, "partially overhanging window with visible grab bar should not trigger rescue")
+assert(geometry.rect_needs_rescue({ x = 5500, y = -200, w = 600, h = 250 }, dp6_area) == true, "window with titlebar off top of monitor must trigger rescue")
+assert(geometry.rect_needs_rescue({ x = 5500, y = 1145, w = 600, h = 500 }, dp6_area) == true, "window sunk beneath taskbar must trigger rescue")
+assert(geometry.rect_needs_rescue({ x = 5376, y = 100, w = 800, h = 600 }, dp6_area) == false, "flush window inside DP-6 must not trigger rescue")
+
+local found_edp = geometry.find_containing_monitor(stranded_chrome, dock_mons, "DP-6")
+assert(found_edp and found_edp.name == "eDP-1", "find_containing_monitor must detect disabled source monitor eDP-1")
+local edp_area = geometry.get_work_area(found_edp, 8, 8)
+local rescued_chrome = geometry.rescue_rect_to_area(stranded_chrome, dp6_area, nil, nil, edp_area)
+assert(rescued_chrome and rescued_chrome.mode == "maximize", "stranded soft-maximized Chrome must preserve maximize mode")
+assert(rescued_chrome.x == 5376 and rescued_chrome.y == 0 and rescued_chrome.w == 1920 and rescued_chrome.h == 1160, "rescued Chrome must fill DP-6 max work area")
+
+-- 50% snapped left pane rescued from disabled eDP-1 onto DP-6 preserves proportional snap zone
+local edp_left = geometry.zone_rect_in_area(edp_area, cfg.layouts[1][1])
+local rescued_left = geometry.rescue_rect_to_area(edp_left, dp6_area, nil, nil, edp_area)
+assert(rescued_left and rescued_left.mode == "zone", "50% snapped pane should preserve zone mode on rescue")
+assert(rescued_left.x == 5384 and rescued_left.y == 8 and rescued_left.w == 948 and rescued_left.h == 1144, "rescued 50% left pane mismatch on DP-6")
+
+-- Free-floating window whose old monitor already vanished (src_area = nil) clamps & stays inside dst_area
+local vanished_float = geometry.rescue_rect_to_area({ x = -2200, y = -300, w = 900, h = 650 }, dp6_area, nil, nil, nil)
+assert(vanished_float and vanished_float.mode == "float" and vanished_float.w == 900 and vanished_float.h == 650, "vanished-monitor float must preserve size when it fits")
+assert(vanished_float.x >= dp6_area.x and vanished_float.x + vanished_float.w <= dp6_area.x + dp6_area.w, "rescued vanished-monitor float X must lie inside DP-6")
+assert(vanished_float.y >= dp6_area.y and vanished_float.y + vanished_float.h <= dp6_area.y + dp6_area.h, "rescued vanished-monitor float Y must lie inside DP-6")
+
+local huge_vanished = geometry.rescue_rect_to_area({ x = 9000, y = 2000, w = 3000, h = 2000 }, dp6_area, nil, nil, nil)
+assert(huge_vanished and huge_vanished.x == dp6_area.x and huge_vanished.y == dp6_area.y and huge_vanished.w == dp6_area.w and huge_vanished.h == dp6_area.h, "oversized vanished-monitor float must clamp to dst_area")
+
 print("ALL GEOMETRY LUA TESTS PASSED")

@@ -314,6 +314,20 @@ function M.json_escape(s)
   return tostring(s or ""):gsub("\\", "\\\\"):gsub('"', '\\"')
 end
 
+-- Hyprland's Lua API exposes windows and monitors as sol2 userdata rather than plain tables.
+local function is_object(v)
+  local t = type(v)
+  return t == "table" or t == "userdata"
+end
+
+local function is_active_monitor(m)
+  return is_object(m)
+    and m.disabled ~= true
+    and m.is_mirror ~= true
+    and type(m.name) == "string"
+    and m.name ~= ""
+end
+
 function M.monitor_logical_size(m)
   local scale = (m and m.scale) or 1
   if scale <= 0 then
@@ -331,17 +345,27 @@ function M.get_monitor_at(cx, cy)
   if not hl then
     return nil, 0, 0
   end
+  local first_active = nil
   for _, m in ipairs(hl.get_monitors()) do
-    local w, h = M.monitor_logical_size(m)
-    local mx, my = m.x or 0, m.y or 0
-    if cx >= mx and cx < mx + w and cy >= my and cy < my + h then
-      return m, w, h
+    if is_active_monitor(m) then
+      if not first_active then
+        first_active = m
+      end
+      local w, h = M.monitor_logical_size(m)
+      local mx, my = m.x or 0, m.y or 0
+      if cx >= mx and cx < mx + w and cy >= my and cy < my + h then
+        return m, w, h
+      end
     end
   end
   local am = hl.get_active_monitor()
-  if am then
+  if is_active_monitor(am) then
     local w, h = M.monitor_logical_size(am)
     return am, w, h
+  end
+  if first_active then
+    local w, h = M.monitor_logical_size(first_active)
+    return first_active, w, h
   end
   return nil, 0, 0
 end
@@ -1073,19 +1097,13 @@ function M.named_zone_spec(zone_name)
   }
 end
 
--- Hyprland's Lua API exposes windows and monitors as sol2 userdata rather than plain tables.
-local function is_object(v)
-  local t = type(v)
-  return t == "table" or t == "userdata"
-end
-
 function M.pick_adjacent_monitor(monitors, current_name, direction)
   if not is_object(monitors) or type(current_name) ~= "string" or current_name == "" then
     return nil
   end
   local active = {}
   for _, m in ipairs(monitors) do
-    if is_object(m) and m.disabled ~= true and m.is_mirror ~= true and type(m.name) == "string" and m.name ~= "" then
+    if is_active_monitor(m) then
       active[#active + 1] = m
     end
   end
@@ -1211,6 +1229,190 @@ function M.map_rect_between_areas(outer, src_area, dst_area, zone_name, custom_z
   return {
     x = clamp_num(dst_area.x + math.floor(rel_x * max_dst_dx + 0.5), dst_area.x, dst_area.x + max_dst_dx),
     y = clamp_num(dst_area.y + math.floor(rel_y * max_dst_dy + 0.5), dst_area.y, dst_area.y + max_dst_dy),
+    w = fw,
+    h = fh,
+    mode = "float",
+  }
+end
+
+local function pick_active_from_candidate(cand, by_name, by_id, has_catalog)
+  if not is_object(cand) then
+    return nil
+  end
+  if has_catalog then
+    if type(cand.name) == "string" and cand.name ~= "" and by_name[cand.name] then
+      return by_name[cand.name]
+    end
+    if cand.id ~= nil and by_id[cand.id] then
+      return by_id[cand.id]
+    end
+    return nil
+  end
+  if is_active_monitor(cand) then
+    return cand
+  end
+  return nil
+end
+
+function M.resolve_active_monitor_for_window(window, monitors, active_mon)
+  if not is_object(window) then
+    return nil
+  end
+  local by_name = {}
+  local by_id = {}
+  local active_list = {}
+  local has_catalog = is_object(monitors)
+  if has_catalog then
+    for _, m in ipairs(monitors) do
+      if is_active_monitor(m) then
+        by_name[m.name] = m
+        if m.id ~= nil then
+          by_id[m.id] = m
+        end
+        active_list[#active_list + 1] = m
+      end
+    end
+  end
+
+  local ws = window.workspace
+  local ws_mon = is_object(ws) and ws.monitor or nil
+  local resolved = pick_active_from_candidate(ws_mon, by_name, by_id, has_catalog)
+  if resolved then
+    return resolved
+  end
+
+  resolved = pick_active_from_candidate(window.monitor, by_name, by_id, has_catalog)
+  if resolved then
+    return resolved
+  end
+
+  local ws_id = is_object(ws) and tonumber(ws.id) or nil
+  if ws_id then
+    for _, m in ipairs(active_list) do
+      if is_object(m.active_workspace) and tonumber(m.active_workspace.id) == ws_id then
+        return m
+      end
+    end
+  end
+
+  resolved = pick_active_from_candidate(active_mon, by_name, by_id, has_catalog)
+  if resolved then
+    return resolved
+  end
+
+  return active_list[1]
+end
+
+function M.find_containing_monitor(outer, monitors, exclude_name)
+  if type(outer) ~= "table" or not is_object(monitors) then
+    return nil
+  end
+  local ow = tonumber(outer.w) or 0
+  local oh = tonumber(outer.h) or 0
+  if ow <= 0 or oh <= 0 then
+    return nil
+  end
+
+  local cx = outer.x + ow / 2
+  local cy = outer.y + oh / 2
+  local best_m = nil
+  local best_score = 0
+
+  for _, m in ipairs(monitors) do
+    if is_object(m) and m.width and m.is_mirror ~= true and m.name ~= exclude_name then
+      local mw, mh = M.monitor_logical_size(m)
+      local mx, my = m.x or 0, m.y or 0
+      local ix = overlap_len(outer.x, outer.x + ow, mx, mx + mw)
+      local iy = overlap_len(outer.y, outer.y + oh, my, my + mh)
+      local overlap = ix * iy
+      if overlap > 0 then
+        local center_inside = (cx >= mx and cx < mx + mw and cy >= my and cy < my + mh)
+        local score = overlap + (center_inside and 1e9 or 0)
+        if score > best_score then
+          best_score = score
+          best_m = m
+        end
+      end
+    end
+  end
+
+  return best_m
+end
+
+function M.rect_needs_rescue(outer, dst_area)
+  if not is_object(outer) or not is_object(dst_area) then
+    return false
+  end
+  local ow = tonumber(outer.w) or 0
+  local oh = tonumber(outer.h) or 0
+  if ow <= 0 or oh <= 0 then
+    return false
+  end
+  local ax = dst_area.max_x or dst_area.x or 0
+  local ay = dst_area.max_y or dst_area.y or 0
+  local aw = dst_area.max_w or dst_area.w or 0
+  local ah = dst_area.max_h or dst_area.h or 0
+  if aw <= 0 or ah <= 0 then
+    return false
+  end
+
+  local vis_w = overlap_len(outer.x, outer.x + ow, ax, ax + aw)
+  local vis_h = overlap_len(outer.y, outer.y + oh, ay, ay + ah)
+  local grab_vis_h = overlap_len(outer.y, outer.y + math.min(oh, 36), ay, ay + ah)
+
+  return vis_w < math.min(ow, 80)
+    or vis_h < math.min(oh, 60)
+    or grab_vis_h < math.min(oh, 24)
+end
+
+local function is_soft_max_on_area(outer, area)
+  if type(outer) ~= "table" or not is_object(area) then
+    return false
+  end
+  local ax = area.max_x or area.x or 0
+  local ay = area.max_y or area.y or 0
+  local aw = area.max_w or area.w or 0
+  local ah = area.max_h or area.h or 0
+  return aw > 0
+    and ah > 0
+    and math.abs(outer.x - ax) <= 6
+    and math.abs(outer.y - ay) <= 6
+    and outer.w >= aw - 16
+    and outer.h >= ah - 16
+end
+
+function M.rescue_rect_to_area(outer, dst_area, zone_name, custom_zone, src_area)
+  if not is_object(dst_area) then
+    return nil
+  end
+  if not zone_name and type(custom_zone) ~= "table" and is_soft_max_on_area(outer, src_area) then
+    zone_name = "maximize"
+  end
+  if zone_name or type(custom_zone) == "table" or is_object(src_area) then
+    return M.map_rect_between_areas(outer, src_area or dst_area, dst_area, zone_name, custom_zone)
+  end
+
+  local ow = is_object(outer) and tonumber(outer.w) or nil
+  local oh = is_object(outer) and tonumber(outer.h) or nil
+  if not ow or not oh or ow <= 0 or oh <= 0 then
+    return M.map_rect_between_areas(nil, dst_area, dst_area, nil, nil)
+  end
+
+  local fw = clamp_num(math.floor(ow + 0.5), 120, math.max(120, dst_area.w))
+  local fh = clamp_num(math.floor(oh + 0.5), 120, math.max(120, dst_area.h))
+  local max_dx = math.max(0, dst_area.w - fw)
+  local max_dy = math.max(0, dst_area.h - fh)
+
+  local on_x = overlap_len(outer.x, outer.x + ow, dst_area.x, dst_area.x + dst_area.w) >= math.min(ow, 80)
+  local on_y = overlap_len(outer.y, outer.y + oh, dst_area.y, dst_area.y + dst_area.h) >= math.min(oh, 60)
+  local rx = on_x and clamp_num(math.floor(outer.x + 0.5), dst_area.x, dst_area.x + max_dx)
+    or (dst_area.x + math.floor(max_dx / 2))
+  local ry = on_y and clamp_num(math.floor(outer.y + 0.5), dst_area.y, dst_area.y + max_dy)
+    or (dst_area.y + math.floor(max_dy / 2))
+
+  return {
+    x = rx,
+    y = ry,
     w = fw,
     h = fh,
     mode = "float",
