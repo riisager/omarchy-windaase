@@ -64,13 +64,26 @@ function M.clear_restore_state(addr)
   end
 end
 
-function M.apply_snap(window, zone)
+local function ensure_window_on_monitor(window, m)
+  if not window or not m then
+    return window
+  end
+  if not window.monitor or window.monitor.name ~= m.name then
+    local addr = window.address
+    hl.dispatch(hl.dsp.window.move({ monitor = m.name, window = window }))
+    return (addr and hl.get_window("address:" .. addr)) or window
+  end
+  return window
+end
+
+function M.apply_snap(window, zone, target_mon)
   if not window or not window.floating then
     return false
   end
 
-  local area = work_area_for_window(window)
-  if not area then
+  local m = target_mon or (window and window.monitor) or hl.get_active_monitor()
+  local area = geometry.get_work_area(m, options.gap_out, options.gap_in)
+  if not m or not area then
     return false
   end
 
@@ -79,6 +92,9 @@ function M.apply_snap(window, zone)
   end
 
   local addr = window.address
+  if zone ~= "restore" then
+    window = ensure_window_on_monitor(window, m)
+  end
 
   if zone == "maximize" then
     if not snap_restore_geom[addr] then
@@ -170,7 +186,7 @@ function M.apply_snap(window, zone)
     local zone_spec = zone == "left"
       and { rx = 0, ry = 0, rw = 0.5, rh = 1.0, max = false }
       or { rx = 0.5, ry = 0, rw = 0.5, rh = 1.0, max = false }
-    on_after_snap(window, (window and window.monitor) or hl.get_active_monitor(), zone_spec)
+    on_after_snap(window, m, zone_spec)
   end
   return true
 end
@@ -190,6 +206,8 @@ function M.apply_snap_zone(window, m, z, orig_geom, skip_after_snap)
   elseif not snap_restore_geom[addr] and (window.fullscreen or 0) == 0 then
     snap_restore_geom[addr] = { x = window.at.x, y = window.at.y, w = window.size.x, h = window.size.y }
   end
+
+  window = ensure_window_on_monitor(window, m)
 
   if z.max then
     if options.soft_maximize then
@@ -226,46 +244,39 @@ function M.apply_edge_snap_for_drag(w, start, c)
   if not w or not w.floating or not c then
     return
   end
-  local area = work_area_for_window(w)
-  if not area then
+  local m = geometry.get_monitor_at(c.x, c.y)
+  local area = m and geometry.get_work_area(m, options.gap_out, options.gap_in)
+  if not m or not area then
     return
   end
 
-  local edge_margin = 16
-  local corner_margin = 80
-
-  local near_left = c.x <= area.edge_left + edge_margin
-  local near_right = c.x >= area.edge_right - edge_margin
-  local near_top = c.y <= area.edge_top + edge_margin
-  local in_top_corner = c.y <= area.edge_top + corner_margin
-  local in_bottom_corner = c.y >= area.edge_bottom - corner_margin
-  local in_left_corner = c.x <= area.edge_left + corner_margin
-  local in_right_corner = c.x >= area.edge_right - corner_margin
-
-  local zone = nil
-  if (near_left and in_top_corner) or (near_top and in_left_corner) then
-    zone = "top-left"
-  elseif (near_right and in_top_corner) or (near_top and in_right_corner) then
-    zone = "top-right"
-  elseif near_left and in_bottom_corner then
-    zone = "bottom-left"
-  elseif near_right and in_bottom_corner then
-    zone = "bottom-right"
-  elseif near_left then
-    zone = "left"
-  elseif near_right then
-    zone = "right"
-  elseif near_top then
-    zone = "maximize"
-  end
+  local zone = options.aero_snap
+    and geometry.detect_drag_edge_zone(c.x, c.y, area, hl.get_monitors(), m.name)
+    or nil
 
   if zone then
     if not snap_restore_geom[w.address] then
-      snap_restore_geom[w.address] = { x = start.x, y = start.y, w = start.w, h = start.h }
+      snap_restore_geom[w.address] = {
+        x = start.x,
+        y = start.y,
+        w = math.min(start.w, area.w),
+        h = math.min(start.h, area.h),
+      }
     end
-    M.apply_snap(w, zone)
-  else
-    M.clear_restore_state(w.address)
+    M.apply_snap(w, zone, m)
+    return
+  end
+
+  M.clear_restore_state(w.address)
+  local border, titlebar = geometry.get_window_frame_insets(w)
+  local outer = geometry.window_outer_rect(w, border, titlebar)
+  local clamped = geometry.clamp_free_drop_rect(outer, area)
+  if clamped then
+    if on_before_snap then
+      on_before_snap(6)
+    end
+    w = ensure_window_on_monitor(w, m)
+    geometry.place_window_in_outer_rect(w, clamped.x, clamped.y, clamped.w, clamped.h)
   end
 end
 

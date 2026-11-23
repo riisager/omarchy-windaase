@@ -367,4 +367,29 @@ assert(vanished_float.y >= dp6_area.y and vanished_float.y + vanished_float.h <=
 local huge_vanished = geometry.rescue_rect_to_area({ x = 9000, y = 2000, w = 3000, h = 2000 }, dp6_area, nil, nil, nil)
 assert(huge_vanished and huge_vanished.x == dp6_area.x and huge_vanished.y == dp6_area.y and huge_vanished.w == dp6_area.w and huge_vanished.h == dp6_area.h, "oversized vanished-monitor float must clamp to dst_area")
 
+-- 14. Multi-monitor drag edge detection, oversized height rescue & free-drop clamping
+local dual_mons = {
+  { id = 1, name = "DP-1", x = 0, y = 0, width = 1920, height = 1200, scale = 1, transform = 0, reserved = { 0, 0, 0, 40 } },
+  { id = 2, name = "DP-2", x = 1920, y = 0, width = 1920, height = 1200, scale = 1, transform = 0, reserved = { 0, 0, 0, 40 } },
+  { id = 0, name = "eDP-1", x = 3840, y = 0, width = 1920, height = 1200, scale = 1.25, transform = 0, reserved = { 0, 0, 0, 40 } },
+}
+local dp1_area = geometry.get_work_area(dual_mons[1], 8, 8)
+local dp2_area = geometry.get_work_area(dual_mons[2], 8, 8)
+local edp_dock2_area = geometry.get_work_area(dual_mons[3], 8, 8)
+
+-- Oversized 1144px Teams window sitting on 1.25x eDP-1 (max_h = 920) must trigger rescue and clamp
+local teams_outer = { x = 3848, y = 8, w = 748, h = 1144 }
+assert(geometry.rect_needs_rescue(teams_outer, edp_dock2_area) == true, "oversized tall window on 1.25x eDP-1 must trigger rescue")
+local clamped_teams = geometry.clamp_free_drop_rect(teams_outer, edp_dock2_area)
+assert(clamped_teams and clamped_teams.x == 3848 and clamped_teams.y == 8 and clamped_teams.w == 748 and clamped_teams.h == edp_dock2_area.h, "clamp_free_drop_rect must shrink oversized height into eDP-1 work area")
+assert(geometry.clamp_free_drop_rect({ x = 3900, y = 60, w = 800, h = 600 }, edp_dock2_area) == nil, "comfortable window inside eDP-1 must not be clamped")
+
+-- Bounded edge snap: cursor inside DP-2 (x=2200) must never snap against DP-1 or eDP-1
+assert(geometry.detect_drag_edge_zone(2200, 400, dp1_area, dual_mons, "DP-1") == nil, "cursor on DP-2 must never snap on DP-1")
+assert(geometry.detect_drag_edge_zone(2200, 400, edp_dock2_area, dual_mons, "eDP-1") == nil, "cursor on DP-2 must never snap on eDP-1")
+assert(geometry.detect_drag_edge_zone(2, 400, dp1_area, dual_mons, "DP-1") == "left", "outer left wall of DP-1 should snap left")
+assert(geometry.detect_drag_edge_zone(5370, 400, edp_dock2_area, dual_mons, "eDP-1") == "right", "outer right wall of eDP-1 should snap right")
+assert(geometry.detect_drag_edge_zone(1926, 400, dp2_area, dual_mons, "DP-2") == "left", "releasing within tight seam margin on DP-2 left should snap left")
+assert(geometry.detect_drag_edge_zone(1940, 400, dp2_area, dual_mons, "DP-2") == nil, "crossing seam onto DP-2 must not trigger false left snap")
+
 print("ALL GEOMETRY LUA TESTS PASSED")

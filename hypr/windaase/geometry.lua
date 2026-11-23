@@ -1363,6 +1363,112 @@ function M.rect_needs_rescue(outer, dst_area)
   return vis_w < math.min(ow, 80)
     or vis_h < math.min(oh, 60)
     or grab_vis_h < math.min(oh, 24)
+    or ow > aw + 12
+    or oh > ah + 12
+end
+
+function M.detect_drag_edge_zone(cx, cy, area, monitors, mon_name)
+  if type(cx) ~= "number" or type(cy) ~= "number" or not is_object(area) then
+    return nil
+  end
+  if cx < area.edge_left - 2 or cx > area.edge_right + 2 or cy < area.edge_top - 2 or cy > area.edge_bottom + 2 then
+    return nil
+  end
+
+  local has_left = false
+  local has_right = false
+  local has_top = false
+  if is_object(monitors) then
+    for _, o in ipairs(monitors) do
+      if is_active_monitor(o) and o.name ~= mon_name then
+        local ow, oh = M.monitor_logical_size(o)
+        local ox, oy = o.x or 0, o.y or 0
+        local y_shared = overlap_len(oy, oy + oh, area.edge_top, area.edge_bottom) > 0
+        local x_shared = overlap_len(ox, ox + ow, area.edge_left, area.edge_right) > 0
+        if y_shared and math.abs((ox + ow) - area.edge_left) <= 4 then
+          has_left = true
+        end
+        if y_shared and math.abs(ox - area.edge_right) <= 4 then
+          has_right = true
+        end
+        if x_shared and math.abs((oy + oh) - area.edge_top) <= 4 then
+          has_top = true
+        end
+      end
+    end
+  end
+
+  local left_margin = has_left and 10 or 24
+  local right_margin = has_right and 10 or 24
+  local top_margin = has_top and 10 or 24
+  local corner_margin = 88
+
+  local near_left = cx <= area.edge_left + left_margin
+  local near_right = cx >= area.edge_right - right_margin
+  local near_top = cy <= area.edge_top + top_margin
+  local in_top_corner = cy <= area.edge_top + corner_margin
+  local in_bottom_corner = cy >= area.edge_bottom - corner_margin
+  local in_left_corner = cx <= area.edge_left + corner_margin
+  local in_right_corner = cx >= area.edge_right - corner_margin
+
+  if (near_left and in_top_corner) or (near_top and in_left_corner) then
+    return "top-left"
+  elseif (near_right and in_top_corner) or (near_top and in_right_corner) then
+    return "top-right"
+  elseif near_left and in_bottom_corner then
+    return "bottom-left"
+  elseif near_right and in_bottom_corner then
+    return "bottom-right"
+  elseif near_left then
+    return "left"
+  elseif near_right then
+    return "right"
+  elseif near_top then
+    return "maximize"
+  end
+  return nil
+end
+
+function M.clamp_free_drop_rect(outer, area)
+  if not is_object(outer) or not is_object(area) then
+    return nil
+  end
+  local ow = tonumber(outer.w) or 0
+  local oh = tonumber(outer.h) or 0
+  if ow <= 0 or oh <= 0 then
+    return nil
+  end
+  local ax = area.max_x or area.x or 0
+  local ay = area.max_y or area.y or 0
+  local aw = area.max_w or area.w or 0
+  local ah = area.max_h or area.h or 0
+  if aw <= 0 or ah <= 0 then
+    return nil
+  end
+
+  local vis_w = overlap_len(outer.x, outer.x + ow, ax, ax + aw)
+  local grab_top = outer.y
+  local grab_bottom = outer.y + math.min(oh, 36)
+  local grab_vis_h = overlap_len(grab_top, grab_bottom, ay, ay + ah)
+  if ow <= aw + 4
+    and oh <= ah + 4
+    and outer.y >= ay - 4
+    and grab_vis_h >= math.min(oh, 24)
+    and grab_bottom <= (ay + ah - 24)
+    and vis_w >= math.min(ow, 100) then
+    return nil
+  end
+
+  local nw = (ow > aw + 4) and math.max(120, math.min(ow, area.w or aw)) or ow
+  local nh = (oh > ah + 4) and math.max(120, math.min(oh, area.h or ah)) or oh
+  local nx = clamp_num(math.floor(outer.x + 0.5), ax, ax + math.max(0, aw - nw))
+  local ny = clamp_num(math.floor(outer.y + 0.5), ay, ay + math.max(0, ah - nh))
+  return {
+    x = nx,
+    y = ny,
+    w = math.floor(nw + 0.5),
+    h = math.floor(nh + 0.5),
+  }
 end
 
 local function is_soft_max_on_area(outer, area)

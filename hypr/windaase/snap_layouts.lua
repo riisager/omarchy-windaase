@@ -150,15 +150,18 @@ local function update_drag_overlay(st, cur, c)
   local ci, zi, z, _, py, _, ph = geometry.hit_test_snap_layouts(lx, ly, mw, layouts_cfg)
 
   if not st.snap_open then
-    if ly <= 40 or win_top <= 36 then
+    if ly <= 48 or win_top <= 36 then
       assist_seq = assist_seq + 1
       st.snap_open = true
       st.snap_mon = m
     end
+  elseif st.snap_mon and m.name ~= st.snap_mon.name and (ly <= 48 or win_top <= 36) then
+    assist_seq = assist_seq + 1
+    st.snap_mon = m
   end
 
   if st.snap_open then
-    if st.snap_mon and m.name == st.snap_mon.name and (ly <= py + ph + 56 or win_top <= 42) then
+    if st.snap_mon and m.name == st.snap_mon.name and (ly <= py + ph + 72 or win_top <= 42) then
       st.snap_zone = z
       if z then
         local area = geometry.get_work_area(m, gap_out, gap_in)
@@ -245,11 +248,13 @@ local function tick(expected_token)
     elseif cur_moved then
       local m, mw = geometry.get_monitor_at(c.x, c.y)
       local clamped_push = false
-      if m then
+      if st.snap_open then
+        clamped_push = true
+      elseif m then
         local mx, my = m.x or 0, m.y or 0
-        local push_top = (cur.at.y <= my + 38) and (dcy <= 0) and (math.abs(dcx) < 3)
-        local push_left = (cur.at.x <= mx + 4) and (dcx < 0) and (math.abs(dcy) < 3)
-        local push_right = (cur.at.x + cur.size.x >= mx + mw - 4) and (dcx > 0) and (math.abs(dcy) < 3)
+        local push_top = (c.y <= my + 48) or (cur.at.y <= my + 48)
+        local push_left = (c.x <= mx + 24)
+        local push_right = (c.x >= mx + mw - 24)
         clamped_push = push_top or push_left or push_right
       end
       if clamped_push then
@@ -261,7 +266,7 @@ local function tick(expected_token)
         st.detached_ticks = (st.detached_ticks or 0) + 1
         st.last_cx = c.x
         st.last_cy = c.y
-        if st.detached_ticks >= 2 then
+        if st.detached_ticks >= 16 then
           finish_active_drag(cur, c)
           hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
           return

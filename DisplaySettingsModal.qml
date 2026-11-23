@@ -699,6 +699,13 @@ Item {
                     var sc = Math.max(0.01, root.dragProjection.scale)
                     var rawX = Math.round(root.dragStartLogicalX + (pt.x - root.dragStartPoint.x) / sc)
                     var rawY = Math.round(root.dragStartLogicalY + (pt.y - root.dragStartPoint.y) / sc)
+                    var margin = Style.space(6)
+                    var minLogX = Math.round((margin - root.dragProjection.originX) / sc)
+                    var maxLogX = Math.round((Math.max(margin, canvasArea.width - monBox.width - margin) - root.dragProjection.originX) / sc)
+                    var minLogY = Math.round((margin - root.dragProjection.originY) / sc)
+                    var maxLogY = Math.round((Math.max(margin, canvasArea.height - monBox.height - margin) - root.dragProjection.originY) / sc)
+                    rawX = Math.max(minLogX, Math.min(maxLogX, rawX))
+                    rawY = Math.max(minLogY, Math.min(maxLogY, rawY))
                     var others = []
                     var all = root.draftMonitors || []
                     for (var i = 0; i < all.length; i++) {
