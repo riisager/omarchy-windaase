@@ -28,6 +28,7 @@ PopupCard {
   signal pinToggled(bool pinned)
   signal splitWindowsToggled()
   signal closeRequested()
+  signal displaySettingsRequested()
   signal settingsRequested()
 
   onOpenChanged: if (open) menuFlickable.contentY = 0
@@ -205,6 +206,11 @@ PopupCard {
           color: Commons.Color.popups.text
           opacity: 0.15
         }
+      }
+
+      TaskMenuRow {
+        text: root.strings.t("taskbar.displaySettings")
+        onTriggered: root.displaySettingsRequested()
       }
 
       TaskMenuRow {

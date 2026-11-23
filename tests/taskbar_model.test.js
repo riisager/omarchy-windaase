@@ -654,6 +654,76 @@ function run() {
   assert.strictEqual(TaskbarModel.resolveIconSource({ icon: "firefox" }, "ignored", fakeLookup, fakeFileUrl), "/icons/firefox.svg");
   assert.strictEqual(TaskbarModel.resolveIconSource({ icon: "missing-icon" }, "", fakeLookup, fakeFileUrl), "/icons/fallback.svg");
 
+  // Monitor arrangement helpers & AutoText label sanitization
+  assert.strictEqual(
+    TaskbarModel.sanitizePlainLabel(' <img src="https://example.invalid/x">\tDELL\nU2412M ', 64),
+    '\u2039img src="https://example.invalid/x"\u203a DELL U2412M'
+  );
+  assert.strictEqual(TaskbarModel.cleanMonitorScale(1.25, 1920, 1200), "1.25");
+  assert.strictEqual(TaskbarModel.cleanMonitorScale(1.5, 1920, 1200), "1.5");
+  assert.strictEqual(TaskbarModel.cleanMonitorScale(1.5, 2560, 1440), "1.6");
+  assert.strictEqual(TaskbarModel.cleanMonitorScale(1.25, 2560, 1440), "1.25");
+  const scales1920 = TaskbarModel.availableMonitorScales(1920, 1200, 1.25).map((s) => s.value);
+  assert.ok(scales1920.includes("1") && scales1920.includes("1.25") && scales1920.includes("1.5") && scales1920.includes("1.6") && scales1920.includes("2"));
+
+  assert.deepStrictEqual(
+    TaskbarModel.monitorLogicalSizeForSpec({ mode: "preferred", width: 1920, height: 1200, scale: 1.25, transform: 0 }),
+    { w: 1536, h: 960 }
+  );
+  assert.deepStrictEqual(
+    TaskbarModel.monitorLogicalSizeForSpec({ mode: "1920x1200@59.95Hz", width: 1920, height: 1200, scale: 1.25, transform: 1 }),
+    { w: 960, h: 1536 }
+  );
+
+  // Magnetic snap to right edge and top-align
+  const snapped = TaskbarModel.snapMonitorRect(
+    { x: 1890, y: 25, w: 1536, h: 960 },
+    [{ x: 0, y: 0, w: 1920, h: 1200, enabled: true }],
+    72
+  );
+  assert.deepStrictEqual(snapped, { x: 1920, y: 0, snappedX: true, snappedY: true });
+
+  // Layout normalization: dragging rightmost monitor to far left normalizes origin to 0x0 and preserves intentional stagger
+  const normDrag = TaskbarModel.normalizeMonitorLayout([
+    { matchKey: "DP-1", name: "DP-1", width: 1920, height: 1200, scale: 1, x: 0, y: 0, enabled: true },
+    { matchKey: "DP-2", name: "DP-2", width: 1920, height: 1200, scale: 1, x: -2400, y: 200, enabled: true }
+  ], "DP-2");
+  assert.strictEqual(normDrag[1].x, 0);
+  assert.strictEqual(normDrag[1].y, 200);
+  assert.strictEqual(normDrag[0].x, 1920);
+  assert.strictEqual(normDrag[0].y, 0);
+
+  // Changing scale from 1.0 -> 1.25 closes gap automatically
+  const normScale = TaskbarModel.normalizeMonitorLayout([
+    { matchKey: "eDP-1", name: "eDP-1", width: 1920, height: 1200, scale: 1.25, x: 0, y: 0, enabled: true },
+    { matchKey: "DP-1", name: "DP-1", width: 1920, height: 1200, scale: 1, x: 1920, y: 0, enabled: true }
+  ], "");
+  assert.strictEqual(normScale[0].x, 0);
+  assert.strictEqual(normScale[1].x, 1536);
+
+  // Overlapping drop pushes monitor cleanly onto nearest non-overlapping edge
+  const normOverlap = TaskbarModel.normalizeMonitorLayout([
+    { matchKey: "DP-1", name: "DP-1", width: 1920, height: 1200, scale: 1, x: 0, y: 0, enabled: true },
+    { matchKey: "DP-2", name: "DP-2", width: 1920, height: 1200, scale: 1, x: 1400, y: 100, enabled: true }
+  ], "DP-2");
+  assert.strictEqual(normOverlap[0].x, 0);
+  assert.strictEqual(normOverlap[1].x, 1920);
+
+  // Portrait rotation repacks cleanly without overlap
+  const normRotate = TaskbarModel.normalizeMonitorLayout([
+    { matchKey: "DP-1", name: "DP-1", width: 1920, height: 1200, scale: 1, transform: 1, x: 0, y: 0, enabled: true },
+    { matchKey: "DP-2", name: "DP-2", width: 1920, height: 1200, scale: 1, transform: 0, x: 1920, y: 0, enabled: true }
+  ], "DP-1");
+  assert.strictEqual(normRotate[0].logicalW, 1200);
+  assert.strictEqual(normRotate[0].logicalH, 1920);
+  assert.strictEqual(normRotate[0].x, 0);
+  assert.strictEqual(normRotate[1].x, 1200);
+
+  const proj = TaskbarModel.computeCanvasProjection(normScale, 680, 240, 36);
+  assert.ok(proj.scale > 0 && proj.bboxW === 1536 + 1920 && proj.bboxH === 1200);
+  assert.strictEqual(TaskbarModel.monitorsStateChanged(normScale, normScale), false);
+  assert.strictEqual(TaskbarModel.monitorsStateChanged(normScale, normDrag), true);
+
   // Verify i18n JSON files cover all 50 Omarchy locales cleanly with exact key & placeholder parity
   const i18nDir = path.join(__dirname, "../i18n");
   const omarchyLocalesPath = "/usr/share/omarchy/default/i18n/locales.json";
@@ -682,7 +752,7 @@ function run() {
 
   const en = JSON.parse(fs.readFileSync(path.join(i18nDir, "en.json"), "utf8"));
   const enKeys = Object.keys(en).sort();
-  assert.strictEqual(enKeys.length, 67, "Expected 67 keys in en.json");
+  assert.strictEqual(enKeys.length, 94, "Expected 94 keys in en.json");
 
   const placeholders = (str) => [...(str.match(/%[12]/g) || [])].sort();
 

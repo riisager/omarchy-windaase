@@ -96,6 +96,7 @@ else
      "${SCRIPT_DIR}/SettingsCard.qml" \
      "${SCRIPT_DIR}/SnapAssistCard.qml" \
      "${SCRIPT_DIR}/AltTabSwitcher.qml" \
+     "${SCRIPT_DIR}/DisplaySettingsModal.qml" \
      "${SCRIPT_DIR}/Service.qml" \
      "${SCRIPT_DIR}/AppGrid.qml" \
      "${SCRIPT_DIR}/windaase-config.py" \

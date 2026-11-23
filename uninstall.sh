@@ -60,6 +60,8 @@ fi
 
 if [[ "$RESTORE_STOCK" -eq 1 ]] && [[ -n "${CONFIG_HELPER}" ]]; then
   python3 "${CONFIG_HELPER}" bar-height-reset || true
+  python3 "${CONFIG_HELPER}" strip-monitors-block || true
+  rm -f "${HOME}/.config/omarchy/windaase-monitors.json"
 fi
 
 if command -v omarchy >/dev/null 2>&1; then

@@ -9,6 +9,7 @@ local snap_resize = require("hypr.windaase.snap_resize")
 local focus = require("hypr.windaase.focus")
 local show_desktop = require("hypr.windaase.show_desktop")
 local alt_tab = require("hypr.windaase.alt_tab")
+local monitors = require("hypr.windaase.monitors")
 
 local M = {}
 
@@ -84,10 +85,12 @@ function M.setup(user_opts)
   snap_resize.setup(opts, snap_layouts.write_state, snap_layouts.suppress)
   alt_tab.setup(opts)
   focus.setup(opts.hover_scroll ~= false)
+  monitors.setup(opts)
 
   if opts.shortcuts then
     o.rebind("ALT + F4", "Close window", hl.dsp.window.close())
     o.rebind("SUPER + D", "Show desktop", show_desktop.toggle)
+    o.rebind("SUPER + P", "Display setup", "omarchy-shell riisager.windaase displays")
     o.rebind("SUPER + E", "File manager", { omarchy = "nautilus" })
     o.rebind("SUPER + ALT + SPACE", "Apps", "omarchy-shell riisager.windaase apps")
     o.rebind("SUPER + Home", "Minimize other windows (or restore tiled width)", function()

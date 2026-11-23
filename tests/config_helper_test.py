@@ -2,6 +2,7 @@
 """Unit tests for windaase-config.py in an isolated temporary HOME."""
 
 import glob
+import importlib.util
 import json
 import os
 import shutil
@@ -1091,6 +1092,223 @@ class ConfigHelperTests(unittest.TestCase):
         data = json.loads(self.read_text(os.path.join(self.omarchy_dir, "windaase.json")))
         for key in keys:
             self.assertIs(data.get(key), False, f"Concurrent update lost key: {key}")
+
+    def _load_helper_module(self):
+        spec = importlib.util.spec_from_file_location("windaase_config", SCRIPT_PATH)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_monitor_match_keys_sync_lua_and_clamshell_protection(self):
+        mod = self._load_helper_module()
+        raw = [
+            {
+                "id": 0,
+                "name": "eDP-1",
+                "description": "Sharp Corporation 0x15C3",
+                "width": 1920,
+                "height": 1200,
+                "refreshRate": 120.0,
+                "x": 3840,
+                "y": 0,
+                "scale": 1.25,
+                "transform": 0,
+                "disabled": False,
+                "mirrorOf": "none",
+                "availableModes": ["1920x1200@120.00Hz", "1920x1200@120.00Hz"],
+            },
+            {
+                "id": 1,
+                "name": "DP-1",
+                "description": "Dell Inc. DELL U2412M YPPY091S1W7B",
+                "width": 1920,
+                "height": 1200,
+                "refreshRate": 59.95,
+                "x": 0,
+                "y": 0,
+                "scale": 1,
+                "transform": 0,
+                "disabled": False,
+                "mirrorOf": "none",
+                "availableModes": ["1920x1200@59.95Hz", "1920x1080@60.00Hz"],
+            },
+            {
+                "id": 2,
+                "name": "DP-2",
+                "description": "Dell Inc. DELL U2412M YPPY091S1W1B",
+                "width": 1920,
+                "height": 1200,
+                "refreshRate": 59.95,
+                "x": 1920,
+                "y": 0,
+                "scale": 1,
+                "transform": 0,
+                "disabled": False,
+                "mirrorOf": "none",
+                "availableModes": ["1920x1200@59.95Hz"],
+            },
+            {
+                "id": 9,
+                "name": "FALLBACK",
+                "description": "FALLBACK",
+                "width": 1920,
+                "height": 1080,
+                "x": 0,
+                "y": 0,
+                "scale": 1,
+                "disabled": False,
+                "mirrorOf": "none",
+            },
+        ]
+
+        items, profile_id = mod.resolve_monitor_match_keys(raw)
+        self.assertEqual([it["name"] for it in items], ["eDP-1", "DP-2", "DP-1"])
+        self.assertEqual(items[0]["matchKey"], "eDP-1")
+        self.assertEqual(items[1]["matchKey"], "desc:Dell Inc. DELL U2412M YPPY091S1W1B")
+        self.assertIn(" | ", profile_id)
+
+        # Duplicate external description without unique serial falls back to connector name
+        dup_raw = [
+            {"name": "DP-3", "description": "Generic Monitor", "mirrorOf": "none"},
+            {"name": "DP-4", "description": "Generic Monitor", "mirrorOf": "none"},
+        ]
+        dup_items, _ = mod.resolve_monitor_match_keys(dup_raw)
+        self.assertEqual([it["matchKey"] for it in dup_items], ["DP-3", "DP-4"])
+
+        # Migration of existing monitors.lua creates backup, updates GDK_SCALE, stays single-line, and is idempotent
+        hypr_dir = os.path.join(self.home, ".config", "hypr")
+        os.makedirs(hypr_dir, exist_ok=True)
+        mon_lua = os.path.join(hypr_dir, "monitors.lua")
+        legacy_lua = (
+            'local omarchy_monitor_scale = "auto"\n'
+            'hl.monitor({ output = "", mode = "preferred", position = "auto", scale = omarchy_monitor_scale })\n'
+            'hl.monitor({ output = "DP-5", mode = "preferred", position = "auto", scale = 1.25 })\n'
+            'local last_edp_pos = nil\n'
+            'local function update_edp_position(gone_name)\n'
+            '  hl.monitor({ output = "eDP-1", mode = "preferred", position = "0x0", scale = 1.25 })\n'
+            'end\n'
+            'hl.on("monitor.removed", function(monitor)\n'
+            '  update_edp_position()\n'
+            'end)\n'
+            'local omarchy_gdk_scale = 2\n'
+            'hl.env("GDK_SCALE", tostring(omarchy_gdk_scale))\n'
+        )
+        with open(mon_lua, "w", encoding="utf-8") as handle:
+            handle.write(legacy_lua)
+
+        rules = [
+            {"name": "DP-1", "matchKey": "desc:Dell Inc. DELL U2412M YPPY091S1W7B", "enabled": True, "mode": "preferred", "x": 0, "y": 0, "scale": 1, "transform": 0},
+            {"name": "DP-2", "matchKey": "desc:Dell Inc. DELL U2412M YPPY091S1W1B", "enabled": True, "mode": "preferred", "x": 1920, "y": 0, "scale": 1, "transform": 0},
+            {"name": "eDP-1", "matchKey": "eDP-1", "enabled": True, "mode": "preferred", "x": 3840, "y": 0, "scale": 1.25, "transform": 0},
+        ]
+        changed = mod.sync_monitors_lua(mon_lua, rules, 1)
+        self.assertTrue(changed)
+        backups = glob.glob(mon_lua + ".bak-windaase-*")
+        self.assertEqual(len(backups), 1)
+        synced = self.read_text(mon_lua)
+        self.assertIn(mod.MONITORS_BLOCK_BEGIN, synced)
+        self.assertIn('hl.monitor({ output = "eDP-1", mode = "preferred", position = "3840x0", scale = 1.25 })', synced)
+        self.assertIn('hl.monitor({ output = "desc:Dell Inc. DELL U2412M YPPY091S1W7B", mode = "preferred", position = "0x0", scale = 1 })', synced)
+        self.assertIn("local omarchy_gdk_scale = 1", synced)
+        self.assertNotIn("local last_edp_pos", synced)
+        self.assertNotIn('output = "DP-5"', synced)
+        # Idempotent second write returns False
+        self.assertFalse(mod.sync_monitors_lua(mon_lua, rules, 1))
+        # Clean strip leaves user catch-all & GDK_SCALE intact
+        self.assertTrue(mod.strip_monitors_lua_block(mon_lua))
+        stripped = self.read_text(mon_lua)
+        self.assertNotIn(mod.MONITORS_BLOCK_BEGIN, stripped)
+        self.assertIn('output = ""', stripped)
+
+    def test_monitor_preview_commit_revert_apply_and_validation(self):
+        mod = self._load_helper_module()
+        raw = [
+            {
+                "id": 0, "name": "eDP-1", "description": "Sharp 15C3",
+                "width": 1920, "height": 1200, "refreshRate": 120.0,
+                "x": 0, "y": 0, "scale": 1.25, "transform": 0,
+                "disabled": False, "mirrorOf": "none",
+                "availableModes": ["1920x1200@120.00Hz"],
+            },
+            {
+                "id": 1, "name": "DP-1", "description": "Dell U2415 ABC",
+                "width": 1920, "height": 1200, "refreshRate": 59.95,
+                "x": 1536, "y": 0, "scale": 1, "transform": 0,
+                "disabled": False, "mirrorOf": "none",
+                "availableModes": ["1920x1200@59.95Hz"],
+            },
+        ]
+        runtime_dir = os.path.join(self.home, ".run")
+        eval_calls = []
+
+        # Preview writes lock, sends enabled before disabled, and suppresses monitors-apply
+        mod.monitors_preview_action(
+            raw,
+            {
+                "monitors": [
+                    {"name": "eDP-1", "matchKey": "eDP-1", "enabled": False, "mode": "preferred", "x": 0, "y": 0, "scale": 1.25, "transform": 0},
+                    {"name": "DP-1", "matchKey": "desc:Dell U2415 ABC", "enabled": True, "mode": "preferred", "x": 0, "y": 0, "scale": 1, "transform": 1},
+                ]
+            },
+            home_dir=self.home,
+            runtime_dir=runtime_dir,
+            lid_paths=[],
+            hypr_eval=eval_calls.append,
+        )
+        self.assertTrue(os.path.exists(mod.monitors_preview_lock_path(runtime_dir=runtime_dir, home_dir=self.home)))
+        self.assertIn('output = "DP-1", disabled = false', eval_calls[0])
+        self.assertIn('output = "eDP-1", disabled = true', eval_calls[1])
+        self.assertIn("rescue_offscreen_windows", eval_calls[-1])
+
+        skip_calls = []
+        skip_res = mod.monitors_apply_action(raw, home_dir=self.home, runtime_dir=runtime_dir, lid_paths=[], hypr_eval=skip_calls.append)
+        self.assertEqual(skip_res.get("skipped"), "preview-active")
+        self.assertEqual(skip_calls, [])
+
+        # Revert restores original snapshot and clears lock
+        rev_calls = []
+        rev_res = mod.monitors_revert_action(raw_monitors=raw, home_dir=self.home, runtime_dir=runtime_dir, lid_paths=[], hypr_eval=rev_calls.append)
+        self.assertTrue(rev_res.get("reverted"))
+        self.assertFalse(os.path.exists(mod.monitors_preview_lock_path(runtime_dir=runtime_dir, home_dir=self.home)))
+        self.assertGreaterEqual(len(rev_calls), 2)
+
+        # Clamshell commit keeps eDP-1 off at runtime while preserving enabled=True open-lid rule in windaase-monitors.json
+        lid_file = os.path.join(self.home, "lid-state")
+        with open(lid_file, "w", encoding="utf-8") as handle:
+            handle.write("state:      closed\n")
+        commit_calls = []
+        raw_closed = [dict(raw[0], disabled=True), dict(raw[1], x=0)]
+        mod.monitors_commit_action(
+            raw_closed,
+            {
+                "monitors": [
+                    {"name": "eDP-1", "matchKey": "eDP-1", "enabled": False, "mode": "preferred", "x": 0, "y": 0, "scale": 1.25, "transform": 0},
+                    {"name": "DP-1", "matchKey": "desc:Dell U2415 ABC", "enabled": True, "mode": "preferred", "x": 0, "y": 0, "scale": 1, "transform": 0},
+                ]
+            },
+            home_dir=self.home,
+            runtime_dir=runtime_dir,
+            lid_paths=[lid_file],
+            hypr_eval=commit_calls.append,
+        )
+        db = self.read_json(mod.monitors_profiles_path(home_dir=self.home))
+        saved_edp = [m for m in next(iter(db["profiles"].values()))["monitors"] if m["name"] == "eDP-1"][0]
+        self.assertTrue(saved_edp["enabled"])
+        self.assertTrue(any('output = "eDP-1", disabled = true' in c for c in commit_calls))
+
+        # Apply recovery when unplugging dock leaves all connected displays disabled
+        solo_disabled = [dict(raw[0], disabled=True)]
+        rec_calls = []
+        rec_res = mod.monitors_apply_action(solo_disabled, home_dir=self.home, runtime_dir=runtime_dir, lid_paths=[lid_file], hypr_eval=rec_calls.append)
+        self.assertTrue(rec_res.get("recovered"))
+        self.assertTrue(any('output = "eDP-1", disabled = false' in c for c in rec_calls))
+
+        # Injection / unsafe input validation
+        with self.assertRaises(ValueError):
+            mod.validate_connector_name('eDP-1"; os.execute("id")')
+        with self.assertRaises(ValueError):
+            mod.validate_monitor_mode('1920x1080";bad')
+        self.assertEqual(mod.safe_desc_selector('Dell"; os.execute("pwn")'), "")
 
 
 if __name__ == "__main__":

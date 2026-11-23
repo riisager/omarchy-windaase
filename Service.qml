@@ -349,6 +349,33 @@ Item {
     id: appGrid
   }
 
+  property bool identifyActive: false
+  property var identifyMap: ({})
+
+  function showMonitorIdentify(items) {
+    var next = {}
+    var list = Array.isArray(items) ? items : []
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i]
+      if (it && it.name) next[String(it.name)] = it
+    }
+    root.identifyMap = next
+    root.identifyActive = true
+    identifyTimer.restart()
+  }
+
+  Timer {
+    id: identifyTimer
+    interval: 2500
+    repeat: false
+    onTriggered: root.identifyActive = false
+  }
+
+  DisplaySettingsModal {
+    id: displayModal
+    onIdentifyRequested: function(items) { root.showMonitorIdentify(items) }
+  }
+
   ShellIpc {
     target: "riisager.windaase"
 
@@ -358,6 +385,10 @@ Item {
 
     function settings(): void {
       Commons.IpcRegistry.call("riisager.windaase.bar", "toggleSettings", [])
+    }
+
+    function displays(): void {
+      displayModal.toggle()
     }
   }
 
@@ -919,6 +950,77 @@ Item {
             Behavior on scale { NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic } }
 
             onWindowPicked: function(w) { root.activateAltTabWindow(w) }
+          }
+        }
+      }
+    }
+  }
+
+  // Brief click-through screen number badges rendered when clicking "Identify"
+  Variants {
+    model: root.identifyActive ? Quickshell.screens : []
+
+    delegate: Component {
+      PanelWindow {
+        id: idWin
+        required property var modelData
+        screen: modelData
+
+        readonly property var mon: Hyprland.monitorFor(screen)
+        readonly property string monName: mon ? String(mon.name || "") : ""
+        readonly property var info: root.identifyMap[monName] || null
+
+        visible: root.identifyActive && !!info
+        color: "transparent"
+        WlrLayershell.namespace: "omarchy-windaase-identify"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        exclusionMode: ExclusionMode.Ignore
+        exclusiveZone: 0
+
+        anchors {
+          top: true
+          bottom: true
+          left: true
+          right: true
+        }
+
+        mask: Region {}
+
+        BorderSurface {
+          anchors.left: parent.left
+          anchors.bottom: parent.bottom
+          anchors.margins: Style.space(28)
+          width: idRow.implicitWidth + Style.space(32)
+          height: idRow.implicitHeight + Style.space(24)
+          radius: Math.max(Style.space(10), Style.cornerRadius)
+          color: Commons.Color.popups.background
+          borderSpec: Border.flat(Commons.Color.accent, Math.max(2, Style.normalBorderWidth))
+
+          Row {
+            id: idRow
+            anchors.centerIn: parent
+            spacing: Style.spacing.md
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: idWin.info ? Commons.I18n.formatNumber(idWin.info.number || 1) : ""
+              color: Commons.Color.accent
+              font.family: Style.font.family
+              font.pixelSize: Style.space(42)
+              font.bold: true
+            }
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: idWin.info ? String(idWin.info.label || idWin.monName) : ""
+              color: Commons.Color.popups.text
+              font.family: Style.font.family
+              font.pixelSize: Style.font.title
+              font.bold: true
+            }
           }
         }
       }

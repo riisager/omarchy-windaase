@@ -1649,6 +1649,9 @@ BarWidget {
       uncombine: TaskbarModel.toggleUncombineApp(root.uncombinedApps, targetAppKey)
     })
     onCloseRequested: root.quitItem(targetItem)
+    onDisplaySettingsRequested: {
+      Util.execArgv(["omarchy-shell", "riisager.windaase", "displays"])
+    }
     onSettingsRequested: {
       var anchor = root.menuAnchor || root
       Qt.callLater(function() { root.openSettings(anchor) })
@@ -1719,6 +1722,10 @@ BarWidget {
     }
     onRestartFilesRequested: {
       Util.execArgv(["nautilus", "-q"])
+    }
+    onDisplaySetupRequested: {
+      root.settingsOpen = false
+      Util.execArgv(["omarchy-shell", "riisager.windaase", "displays"])
     }
   }
 }

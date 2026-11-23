@@ -34,6 +34,7 @@ PopupCard {
   signal restartFilesRequested()
   signal hyprOptionToggled(string key, bool enabled)
   signal copyInstallCommandRequested()
+  signal displaySetupRequested()
 
   onOpenChanged: if (!open) {
     copyDone = false
@@ -351,6 +352,20 @@ PopupCard {
         width: parent.width
         text: root.strings.t("settings.sectionWindows")
         foreground: Commons.Color.popups.text
+      }
+
+      Button {
+        width: parent.width
+        text: TaskbarModel.sanitizePlainLabel(root.strings.t("settings.displaySetup"), 48)
+        bordered: true
+        focusable: false
+        foreground: Commons.Color.popups.text
+        background: Commons.Color.popups.background
+        accent: Commons.Color.accent
+        fontSize: Style.font.body
+        horizontalPadding: Style.spacing.sm
+        verticalPadding: Style.space(4)
+        onClicked: root.displaySetupRequested()
       }
 
       Rectangle {
