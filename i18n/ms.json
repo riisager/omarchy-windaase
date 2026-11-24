@@ -94,5 +94,6 @@
   "display.keepChanges": "Kekalkan perubahan",
   "display.revert": "Kembalikan",
   "display.applyError": "Tidak dapat menggunakan tetapan paparan.",
-  "settings.floatingOnly": "Tetingkap terapung sahaja"
+  "settings.floatingOnly": "Tetingkap terapung sahaja",
+  "settings.snapResize": "Snap Resize"
 }

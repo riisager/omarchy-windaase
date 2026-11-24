@@ -94,5 +94,6 @@
   "display.keepChanges": "Išsaugoti pakeitimus",
   "display.revert": "Atšaukti",
   "display.applyError": "Nepavyko pritaikyti ekrano nustatymų.",
-  "settings.floatingOnly": "Tik slankiojantys langai"
+  "settings.floatingOnly": "Tik slankiojantys langai",
+  "settings.snapResize": "Snap Resize"
 }

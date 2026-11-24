@@ -7,6 +7,10 @@ import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
 import "TaskbarModel.js" as TaskbarModel
+import "js/AppSearch.js" as AppSearch
+import "js/BrowserProfiles.js" as BrowserProfiles
+import "js/SnapLayoutMath.js" as SnapLayoutMath
+import "js/WindowActions.js" as WindowActions
 
 BarWidget {
   id: root
@@ -43,12 +47,7 @@ BarWidget {
   property var activeBrowserSpec: null
   property string activeBrowserStateFile: ""
   property var browserProfiles: []
-  property var windowProfiles: ({})
-  property var pendingProfileLaunch: null
-  property var knownBrowserAddrs: ({})
-  property var profileProbeRetries: ({})
-  property var pendingProbeBatch: []
-  property var lastProbedBatch: []
+  property alias windowProfiles: profileTracker.windowProfiles
   property var urgentAddresses: ({})
   property var windowOrderState: ({ seq: 0, byAddr: {} })
   property int dragIndex: -1
@@ -167,7 +166,7 @@ BarWidget {
     printErrors: false
     onLoaded: {
       if (root.activeBrowserSpec) {
-        root.browserProfiles = TaskbarModel.parseBrowserProfiles(text(), root.activeBrowserSpec)
+        root.browserProfiles = BrowserProfiles.parseBrowserProfiles(text(), root.activeBrowserSpec)
       }
     }
     onLoadFailed: {
@@ -222,6 +221,15 @@ BarWidget {
     return id ? DesktopEntries.byId(id) : null
   }
 
+  function iconSourceFor(entry, fallbackId) {
+    return TaskbarModel.resolveIconSource(
+      entry,
+      fallbackId,
+      function(name) { return Quickshell.iconPath(name, true) },
+      function(p) { return Util.fileUrl(p) }
+    )
+  }
+
   readonly property var items: {
     var appsRevision = DesktopEntries.applications.values.length
     var pinned = (root.pinnedList || []).map(function(id) {
@@ -233,37 +241,12 @@ BarWidget {
     var windows = []
     var toplevels = Hyprland.toplevels.values
     for (var i = 0; i < toplevels.length; i++) {
-      var toplevel = toplevels[i].wayland
-      if (!toplevel || !toplevel.appId || toplevel.parent) continue
-      var entry = root.entryForAppId(toplevel.appId)
-      var appKey = entry ? entry.id : toplevel.appId
-      var workspace = toplevels[i].workspace
-      var winMon = toplevels[i].monitor || (workspace ? workspace.monitor : null)
-      var ipc = toplevels[i].lastIpcObject || {}
-      var rawTags = ipc.tags ? ipc.tags : []
-      var cleanTags = []
-      for (var ti = 0; ti < rawTags.length; ti++) {
-        cleanTags.push(String(rawTags[ti]))
-      }
-      var normAddr = TaskbarModel.normalizeAddress(toplevels[i].address)
-      var isMin = !!workspace && TaskbarModel.isMinimizedWorkspace(workspace.name)
-      var isUrgent = !!(normAddr && root.urgentAddresses[normAddr.toLowerCase()] && !(toplevel.activated && !isMin))
-      windows.push({
-        key: appKey,
-        hasEntry: !!entry && !entry.noDisplay,
-        title: toplevel.title || (entry ? entry.name : toplevel.appId),
-        activated: !!toplevel.activated,
-        workspaceId: workspace ? workspace.id : -1,
-        monitorName: winMon && winMon.name ? String(winMon.name) : "",
-        minimized: isMin,
-        pinned: !!ipc.pinned,
-        floating: !!ipc.floating,
-        urgent: isUrgent,
-        address: toplevels[i].address,
-        tags: cleanTags,
-        profile: normAddr ? TaskbarModel.lookupWindowProfile(normAddr, root.windowProfiles) : null,
-        toplevel: toplevel
+      var normWin = WindowActions.normalizeToplevelWindow(toplevels[i], {
+        resolveEntry: root.entryForAppId,
+        windowProfiles: root.windowProfiles,
+        urgentAddresses: root.urgentAddresses
       })
+      if (normWin) windows.push(normWin)
     }
 
     var orderedWindows = TaskbarModel.stabilizeWindows(windows, root.windowOrderState)
@@ -273,7 +256,7 @@ BarWidget {
       root.barActiveWorkspaceId,
       root.barMonitorName
     )
-    var uncombined = Array.isArray(root.uncombinedApps) ? root.uncombinedApps : []
+    var uncombined = TaskbarModel.isArrayLike(root.uncombinedApps) ? root.uncombinedApps : []
     return TaskbarModel.buildItems(pinned, scopedWindows, uncombined)
   }
 
@@ -289,16 +272,10 @@ BarWidget {
 
   ListModel { id: itemModel }
 
-  Timer {
-    id: profileProbeTimer
-    interval: 300
-    onTriggered: root.runProfileProbe()
-  }
-
-  Timer {
-    id: profileRetryTimer
-    interval: 2500
-    onTriggered: root.runProfileProbe()
+  BrowserProfileTracker {
+    id: profileTracker
+    widgetRoot: root
+    configScriptPath: root.configScriptPath
   }
 
   Timer {
@@ -327,14 +304,6 @@ BarWidget {
         root.pickerKey = ""
         root.pickerTriggerMode = "click"
       }
-    }
-  }
-
-  Process {
-    id: profileProbeProc
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.applyProfileProbeOutput(text)
     }
   }
 
@@ -404,8 +373,6 @@ BarWidget {
   }
   Component.onDestruction: {
     root._destroyed = true
-    profileProbeTimer.stop()
-    profileRetryTimer.stop()
     hoverOpenTimer.stop()
     hoverCloseTimer.stop()
     root.closePopouts()
@@ -415,7 +382,7 @@ BarWidget {
     if (!root || root._destroyed) return []
     if (root.bar && typeof root.bar.moduleWidgets === "function") {
       var list = root.bar.moduleWidgets(root.moduleName)
-      if (Array.isArray(list) && list.length > 0) return list
+      if (TaskbarModel.isArrayLike(list) && list.length > 0) return list
     }
     return [root]
   }
@@ -436,200 +403,11 @@ BarWidget {
   }
 
   function recordProfileLaunch(appKey, profileObj) {
-    if (!appKey || !profileObj || !profileObj.dir) return
-    root.pendingProfileLaunch = {
-      appKey: String(appKey).toLowerCase(),
-      dir: String(profileObj.dir),
-      name: String(profileObj.name || profileObj.dir),
-      initial: String(profileObj.initial || "?"),
-      picturePath: String(profileObj.picturePath || ""),
-      expiresAt: Date.now() + 12000
-    }
+    profileTracker.recordLaunch(appKey, profileObj)
   }
 
   function syncBrowserProfiles() {
-    if (!root || root._destroyed) return
-    var peers = root.peerWidgets()
-    if (peers.length > 0 && peers[0] !== root) {
-      profileProbeTimer.stop()
-      profileRetryTimer.stop()
-      var leader = peers[0]
-      var leaderMap = (leader && leader.windowProfiles) ? leader.windowProfiles : ({})
-      if (JSON.stringify(leaderMap) !== JSON.stringify(root.windowProfiles || {})) {
-        root.windowProfiles = leaderMap
-      }
-      return
-    }
-
-    var toplevels = Hyprland.toplevels.values
-    var browserWins = []
-    var nextKnown = {}
-    var activeRetryKeys = {}
-    var newAddrs = {}
-
-    for (var i = 0; i < toplevels.length; i++) {
-      var tl = toplevels[i]
-      var wl = tl ? tl.wayland : null
-      if (!wl || !wl.appId || wl.parent) continue
-      var entry = root.entryForAppId(wl.appId)
-      var rawKey = entry ? entry.id : wl.appId
-      var normKey = TaskbarModel.normalizeId(rawKey).toLowerCase()
-      if (TaskbarModel.browserProfileConfigDir(normKey, "x").length === 0) continue
-
-      var addr = TaskbarModel.normalizeAddress(tl.address).toLowerCase()
-      if (!addr) continue
-      var ipc = tl.lastIpcObject || {}
-      var winObj = {
-        address: addr,
-        appKey: normKey,
-        pid: ipc.pid ? Number(ipc.pid) : 0,
-        title: String(wl.title || ""),
-        initialTitle: String(ipc.initialTitle || ""),
-        activated: !!wl.activated
-      }
-      browserWins.push(winObj)
-      nextKnown[addr] = true
-      activeRetryKeys[addr + "|" + winObj.title] = true
-      if (!root.knownBrowserAddrs[addr]) newAddrs[addr] = winObj
-    }
-
-    var nextProfiles = {}
-    var profilesDirty = false
-    var oldKeys = Object.keys(root.windowProfiles || {})
-    for (var k = 0; k < oldKeys.length; k++) {
-      var pk = oldKeys[k]
-      if (nextKnown[pk]) nextProfiles[pk] = root.windowProfiles[pk]
-      else profilesDirty = true
-    }
-
-    if (root.pendingProfileLaunch) {
-      if (Date.now() > root.pendingProfileLaunch.expiresAt) {
-        root.pendingProfileLaunch = null
-      } else {
-        var newKeys = Object.keys(newAddrs)
-        for (var n = 0; n < newKeys.length; n++) {
-          var nw = newAddrs[newKeys[n]]
-          if (nw.appKey === root.pendingProfileLaunch.appKey) {
-            nextProfiles[nw.address] = {
-              dir: root.pendingProfileLaunch.dir,
-              name: root.pendingProfileLaunch.name,
-              initial: root.pendingProfileLaunch.initial,
-              picturePath: root.pendingProfileLaunch.picturePath,
-              confident: true
-            }
-            root.pendingProfileLaunch = null
-            profilesDirty = true
-            break
-          }
-        }
-      }
-    }
-
-    var cleanedRetries = {}
-    var rKeys = Object.keys(root.profileProbeRetries || {})
-    for (var r = 0; r < rKeys.length; r++) {
-      var rk = rKeys[r]
-      if (activeRetryKeys[rk]) cleanedRetries[rk] = root.profileProbeRetries[rk]
-    }
-    root.profileProbeRetries = cleanedRetries
-    root.knownBrowserAddrs = nextKnown
-
-    if (profilesDirty) root.syncProfilesToPeers(nextProfiles)
-
-    var needProbe = []
-    for (var b = 0; b < browserWins.length; b++) {
-      var bw = browserWins[b]
-      var existing = nextProfiles[bw.address]
-      if (existing && existing.confident) continue
-      var retryKey = bw.address + "|" + bw.title
-      if ((root.profileProbeRetries[retryKey] || 0) < 3) {
-        needProbe.push(bw)
-      }
-    }
-
-    if (needProbe.length > 0) {
-      root.pendingProbeBatch = needProbe
-      if (!profileProbeTimer.running && !profileProbeProc.running) {
-        profileProbeTimer.restart()
-      }
-    } else {
-      root.pendingProbeBatch = []
-      profileProbeTimer.stop()
-      profileRetryTimer.stop()
-    }
-  }
-
-  function runProfileProbe() {
-    if (!root || root._destroyed || !root.isProfileLeader() || profileProbeProc.running || !root.configScriptPath) return
-    var src = root.pendingProbeBatch || []
-    var batch = []
-    var nextRetries = Object.assign({}, root.profileProbeRetries || {})
-    for (var i = 0; i < src.length; i++) {
-      var item = src[i]
-      var existing = root.windowProfiles ? root.windowProfiles[item.address] : null
-      if (existing && existing.confident) continue
-      var retryKey = item.address + "|" + item.title
-      var count = nextRetries[retryKey] || 0
-      if (count >= 3) continue
-      nextRetries[retryKey] = count + 1
-      batch.push(item)
-    }
-    root.profileProbeRetries = nextRetries
-    if (batch.length === 0) return
-    root.lastProbedBatch = batch
-    profileProbeProc.command = ["python3", root.configScriptPath, "browser-window-profiles", JSON.stringify(batch)]
-    profileProbeProc.running = true
-  }
-
-  function applyProfileProbeOutput(rawText) {
-    if (!root || root._destroyed || !root.isProfileLeader()) return
-    var parsed = null
-    try {
-      parsed = JSON.parse(String(rawText || "{}"))
-    } catch (e) {
-      parsed = null
-    }
-    var merged = Object.assign({}, root.windowProfiles || {})
-    var changed = false
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      var addrs = Object.keys(parsed)
-      for (var i = 0; i < addrs.length; i++) {
-        var norm = TaskbarModel.normalizeAddress(addrs[i]).toLowerCase()
-        var incoming = parsed[addrs[i]]
-        if (!norm || !incoming || typeof incoming !== "object" || !incoming.dir) continue
-        var cur = merged[norm]
-        if (cur && cur.confident) continue
-        if (!cur || cur.dir !== incoming.dir || cur.name !== incoming.name
-            || cur.picturePath !== incoming.picturePath || !!cur.confident !== !!incoming.confident) {
-          merged[norm] = incoming
-          changed = true
-        }
-      }
-    }
-    if (changed) root.syncProfilesToPeers(merged)
-
-    var batch = root.lastProbedBatch || []
-    var probedAddrs = {}
-    for (var j = 0; j < batch.length; j++) {
-      var w = batch[j]
-      probedAddrs[w.address] = true
-      var entry = merged[w.address]
-      if ((!entry || !entry.confident) && (root.profileProbeRetries[w.address + "|" + w.title] || 0) < 3) {
-        profileRetryTimer.restart()
-        break
-      }
-    }
-    for (var k = 0; k < batch.length; k++) probedAddrs[batch[k].address] = true
-    var pending = root.pendingProbeBatch || []
-    for (var q = 0; q < pending.length; q++) {
-      var pw = pending[q]
-      if (probedAddrs[pw.address]) continue
-      var pEntry = merged[pw.address]
-      if ((!pEntry || !pEntry.confident) && (root.profileProbeRetries[pw.address + "|" + pw.title] || 0) < 3) {
-        if (!profileProbeTimer.running) profileProbeTimer.restart()
-        break
-      }
-    }
+    profileTracker.sync()
   }
 
   function syncItemModel() {
@@ -659,13 +437,7 @@ BarWidget {
   }
 
   function iconFor(item) {
-    var entry = entryFor(item)
-    return TaskbarModel.resolveIconSource(
-      entry,
-      item ? (item.appKey || item.key) : "",
-      function(name) { return Quickshell.iconPath(name, true) },
-      function(p) { return Util.fileUrl(p) }
-    )
+    return root.iconSourceFor(entryFor(item), item ? (item.appKey || item.key) : "")
   }
 
   function labelFor(item) {
@@ -691,7 +463,7 @@ BarWidget {
   }
 
   function launch(item) {
-    var argv = TaskbarModel.launchArgvForEntry(entryFor(item))
+    var argv = AppSearch.launchArgvForEntry(entryFor(item))
     if (argv.length > 0) Util.execArgv(argv)
   }
 
@@ -702,7 +474,7 @@ BarWidget {
       var bin = String(entry.command[0] || "").trim()
       if (bin) return bin
     }
-    var spec = TaskbarModel.browserProfileSpec(appKey, "x")
+    var spec = BrowserProfiles.browserProfileSpec(appKey, "x")
     return spec ? spec.defaultBin : ""
   }
 
@@ -711,8 +483,8 @@ BarWidget {
     var bin = browserBinaryForItem(item)
     if (!bin) return
     var appKey = item ? TaskbarModel.normalizeId(item.appKey || item.key).toLowerCase() : ""
-    var spec = TaskbarModel.browserProfileSpec(appKey, Commons.Color.home)
-    var argv = TaskbarModel.browserProfileLaunchArgv(bin, dir, spec)
+    var spec = BrowserProfiles.browserProfileSpec(appKey, Commons.Color.home)
+    var argv = BrowserProfiles.browserProfileLaunchArgv(bin, dir, spec)
     if (argv.length === 0) return
     var matched = null
     for (var i = 0; i < root.browserProfiles.length; i++) {
@@ -740,42 +512,9 @@ BarWidget {
     }
     var monitor = Hyprland.focusedMonitor
     var workspace = monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : -1
-    var steps = []
-    var after = []
-    var lastTarget = ""
-    for (var i = 0; i < windows.length; i++) {
-      var win = windows[i]
-      if (!win) continue
-      var address = TaskbarModel.normalizeAddress(win.address)
-      if (!address) continue
-      var target = "window = \"address:" + address + "\""
-      if (win.minimized) {
-        if (!(workspace >= 1)) continue
-        var tags = win.tags || []
-        for (var j = 0; j < tags.length; j++) {
-          var tag = String(tags[j] || "")
-          if (/^omarchy-(minimized-from|showdesktop|minimize-others)-[0-9]+$/.test(tag)) {
-            steps.push("hl.dsp.window.tag({ tag = \"-" + tag + "\", " + target + " })")
-          }
-        }
-        steps.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"1\", " + target + " })")
-        steps.push("hl.dsp.window.move({ workspace = \"" + workspace + "\", " + target + " })")
-        after.push("hl.dsp.window.set_prop({ prop = \"no_anim\", value = \"unset\", " + target + " })")
-      }
-      if (lastTarget && lastTarget !== target) {
-        steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + lastTarget + " })")
-      }
-      lastTarget = target
-    }
-    if (lastTarget) {
-      steps.push("hl.dsp.focus({ " + lastTarget + " })")
-      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + lastTarget + " })")
-    }
-    if (steps.length === 0) return
-    var dispatch = function(step) { return "hyprctl dispatch " + Util.shellQuote(step) }
-    var command = steps.map(dispatch).join(" && ")
-    if (after.length > 0) command += "; sleep 0.4; " + after.map(dispatch).join("; ")
-    Util.execDetached(command)
+    var plan = WindowActions.buildRestoreDispatchPlan(windows, workspace)
+    var command = WindowActions.formatRestoreShellCommand(plan, Util.shellQuote)
+    if (command) Util.execDetached(command)
   }
 
   function bringForward(window) {
@@ -783,34 +522,11 @@ BarWidget {
   }
 
   function minimizeWindows(windows) {
-    if (!windows || windows.length === 0) return
-    var steps = []
-    var focusWs = -1
     var monitor = Hyprland.focusedMonitor
     var activeWs = monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : -1
-    for (var i = 0; i < windows.length; i++) {
-      var win = windows[i]
-      if (!win || win.minimized) continue
-      var address = TaskbarModel.normalizeAddress(win.address)
-      if (!address) continue
-      var ws = (win.workspaceId >= 1) ? win.workspaceId : activeWs
-      if (!(ws >= 1)) continue
-      focusWs = ws
-      var target = "window = \"address:" + address + "\""
-      var tags = win.tags || []
-      for (var t = 0; t < tags.length; t++) {
-        var tag = String(tags[t] || "")
-        if (/^omarchy-minimized-from-[0-9]+$/.test(tag) && tag !== ("omarchy-minimized-from-" + ws)) {
-          steps.push("hl.dsp.window.tag({ tag = \"-" + tag + "\", " + target + " })")
-        }
-      }
-      steps.push("hl.dsp.window.tag({ tag = \"+omarchy-minimized-from-" + ws + "\", " + target + " })")
-      steps.push("hl.dsp.window.move({ workspace = \"special:minimized\", follow = false, " + target + " })")
-    }
-    if (steps.length === 0) return
-    if (focusWs >= 1) steps.push("hl.dsp.focus({ workspace = \"" + focusWs + "\" })")
-    var command = steps.map(function(step) { return "hyprctl dispatch " + Util.shellQuote(step) }).join(" && ")
-    Util.execDetached(command)
+    var steps = WindowActions.buildMinimizeDispatchSteps(windows, activeWs)
+    var command = WindowActions.formatDispatchChain(steps, Util.shellQuote)
+    if (command) Util.execDetached(command)
   }
 
   function minimizeWindow(window) {
@@ -846,91 +562,29 @@ BarWidget {
   }
 
   function togglePinWindow(window) {
-    if (!window) return
-    var address = TaskbarModel.normalizeAddress(window.address)
-    if (!address) return
-    var target = "window = \"address:" + address + "\""
-    var steps = []
-    if (!window.floating && !window.pinned) {
-      steps.push("hl.dsp.window.float({ action = \"on\", " + target + " })")
-    }
-    steps.push("hl.dsp.window.pin({ " + target + " })")
-    if (!window.pinned) {
-      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + target + " })")
-    }
-    var command = steps.map(function(step) { return "hyprctl dispatch " + Util.shellQuote(step) }).join(" && ")
-    Util.execDetached(command)
+    var command = WindowActions.formatDispatchChain(WindowActions.buildTogglePinDispatchSteps(window), Util.shellQuote)
+    if (command) Util.execDetached(command)
   }
 
   function collectSnapGroupsForItem(item) {
-    if (!item || !Array.isArray(item.windows) || item.windows.length === 0) return []
+    if (!item || !TaskbarModel.isArrayLike(item.windows) || item.windows.length === 0) return []
     var toplevels = Hyprland.toplevels.values
     var allWins = []
     for (var i = 0; i < toplevels.length; i++) {
-      var tl = toplevels[i]
-      var wl = tl ? tl.wayland : null
-      if (!wl || !wl.appId || wl.parent) continue
-      var ipc = tl.lastIpcObject || {}
-      if (ipc.mapped === false) continue
-      var entry = root.entryForAppId(wl.appId)
-      var appKey = entry ? entry.id : wl.appId
-      var ws = tl.workspace
-      var winMon = tl.monitor || (ws ? ws.monitor : null)
-      var at = Array.isArray(ipc.at) ? ipc.at : []
-      var size = Array.isArray(ipc.size) ? ipc.size : []
-      var normAddr = TaskbarModel.normalizeAddress(tl.address)
-      var appName = (entry && entry.name) ? entry.name : appKey
-      allWins.push({
-        address: tl.address,
-        appKey: appKey,
-        appName: appName,
-        title: wl.title || appName,
-        iconSource: root.iconFor({ appKey: appKey, key: appKey }),
-        workspaceId: ws ? ws.id : -1,
-        monitorName: winMon && winMon.name ? String(winMon.name) : "",
-        minimized: !!ws && TaskbarModel.isMinimizedWorkspace(ws.name),
-        floating: !!ipc.floating,
-        fullscreen: (ipc.fullscreen ? Number(ipc.fullscreen) : (wl.fullscreen ? 1 : 0)) > 0,
-        x: Number(at[0]),
-        y: Number(at[1]),
-        w: Number(size[0]),
-        h: Number(size[1]),
-        toplevel: wl,
-        profile: normAddr ? TaskbarModel.lookupWindowProfile(normAddr, root.windowProfiles) : null
+      var win = WindowActions.normalizeToplevelWindow(toplevels[i], {
+        skipUnmapped: true,
+        resolveEntry: root.entryForAppId,
+        resolveIcon: root.iconSourceFor,
+        windowProfiles: root.windowProfiles
       })
+      if (win) allWins.push(win)
     }
-    return TaskbarModel.detectSnapGroups(allWins, item.windows)
+    return SnapLayoutMath.detectSnapGroups(allWins, item.windows)
   }
 
   function bringGroupForward(group) {
-    if (!group || !group.members || typeof group.members.length !== "number" || group.members.length < 2) return
-    var steps = []
-    if (group.workspaceId >= 1) {
-      steps.push("hl.dsp.focus({ workspace = \"" + group.workspaceId + "\" })")
-    }
-    var focusAddr = TaskbarModel.normalizeAddress(group.focusAddr).toLowerCase()
-    var resolvedFocus = ""
-    for (var i = 0; i < group.members.length; i++) {
-      var mWin = group.members[i] && group.members[i].window ? group.members[i].window : null
-      var mAddr = mWin ? TaskbarModel.normalizeAddress(mWin.address) : ""
-      if (!mAddr) continue
-      if (focusAddr && mAddr.toLowerCase() === focusAddr) {
-        resolvedFocus = mAddr
-        continue
-      }
-      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", window = \"address:" + mAddr + "\" })")
-    }
-    if (!resolvedFocus && group.members[0] && group.members[0].window) {
-      resolvedFocus = TaskbarModel.normalizeAddress(group.members[0].window.address)
-    }
-    if (resolvedFocus) {
-      var target = "window = \"address:" + resolvedFocus + "\""
-      steps.push("hl.dsp.focus({ " + target + " })")
-      steps.push("hl.dsp.window.alter_zorder({ mode = \"top\", " + target + " })")
-    }
-    if (steps.length === 0) return
-    var command = steps.map(function(step) { return "hyprctl dispatch " + Util.shellQuote(step) }).join(" && ")
-    Util.execDetached(command)
+    var command = WindowActions.formatDispatchChain(WindowActions.buildBringGroupForwardSteps(group), Util.shellQuote)
+    if (command) Util.execDetached(command)
   }
 
   function quitItem(item) {
@@ -972,7 +626,7 @@ BarWidget {
   function moveTaskbarItem(fromIdx, toIdx) {
     var res = TaskbarModel.reorderTaskbarItems(root.items, root.pinnedList, root.windowOrderState, fromIdx, toIdx)
     if (!res) return
-    if (res.kind === "pins" && Array.isArray(res.pinned) && res.pinned.length > 0) {
+    if (res.kind === "pins" && TaskbarModel.isArrayLike(res.pinned) && res.pinned.length > 0) {
       root.syncPinnedToPeers(res.pinned)
       Util.execArgv(["omarchy-dock", "pinned"].concat(res.pinned))
     } else if (res.kind === "windows" && res.orderState) {
@@ -1095,7 +749,7 @@ BarWidget {
     root.cancelHoverPreview()
     var targetItem = root.itemFor(key)
     var appKey = targetItem ? (targetItem.appKey || targetItem.key) : ""
-    var spec = TaskbarModel.browserProfileSpec(appKey, Commons.Color.home)
+    var spec = BrowserProfiles.browserProfileSpec(appKey, Commons.Color.home)
     if (spec) {
       root.activeBrowserSpec = spec
       root.activeBrowserStateFile = spec.stateFile
@@ -1106,7 +760,7 @@ BarWidget {
         browserStateFile.reload()
         raw = browserStateFile.text()
       }
-      root.browserProfiles = TaskbarModel.parseBrowserProfiles(raw, spec)
+      root.browserProfiles = BrowserProfiles.parseBrowserProfiles(raw, spec)
     } else {
       root.activeBrowserSpec = null
       root.activeBrowserStateFile = ""
@@ -1267,7 +921,7 @@ BarWidget {
         readonly property bool urgent: !focused && TaskbarModel.isItemUrgent(modelData, root.urgentAddresses)
         readonly property bool allMinimized: root.isItemAllMinimized(modelData)
         readonly property string appLabel: modelData ? root.labelFor(modelData) : key
-        readonly property var profileBadge: TaskbarModel.profileBadgeForItem(modelData, root.windowProfiles)
+        readonly property var profileBadge: BrowserProfiles.profileBadgeForItem(modelData, root.windowProfiles)
         readonly property bool lifted: root.dragIndex === index
         readonly property bool hovered: slotMouse.containsMouse && !root.draggingItem
 
@@ -1515,7 +1169,7 @@ BarWidget {
               if (taskSlot.modelData && taskSlot.modelData.split && taskSlot.windowCount === 1) {
                 var w = taskSlot.modelData.windows[0]
                 var baseTitle = (w.toplevel && w.toplevel.title) ? w.toplevel.title : (w.title || taskSlot.appLabel)
-                var rawTitle = TaskbarModel.formatWindowTooltipWithProfile(baseTitle, taskSlot.profileBadge || w.profile)
+                var rawTitle = BrowserProfiles.formatWindowTooltipWithProfile(baseTitle, taskSlot.profileBadge || w.profile)
                 rawLabel = w.minimized
                   ? TaskbarModel.formatTemplate(strings.t("taskbar.minimizedPrefix"), rawTitle)
                   : rawTitle
@@ -1527,7 +1181,7 @@ BarWidget {
                       Commons.I18n.formatNumber(taskSlot.windowCount)
                     )
                   : taskSlot.appLabel
-                rawLabel = TaskbarModel.formatWindowTooltipWithProfile(baseSummary, taskSlot.profileBadge)
+                rawLabel = BrowserProfiles.formatWindowTooltipWithProfile(baseSummary, taskSlot.profileBadge)
               }
               root.bar.showTooltip(taskSlot, TaskbarModel.sanitizeTooltipText(rawLabel, 96))
             }
@@ -1645,7 +1299,7 @@ BarWidget {
 
     readonly property var targetItem: root.menuKey.length > 0 ? root.itemFor(root.menuKey) : null
     readonly property string targetAppKey: targetItem ? (targetItem.appKey || targetItem.key) : ""
-    readonly property bool isBrowser: !!TaskbarModel.browserProfileSpec(targetAppKey, Commons.Color.home)
+    readonly property bool isBrowser: !!BrowserProfiles.browserProfileSpec(targetAppKey, Commons.Color.home)
     readonly property var pinTarget: TaskbarModel.targetWindowForPin(targetItem)
 
     anchorItem: root.menuAnchor || root

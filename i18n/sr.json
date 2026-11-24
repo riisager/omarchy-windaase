@@ -94,5 +94,6 @@
   "display.keepChanges": "Задржи промене",
   "display.revert": "Врати",
   "display.applyError": "Није могуће применити подешавања екрана.",
-  "settings.floatingOnly": "Само плутајући прозори"
+  "settings.floatingOnly": "Само плутајући прозори",
+  "settings.snapResize": "Snap Resize"
 }

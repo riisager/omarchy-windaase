@@ -94,5 +94,6 @@
   "display.keepChanges": "الاحتفاظ بالتغييرات",
   "display.revert": "تراجع",
   "display.applyError": "تعذر تطبيق إعدادات الشاشة.",
-  "settings.floatingOnly": "نوافذ عائمة فقط"
+  "settings.floatingOnly": "نوافذ عائمة فقط",
+  "settings.snapResize": "Snap Resize"
 }

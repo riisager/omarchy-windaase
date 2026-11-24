@@ -88,7 +88,7 @@ else
   STAGING_DIR="${INSTALL_TMP_ROOT}/${PLUGIN_ID}.staging.$$"
   OLD_DIR="${INSTALL_TMP_ROOT}/${PLUGIN_ID}.old.$$"
 
-  mkdir -p "${STAGING_DIR}/i18n" "${STAGING_DIR}/nautilus" "${STAGING_DIR}/configlib"
+  mkdir -p "${STAGING_DIR}/i18n" "${STAGING_DIR}/nautilus" "${STAGING_DIR}/configlib" "${STAGING_DIR}/js"
   cp "${SCRIPT_DIR}/manifest.json" \
      "${SCRIPT_DIR}/layouts.json" \
      "${SCRIPT_DIR}/TaskbarModel.js" \
@@ -100,6 +100,10 @@ else
      "${SCRIPT_DIR}/SnapAssistCard.qml" \
      "${SCRIPT_DIR}/AltTabSwitcher.qml" \
      "${SCRIPT_DIR}/DisplaySettingsModal.qml" \
+     "${SCRIPT_DIR}/SnapOverlayWindow.qml" \
+     "${SCRIPT_DIR}/AltTabOverlayWindow.qml" \
+     "${SCRIPT_DIR}/MonitorIdentifyOverlay.qml" \
+     "${SCRIPT_DIR}/BrowserProfileTracker.qml" \
      "${SCRIPT_DIR}/Service.qml" \
      "${SCRIPT_DIR}/AppGrid.qml" \
      "${SCRIPT_DIR}/windaase-config.py" \
@@ -108,6 +112,7 @@ else
      "${STAGING_DIR}/"
   chmod +x "${STAGING_DIR}/windaase-config.py"
   cp "${SCRIPT_DIR}/i18n/"*.json "${STAGING_DIR}/i18n/"
+  cp "${SCRIPT_DIR}/js/"*.js "${STAGING_DIR}/js/"
   cp "${SCRIPT_DIR}/configlib/"*.py "${STAGING_DIR}/configlib/"
   cp "${SCRIPT_DIR}/nautilus/windaase_context_menu.py" "${STAGING_DIR}/nautilus/"
 

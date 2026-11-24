@@ -94,5 +94,6 @@
   "display.keepChanges": "වෙනස්කම් තබා ගන්න",
   "display.revert": "ආපසු හරවන්න",
   "display.applyError": "තිර සැකසුම් යෙදීමට නොහැකි විය.",
-  "settings.floatingOnly": "පාවෙන කවුළු පමණි"
+  "settings.floatingOnly": "පාවෙන කවුළු පමණි",
+  "settings.snapResize": "Snap Resize"
 }

@@ -94,5 +94,6 @@
   "display.keepChanges": "Behold ændringer",
   "display.revert": "Gendan",
   "display.applyError": "Kunne ikke anvende skærmindstillinger.",
-  "settings.floatingOnly": "Kun flydende vinduer"
+  "settings.floatingOnly": "Kun flydende vinduer",
+  "settings.snapResize": "Snap Resize"
 }

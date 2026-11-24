@@ -94,5 +94,6 @@
   "display.keepChanges": "Behold endringer",
   "display.revert": "Tilbakestill",
   "display.applyError": "Kunne ikke bruke skjerminnstillingene.",
-  "settings.floatingOnly": "Kun flytende vinduer"
+  "settings.floatingOnly": "Kun flytende vinduer",
+  "settings.snapResize": "Snap Resize"
 }

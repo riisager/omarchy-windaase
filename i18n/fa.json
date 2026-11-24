@@ -94,5 +94,6 @@
   "display.keepChanges": "حفظ تغییرات",
   "display.revert": "بازگردانی",
   "display.applyError": "اعمال تنظیمات نمایشگر ممکن نشد.",
-  "settings.floatingOnly": "فقط پنجره‌های شناور"
+  "settings.floatingOnly": "فقط پنجره‌های شناور",
+  "settings.snapResize": "Snap Resize"
 }

@@ -94,5 +94,6 @@
   "display.keepChanges": "Giữ thay đổi",
   "display.revert": "Khôi phục",
   "display.applyError": "Không thể áp dụng cài đặt màn hình.",
-  "settings.floatingOnly": "Chỉ cửa sổ nổi"
+  "settings.floatingOnly": "Chỉ cửa sổ nổi",
+  "settings.snapResize": "Snap Resize"
 }

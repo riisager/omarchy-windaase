@@ -1,6 +1,10 @@
-// Pure data/model helpers for the Omarchy-windaase taskbar widget.
+// Core taskbar model, settings state, urgency, and formatting helpers for Omarchy-windaase.
 
 var MINIMIZED_WORKSPACE = "special:minimized"
+
+function isArrayLike(val) {
+  return Boolean(val && typeof val === "object" && typeof val.length === "number")
+}
 
 function isMinimizedWorkspace(name) {
   return String(name || "") === MINIMIZED_WORKSPACE
@@ -26,7 +30,7 @@ function isDockWindow(window) {
 }
 
 function collectTerminalEntries(entries) {
-  var values = Array.isArray(entries) ? entries : []
+  var values = isArrayLike(entries) ? entries : []
   var out = []
   for (var i = 0; i < values.length; i++) {
     var entry = values[i]
@@ -210,7 +214,7 @@ function _reassignRanks(orderState, orderedAddrs) {
 function _normalizedPins(pinnedList) {
   var out = []
   var seen = {}
-  var list = Array.isArray(pinnedList) ? pinnedList : []
+  var list = isArrayLike(pinnedList) ? pinnedList : []
   for (var i = 0; i < list.length; i++) {
     var id = normalizeId(list[i])
     if (id && !seen[id]) {
@@ -230,7 +234,7 @@ function _arraysEqual(a, b) {
 }
 
 function reorderTaskbarItems(items, pinnedList, orderState, fromIndex, toIndex) {
-  if (!Array.isArray(items) || fromIndex < 0 || toIndex < 0
+  if (!isArrayLike(items) || fromIndex < 0 || toIndex < 0
       || fromIndex >= items.length || toIndex >= items.length || fromIndex === toIndex) {
     return null
   }
@@ -322,7 +326,7 @@ function normalizeWindowFilter(value) {
 }
 
 function minimizedOriginWorkspaceId(tags) {
-  if (!tags || typeof tags.length !== "number") return -1
+  if (!isArrayLike(tags)) return -1
   for (var i = 0; i < tags.length; i++) {
     var m = /^omarchy-(?:minimized-from|showdesktop)-([1-9][0-9]*)$/.exec(String(tags[i] || ""))
     if (m) return parseInt(m[1], 10)
@@ -360,164 +364,6 @@ function filterWindowsByScope(windows, scope, activeWorkspaceId, activeMonitorNa
   return out
 }
 
-function complementaryZone(zone) {
-  if (!zone || zone.max === true) return null
-  var rx = Number(zone.rx) || 0
-  var ry = Number(zone.ry) || 0
-  var rw = Number(zone.rw) || 0
-  var rh = Number(zone.rh) || 0
-  if (Math.abs(ry) > 0.02 || rh < 0.98) return null
-  if (rw <= 0.15 || rw >= 0.85) return null
-  var round6 = function(n) { return Math.round(n * 1000000) / 1000000 }
-  if (Math.abs(rx) <= 0.02) {
-    return { rx: round6(rw), ry: 0, rw: round6(1 - rw), rh: 1.0, max: false }
-  }
-  if (Math.abs((rx + rw) - 1.0) <= 0.02) {
-    return { rx: 0, ry: 0, rw: round6(rx), rh: 1.0, max: false }
-  }
-  return null
-}
-
-function _zoneCenter(z) {
-  var rx = Number(z && z.rx) || 0
-  var ry = Number(z && z.ry) || 0
-  var rw = Number(z && z.rw) || 0
-  var rh = Number(z && z.rh) || 0
-  return { cx: rx + rw / 2, cy: ry + rh / 2, rx: rx, ry: ry, rw: rw, rh: rh }
-}
-
-function _edgeZoneInCard(card, fromEdge, targetCy) {
-  if (!Array.isArray(card) || card.length === 0) return 0
-  var bestIdx = 0
-  var bestScore = Infinity
-  for (var i = 0; i < card.length; i++) {
-    var m = _zoneCenter(card[i])
-    var primary = fromEdge === "left" ? m.cx : (1 - m.cx)
-    var dy = Math.abs(m.cy - targetCy)
-    var score = primary * 10 + dy
-    if (score < bestScore) {
-      bestScore = score
-      bestIdx = i
-    }
-  }
-  return bestIdx
-}
-
-function nextSnapZone(layouts, cardIdx, zoneIdx, direction) {
-  var list = Array.isArray(layouts) ? layouts : []
-  if (list.length === 0) return { card: -1, zone: -1 }
-  var dir = String(direction || "").toLowerCase()
-  var c = typeof cardIdx === "number" ? cardIdx : -1
-  var z = typeof zoneIdx === "number" ? zoneIdx : -1
-  if (c < 0 || c >= list.length || !Array.isArray(list[c]) || list[c].length === 0) {
-    return { card: 0, zone: 0 }
-  }
-  if (z < 0 || z >= list[c].length) z = 0
-
-  if (dir === "tab" || dir === "backtab") {
-    var delta = dir === "tab" ? 1 : -1
-    var nz = z + delta
-    var nc = c
-    if (nz >= list[nc].length) {
-      nc = (nc + 1) % list.length
-      nz = 0
-    } else if (nz < 0) {
-      nc = (nc - 1 + list.length) % list.length
-      nz = Math.max(0, list[nc].length - 1)
-    }
-    return { card: nc, zone: nz }
-  }
-
-  var card = list[c]
-  var cur = _zoneCenter(card[z])
-
-  if (dir === "left" || dir === "right") {
-    var bestSame = -1
-    var bestDist = Infinity
-    for (var i = 0; i < card.length; i++) {
-      if (i === z) continue
-      var cand = _zoneCenter(card[i])
-      var overlapsY = Math.min(cur.ry + cur.rh, cand.ry + cand.rh) > Math.max(cur.ry, cand.ry) + 0.01
-      if (!overlapsY) continue
-      var dx = dir === "right" ? (cand.cx - cur.cx) : (cur.cx - cand.cx)
-      if (dx <= 0.02) continue
-      var score = dx + Math.abs(cand.cy - cur.cy) * 2
-      if (score < bestDist) {
-        bestDist = score
-        bestSame = i
-      }
-    }
-    if (bestSame >= 0) return { card: c, zone: bestSame }
-
-    var step = dir === "right" ? 1 : -1
-    var nextC = (c + step + list.length) % list.length
-    var nextZ = _edgeZoneInCard(list[nextC], dir === "right" ? "left" : "right", cur.cy)
-    return { card: nextC, zone: nextZ }
-  }
-
-  if (dir === "up" || dir === "down") {
-    var bestV = -1
-    var bestVScore = Infinity
-    for (var k = 0; k < card.length; k++) {
-      if (k === z) continue
-      var vc = _zoneCenter(card[k])
-      var overlapsX = Math.min(cur.rx + cur.rw, vc.rx + vc.rw) > Math.max(cur.rx, vc.rx) + 0.01
-      if (!overlapsX) continue
-      var dy = dir === "down" ? (vc.cy - cur.cy) : (cur.cy - vc.cy)
-      if (dy <= 0.02) continue
-      var vscore = dy + Math.abs(vc.cx - cur.cx) * 2
-      if (vscore < bestVScore) {
-        bestVScore = vscore
-        bestV = k
-      }
-    }
-    if (bestV >= 0) return { card: c, zone: bestV }
-  }
-
-  return { card: c, zone: z }
-}
-
-function jumpToSnapCard(layouts, cardNumber, currentCard, currentZone) {
-  var list = Array.isArray(layouts) ? layouts : []
-  var targetCard = Number(cardNumber) - 1
-  if (!isFinite(targetCard) || targetCard < 0 || targetCard >= list.length) return null
-  var card = list[targetCard]
-  if (!Array.isArray(card) || card.length === 0) return null
-  if (targetCard === currentCard) {
-    var nextZ = (typeof currentZone === "number" && currentZone >= 0) ? ((currentZone + 1) % card.length) : 0
-    return { card: targetCard, zone: nextZ }
-  }
-  return { card: targetCard, zone: 0 }
-}
-
-function filterSnapAssistCandidates(windows, snappedAddr, workspaceId) {
-  var list = windows || []
-  var excludeAddr = normalizeAddress(snappedAddr).toLowerCase()
-  var ws = Number(workspaceId)
-  var out = []
-  for (var i = 0; i < list.length; i++) {
-    var win = list[i]
-    if (!win) continue
-    if (win.minimized === true) continue
-    if (win.floating === false) continue
-    if (win.fullscreen) continue
-    if (ws >= 1 && win.workspaceId !== ws) continue
-    var addr = normalizeAddress(win.address).toLowerCase()
-    if (!addr || (excludeAddr && addr === excludeAddr)) continue
-    out.push(win)
-  }
-  return out
-}
-
-function isValidProfileDir(dir) {
-  if (typeof dir !== "string") return false
-  var trimmed = dir.trim()
-  if (!trimmed || trimmed.length > 64) return false
-  if (trimmed === "." || trimmed === "..") return false
-  if (/[\/\\\x00-\x1f\x7f]/.test(dir)) return false
-  return true
-}
-
 function sanitizeTooltipText(value, maxLen) {
   var limit = (typeof maxLen === "number" && maxLen > 0) ? Math.floor(maxLen) : 96
   var clean = String(value === undefined || value === null ? "" : value)
@@ -530,380 +376,12 @@ function sanitizeTooltipText(value, maxLen) {
   return clean
 }
 
-function browserProfileSpec(appKey, homeDir) {
-  var home = String(homeDir || "").replace(/\/+$/, "")
-  var key = normalizeId(appKey).toLowerCase()
-  if (!home || !key) return null
-
-  var chromiumMap = {
-    "google-chrome": { dir: home + "/.config/google-chrome", defaultBin: "/usr/bin/google-chrome-stable" },
-    "chromium": { dir: home + "/.config/chromium", defaultBin: "chromium" },
-    "brave-browser": { dir: home + "/.config/BraveSoftware/Brave-Browser", defaultBin: "brave" },
-    "brave": { dir: home + "/.config/BraveSoftware/Brave-Browser", defaultBin: "brave" },
-    "vivaldi-stable": { dir: home + "/.config/vivaldi", defaultBin: "vivaldi-stable" },
-    "vivaldi": { dir: home + "/.config/vivaldi", defaultBin: "vivaldi-stable" },
-    "vivaldi-snapshot": { dir: home + "/.config/vivaldi-snapshot", defaultBin: "vivaldi-snapshot" },
-    "microsoft-edge": { dir: home + "/.config/microsoft-edge", defaultBin: "microsoft-edge-stable" },
-    "microsoft-edge-stable": { dir: home + "/.config/microsoft-edge", defaultBin: "microsoft-edge-stable" },
-    "microsoft-edge-beta": { dir: home + "/.config/microsoft-edge-beta", defaultBin: "microsoft-edge-beta" },
-    "microsoft-edge-dev": { dir: home + "/.config/microsoft-edge-dev", defaultBin: "microsoft-edge-dev" }
-  }
-  if (chromiumMap[key]) {
-    return {
-      family: "chromium",
-      dir: chromiumMap[key].dir,
-      stateFile: chromiumMap[key].dir + "/Local State",
-      fallbackStateFile: "",
-      defaultBin: chromiumMap[key].defaultBin
-    }
-  }
-
-  var firefoxFallback = home + "/.config/mozilla/firefox/profiles.ini"
-  var geckoMap = {
-    "firefox": { dir: home + "/.mozilla/firefox", fallbackStateFile: firefoxFallback, defaultBin: "firefox" },
-    "org.mozilla.firefox": { dir: home + "/.mozilla/firefox", fallbackStateFile: firefoxFallback, defaultBin: "firefox" },
-    "firefox-developer-edition": { dir: home + "/.mozilla/firefox", fallbackStateFile: firefoxFallback, defaultBin: "firefox-developer-edition" },
-    "firefox-nightly": { dir: home + "/.mozilla/firefox", fallbackStateFile: firefoxFallback, defaultBin: "firefox-nightly" },
-    "zen": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
-    "zen-browser": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
-    "zen-beta": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
-    "zen-alpha": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
-    "zen-twilight": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
-    "app.zen_browser.zen": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" },
-    "io.github.zen_browser.zen": { dir: home + "/.zen", fallbackStateFile: "", defaultBin: "zen-browser" }
-  }
-  if (geckoMap[key]) {
-    return {
-      family: "gecko",
-      dir: geckoMap[key].dir,
-      stateFile: geckoMap[key].dir + "/profiles.ini",
-      fallbackStateFile: geckoMap[key].fallbackStateFile,
-      defaultBin: geckoMap[key].defaultBin
-    }
-  }
-
-  return null
-}
-
-function browserProfileConfigDir(appKey, homeDir) {
-  var spec = browserProfileSpec(appKey, homeDir)
-  return spec ? spec.dir : ""
-}
-
-function parseChromeProfiles(rawJson, browserDirPath) {
-  var parsed
-  try {
-    parsed = JSON.parse(String(rawJson || ""))
-  } catch (e) {
-    return []
-  }
-  if (!parsed || !parsed.profile || !parsed.profile.info_cache) return []
-  var infoCache = parsed.profile.info_cache
-  if (typeof infoCache !== "object" || Array.isArray(infoCache)) return []
-
-  var baseDir = browserDirPath ? String(browserDirPath).replace(/\/+$/, "") : ""
-  var profiles = []
-  var dirs = Object.keys(infoCache)
-  for (var i = 0; i < dirs.length; i++) {
-    var dir = dirs[i]
-    if (dir === "System Profile" || dir === "Guest Profile") continue
-    if (!isValidProfileDir(dir)) continue
-    var info = infoCache[dir]
-    if (!info || typeof info !== "object") continue
-    if (info.is_ephemeral === true || info.is_omitted_from_profile_list === true) continue
-
-    var name = String(info.name || info.shortcut_name || info.gaia_name || dir)
-      .replace(/[\r\n\t]+/g, " ")
-      .trim()
-      .slice(0, 64) || dir
-    var email = String(info.user_name || "")
-      .replace(/[\r\n\t]+/g, " ")
-      .trim()
-      .slice(0, 96)
-    var picFile = String(info.gaia_picture_file_name || info.edge_picture_file_name || info.avatar_picture_file_name || "").trim()
-    var picturePath = (baseDir && isValidProfileDir(picFile))
-      ? (baseDir + "/" + dir + "/" + picFile)
-      : ""
-    var initial = name.charAt(0).toUpperCase() || "?"
-
-    profiles.push({
-      dir: dir,
-      name: name,
-      email: email,
-      picturePath: picturePath,
-      initial: initial
-    })
-  }
-
-  function sortKey(dir) {
-    if (dir === "Default") return { rank: 0, num: 0, lower: "" }
-    var m = /^Profile (\d+)$/.exec(dir)
-    if (m) return { rank: 1, num: parseInt(m[1], 10), lower: "" }
-    return { rank: 2, num: 0, lower: dir.toLowerCase() }
-  }
-
-  profiles.sort(function(a, b) {
-    var ka = sortKey(a.dir)
-    var kb = sortKey(b.dir)
-    if (ka.rank !== kb.rank) return ka.rank - kb.rank
-    if (ka.rank === 1 && ka.num !== kb.num) return ka.num - kb.num
-    if (ka.lower !== kb.lower) return ka.lower < kb.lower ? -1 : 1
-    return a.dir < b.dir ? -1 : (a.dir > b.dir ? 1 : 0)
-  })
-
-  return profiles.slice(0, 32)
-}
-
-function parseGeckoProfiles(rawIni, browserDirPath) {
-  var lines = String(rawIni || "").split(/\r?\n/)
-  var current = ""
-  var sections = {}
-  var sectionOrder = []
-
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim()
-    if (!line || line.charAt(0) === "#" || line.charAt(0) === ";") continue
-    var secMatch = /^\[([^\]]+)\]$/.exec(line)
-    if (secMatch) {
-      current = secMatch[1].trim()
-      if (!sections[current]) {
-        sections[current] = {}
-        sectionOrder.push(current)
-      }
-      continue
-    }
-    if (!current) continue
-    var eq = line.indexOf("=")
-    if (eq <= 0) continue
-    var k = line.slice(0, eq).trim().toLowerCase()
-    var v = line.slice(eq + 1).trim()
-    sections[current][k] = v
-  }
-
-  var installDefaults = {}
-  for (var s = 0; s < sectionOrder.length; s++) {
-    var secName = sectionOrder[s]
-    if (/^install/i.test(secName) && sections[secName]["default"]) {
-      installDefaults[sections[secName]["default"]] = true
-    }
-  }
-
-  var profiles = []
-  var seenNames = {}
-  for (var p = 0; p < sectionOrder.length; p++) {
-    var pName = sectionOrder[p]
-    if (!/^profile\d*$/i.test(pName)) continue
-    var sec = sections[pName]
-    var rawName = String(sec.name || "").replace(/[\r\n\t]+/g, " ").trim()
-    var rawPath = String(sec.path || "").replace(/[\r\n\t]+/g, "").trim()
-    if (!rawName || !rawPath || /[\x00-\x1f\x7f]/.test(rawPath)) continue
-    if (!isValidProfileDir(rawName) || rawName.charAt(0) === "-") continue
-
-    var isRelative = sec.isrelative === undefined ? "1" : String(sec.isrelative).trim()
-    if (isRelative !== "0") {
-      if (rawPath.charAt(0) === "/" || /[\\]/.test(rawPath) || /(?:^|\/)\.\.(?:\/|$)/.test(rawPath)) continue
-    } else if (/(?:^|[\\/])\.\.(?:[\\/]|$)/.test(rawPath)) {
-      continue
-    }
-
-    var cleanName = rawName.slice(0, 64)
-    var dedupKey = cleanName.toLowerCase()
-    if (seenNames[dedupKey]) continue
-    seenNames[dedupKey] = true
-
-    profiles.push({
-      dir: cleanName,
-      name: cleanName,
-      email: "",
-      picturePath: "",
-      initial: cleanName.charAt(0).toUpperCase() || "?",
-      _isDefault: !!installDefaults[rawPath] || sec["default"] === "1"
-    })
-  }
-
-  profiles.sort(function(a, b) {
-    if (a._isDefault !== b._isDefault) return a._isDefault ? -1 : 1
-    var la = a.name.toLowerCase()
-    var lb = b.name.toLowerCase()
-    if (la !== lb) return la < lb ? -1 : 1
-    return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0)
-  })
-
-  return profiles.slice(0, 32).map(function(prof) {
-    return {
-      dir: prof.dir,
-      name: prof.name,
-      email: prof.email,
-      picturePath: prof.picturePath,
-      initial: prof.initial
-    }
-  })
-}
-
-function parseBrowserProfiles(rawText, spec) {
-  if (!spec || typeof spec !== "object") return []
-  if (spec.family === "gecko") return parseGeckoProfiles(rawText, spec.dir)
-  return parseChromeProfiles(rawText, spec.dir)
-}
-
-function browserProfileLaunchArgv(bin, profileId, spec) {
-  var cmd = String(bin || "").trim()
-  var prof = String(profileId || "").trim()
-  if (!cmd || !isValidProfileDir(prof)) return []
-  if (spec && spec.family === "gecko") {
-    if (prof.charAt(0) === "-") return []
-    return ["uwsm-app", "--", cmd, "-P", prof]
-  }
-  return ["uwsm-app", "--", cmd, "--profile-directory=" + prof]
-}
-
-function lookupWindowProfile(address, windowProfiles) {
-  if (!windowProfiles || typeof windowProfiles !== "object") return null
-  var norm = normalizeAddress(address)
-  if (!norm) return null
-  return windowProfiles[norm.toLowerCase()] || windowProfiles[norm] || null
-}
-
-function profileBadgeForItem(item, windowProfiles) {
-  if (!item || !Array.isArray(item.windows) || item.windows.length === 0) return null
-  var first = lookupWindowProfile(item.windows[0].address, windowProfiles) || item.windows[0].profile || null
-  if (!first || !first.dir) return null
-  for (var i = 1; i < item.windows.length; i++) {
-    var cur = lookupWindowProfile(item.windows[i].address, windowProfiles) || item.windows[i].profile || null
-    if (!cur || cur.dir !== first.dir) return null
-  }
-  return first
-}
-
-function formatWindowTooltipWithProfile(title, profile) {
-  var t = String(title === undefined || title === null ? "" : title)
-  var pName = profile && profile.name ? String(profile.name).trim() : ""
-  if (!pName) return t
-  return t ? (pName + " \u00b7 " + t) : pName
-}
-
-function parseHiddenEntryIds(rawText) {
-  var map = {}
-  var lines = String(rawText || "").split(/\r?\n/)
-  for (var i = 0; i < lines.length; i++) {
-    var id = normalizeId(lines[i])
-    if (id.length > 0) map[id] = true
-  }
-  return map
-}
-
-function entryName(entry) {
-  return String((entry && entry.name) || (entry && entry.id) || "")
-}
-
-function _keywordText(entry) {
-  try {
-    if (entry && entry.keywords) {
-      if (typeof entry.keywords.join === "function") return entry.keywords.join(" ")
-      if (typeof entry.keywords.length === "number") {
-        var parts = []
-        for (var i = 0; i < entry.keywords.length; i++) parts.push(String(entry.keywords[i] || ""))
-        return parts.join(" ")
-      }
-    }
-  } catch (e) {}
-  return ""
-}
-
-function _entrySearchText(entry) {
-  if (!entry) return ""
-  return [entry.name, entry.genericName, entry.comment, _keywordText(entry), entry.id].join(" ").toLowerCase()
-}
-
-function _entryAcronym(entry) {
-  var raw = [entry && entry.name, entry && entry.genericName, _keywordText(entry), entry && entry.id].join(" ")
-  var wordText = String(raw || "")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/[._:/\\-]+/g, " ")
-    .toLowerCase()
-  var tokens = wordText.split(/[^a-z0-9]+/)
-  var out = ""
-  for (var i = 0; i < tokens.length; i++) {
-    if (tokens[i]) out += tokens[i].charAt(0)
-  }
-  return out
-}
-
-function _termMatches(entry, term) {
-  if (!term) return true
-  var name = entryName(entry).toLowerCase()
-  var id = String((entry && entry.id) || "").toLowerCase()
-  if (name.indexOf(term) >= 0) return true
-  if (id.indexOf(term) >= 0) return true
-  if (_entrySearchText(entry).indexOf(term) >= 0) return true
-  return term.length <= 5 && _entryAcronym(entry).indexOf(term) >= 0
-}
-
-function _allTermsMatch(entry, query) {
-  var terms = String(query || "").toLowerCase().trim().split(/\s+/)
-  for (var i = 0; i < terms.length; i++) {
-    if (terms[i] && !_termMatches(entry, terms[i])) return false
-  }
-  return true
-}
-
-function _fuzzyScore(entry, query) {
-  var q = String(query || "").trim().toLowerCase()
-  if (!q) return 0
-  if (!_allTermsMatch(entry, q)) return -1
-
-  var name = entryName(entry).toLowerCase()
-  var id = String((entry && entry.id) || "").toLowerCase()
-  var haystack = _entrySearchText(entry)
-  var directName = name.indexOf(q)
-  var directId = id.indexOf(q)
-  if (directName === 0) return 10000 - name.length
-  if (directId === 0) return 9500 - id.length
-  if (directName > 0) return 8000 - directName * 10 - name.length
-  if (directId > 0) return 7600 - directId * 10 - id.length
-
-  var hayIndex = haystack.indexOf(q)
-  if (hayIndex >= 0) return 6000 - hayIndex
-
-  var acronym = _entryAcronym(entry)
-  var acronymIndex = acronym.indexOf(q)
-  if (acronymIndex === 0) return 5000 - acronym.length
-  if (acronymIndex > 0) return 4600 - acronymIndex * 10 - acronym.length
-
-  return 4000 - name.length
-}
-
-function filterAndSortApps(entries, query, hiddenMap) {
-  var list = entries || []
-  var hidden = hiddenMap || {}
-  var q = String(query || "").trim()
-  var rows = []
-
-  for (var i = 0; i < list.length; i++) {
-    var entry = list[i]
-    if (!entry || entry.noDisplay === true) continue
-    var normId = normalizeId(entry.id)
-    if (normId && hidden[normId] === true) continue
-    var name = entryName(entry)
-    if (!name) continue
-    var score = _fuzzyScore(entry, q)
-    if (score < 0) continue
-    rows.push({
-      entry: entry,
-      score: score,
-      key: name.toLowerCase(),
-      idKey: normId.toLowerCase()
-    })
-  }
-
-  rows.sort(function(a, b) {
-    if (q && a.score !== b.score) return b.score - a.score
-    if (a.key !== b.key) return a.key < b.key ? -1 : 1
-    if (a.idKey !== b.idKey) return a.idKey < b.idKey ? -1 : 1
-    return 0
-  })
-
-  return rows.map(function(row) { return row.entry })
+function sanitizePlainLabel(text, maxLen) {
+  var safe = String(text === undefined || text === null ? "" : text)
+    .replace(/[\x00-\x1F\x7F]+/g, " ")
+    .replace(/</g, "\u2039")
+    .replace(/>/g, "\u203A")
+  return sanitizeTooltipText(safe, maxLen)
 }
 
 function resolveIconSize(slotSize, configuredIconSize, minSize) {
@@ -916,6 +394,20 @@ function resolveIconSize(slotSize, configuredIconSize, minSize) {
   }
   return Math.max(min, Math.min(slot - 10, Math.round(slot * 0.65)))
 }
+
+var HYPR_SETTINGS_TOGGLES = [
+  { key: "floating_only", labelKey: "settings.floatingOnly" },
+  { key: "snap_layouts", labelKey: "settings.snapLayouts" },
+  { key: "snap_assist", labelKey: "settings.snapAssist" },
+  { key: "snap_resize", labelKey: "settings.snapResize" },
+  { key: "aero_snap", labelKey: "settings.aeroSnap" },
+  { key: "hover_scroll", labelKey: "settings.hoverScroll" },
+  { key: "soft_maximize", labelKey: "settings.softMaximize" },
+  { key: "auto_raise", labelKey: "settings.autoRaise" },
+  { key: "shortcuts", labelKey: "settings.shortcuts" },
+  { key: "alt_tab", labelKey: "settings.altTab" },
+  { key: "ultrawide_layout", labelKey: "settings.ultrawideLayout" }
+]
 
 var HYPR_OPTION_KEYS = [
   "snap_layouts",
@@ -951,7 +443,7 @@ function parseHyprSettings(rawJson) {
   var out = defaultHyprSettings()
   try {
     var parsed = JSON.parse(String(rawJson || ""))
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    if (parsed && typeof parsed === "object" && !isArrayLike(parsed)) {
       for (var i = 0; i < HYPR_OPTION_KEYS.length; i++) {
         var key = HYPR_OPTION_KEYS[i]
         if (typeof parsed[key] === "boolean") {
@@ -965,17 +457,17 @@ function parseHyprSettings(rawJson) {
 
 function buildUpdatedWidgetEntry(currentSettings, moduleName, patch) {
   var entry = {}
-  var src = (currentSettings && typeof currentSettings === "object" && !Array.isArray(currentSettings)) ? currentSettings : {}
+  var src = (currentSettings && typeof currentSettings === "object" && !isArrayLike(currentSettings)) ? currentSettings : {}
   for (var k in src) {
     if (Object.prototype.hasOwnProperty.call(src, k) && src[k] !== undefined) {
-      entry[k] = Array.isArray(src[k]) ? src[k].slice() : src[k]
+      entry[k] = isArrayLike(src[k]) ? Array.prototype.slice.call(src[k]) : src[k]
     }
   }
   if (patch && typeof patch === "object") {
     for (var pk in patch) {
       if (Object.prototype.hasOwnProperty.call(patch, pk)) {
         if (patch[pk] === undefined) delete entry[pk]
-        else entry[pk] = Array.isArray(patch[pk]) ? patch[pk].slice() : patch[pk]
+        else entry[pk] = isArrayLike(patch[pk]) ? Array.prototype.slice.call(patch[pk]) : patch[pk]
       }
     }
   }
@@ -985,7 +477,7 @@ function buildUpdatedWidgetEntry(currentSettings, moduleName, patch) {
     if (!isFinite(iconNum) || iconNum <= 0) delete entry.iconSize
     else entry.iconSize = Math.round(iconNum)
   }
-  if (Array.isArray(entry.uncombine) && entry.uncombine.length === 0) {
+  if (isArrayLike(entry.uncombine) && entry.uncombine.length === 0) {
     delete entry.uncombine
   }
   if (entry.windowFilter !== undefined) {
@@ -998,7 +490,7 @@ function buildUpdatedWidgetEntry(currentSettings, moduleName, patch) {
 
 function isAppUncombined(uncombinedApps, appKey) {
   var target = normalizeId(appKey).toLowerCase()
-  if (!target || !Array.isArray(uncombinedApps)) return false
+  if (!target || !isArrayLike(uncombinedApps)) return false
   for (var i = 0; i < uncombinedApps.length; i++) {
     if (normalizeId(uncombinedApps[i]).toLowerCase() === target) return true
   }
@@ -1008,7 +500,7 @@ function isAppUncombined(uncombinedApps, appKey) {
 function toggleUncombineApp(uncombinedApps, appKey) {
   var raw = normalizeId(appKey)
   var target = raw.toLowerCase()
-  var list = Array.isArray(uncombinedApps) ? uncombinedApps : []
+  var list = isArrayLike(uncombinedApps) ? uncombinedApps : []
   var out = []
   var seen = {}
   var existed = false
@@ -1060,26 +552,6 @@ function extractPinnedList(rawJson) {
   return null
 }
 
-function launchArgvForEntry(entry) {
-  var id = entry ? String(entry.id || "").trim() : ""
-  if (!id) return []
-  if (entry.runInTerminal) {
-    var cmd = []
-    var rawCmd = entry.command || []
-    for (var i = 0; i < rawCmd.length; i++) {
-      var word = String(rawCmd[i] || "")
-      if (word && !/^%[a-zA-Z]$/.test(word)) {
-        cmd.push(word)
-      }
-    }
-    if (cmd.length > 0) {
-      return ["omarchy-launch-tui"].concat(cmd)
-    }
-  }
-  var launchId = id.slice(-8) === ".desktop" ? id : (id + ".desktop")
-  return ["uwsm-app", "--", "gtk-launch", launchId]
-}
-
 function formatTemplate(template, arg1, arg2) {
   var text = String(template === undefined || template === null ? "" : template)
   if (arg1 !== undefined) {
@@ -1095,7 +567,7 @@ function formatTemplate(template, arg1, arg2) {
 
 function _cloneBoolMap(src) {
   var out = {}
-  if (!src || typeof src !== "object" || Array.isArray(src)) return out
+  if (!src || typeof src !== "object" || isArrayLike(src)) return out
   var keys = Object.keys(src)
   for (var i = 0; i < keys.length; i++) {
     var k = keys[i]
@@ -1128,7 +600,7 @@ function pruneUrgentWindows(urgentMap, windows) {
   var keys = Object.keys(src)
   if (keys.length === 0) return {}
   var byAddr = {}
-  var list = Array.isArray(windows) ? windows : []
+  var list = isArrayLike(windows) ? windows : []
   for (var i = 0; i < list.length; i++) {
     var w = list[i]
     if (!w) continue
@@ -1147,7 +619,7 @@ function pruneUrgentWindows(urgentMap, windows) {
 }
 
 function isItemUrgent(item, urgentMap) {
-  if (!item || !Array.isArray(item.windows)) return false
+  if (!item || !isArrayLike(item.windows)) return false
   for (var i = 0; i < item.windows.length; i++) {
     var win = item.windows[i]
     if (!win) continue
@@ -1160,7 +632,7 @@ function isItemUrgent(item, urgentMap) {
 }
 
 function targetWindowForPin(item) {
-  if (!item || !Array.isArray(item.windows)) return null
+  if (!item || !isArrayLike(item.windows)) return null
   var firstVisible = null
   for (var i = 0; i < item.windows.length; i++) {
     var win = item.windows[i]
@@ -1169,156 +641,6 @@ function targetWindowForPin(item) {
     if ((win.toplevel && win.toplevel.activated) || win.activated === true) return win
   }
   return firstVisible
-}
-
-function detectSnapGroups(allWindows, targetWindows) {
-  if (!Array.isArray(allWindows) || !Array.isArray(targetWindows) || targetWindows.length === 0) {
-    return []
-  }
-
-  var candidates = []
-  var byAddr = {}
-  for (var i = 0; i < allWindows.length; i++) {
-    var w = allWindows[i]
-    if (!w || w.floating !== true || w.minimized || w.fullscreen) continue
-    if (!(Number(w.workspaceId) >= 1)) continue
-    var addr = normalizeAddress(w.address).toLowerCase()
-    if (!addr || byAddr[addr]) continue
-    var wx = Number(w.x)
-    var wy = Number(w.y)
-    var ww = Number(w.w)
-    var wh = Number(w.h)
-    if (!isFinite(wx) || !isFinite(wy) || !isFinite(ww) || !isFinite(wh)) continue
-    if (ww < 120 || wh < 120) continue
-    var node = {
-      normAddr: addr,
-      workspaceId: Number(w.workspaceId),
-      monitorName: String(w.monitorName || ""),
-      x: wx,
-      y: wy,
-      w: ww,
-      h: wh,
-      window: w
-    }
-    byAddr[addr] = candidates.length
-    candidates.push(node)
-  }
-
-  if (candidates.length < 2) return []
-
-  var adj = []
-  for (var n = 0; n < candidates.length; n++) adj.push([])
-
-  for (var aIdx = 0; aIdx < candidates.length; aIdx++) {
-    var a = candidates[aIdx]
-    for (var bIdx = aIdx + 1; bIdx < candidates.length; bIdx++) {
-      var b = candidates[bIdx]
-      if (a.workspaceId !== b.workspaceId || a.monitorName !== b.monitorName) continue
-
-      var ix1 = Math.max(a.x, b.x)
-      var iy1 = Math.max(a.y, b.y)
-      var ix2 = Math.min(a.x + a.w, b.x + b.w)
-      var iy2 = Math.min(a.y + a.h, b.y + b.h)
-      var interArea = (ix2 > ix1 && iy2 > iy1) ? ((ix2 - ix1) * (iy2 - iy1)) : 0
-      var minArea = Math.min(a.w * a.h, b.w * b.h)
-      if (interArea >= 0.05 * minArea) continue
-
-      var vOverlap = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
-      var hGap = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w))
-      var horizAdj = vOverlap >= 0.40 * Math.max(a.h, b.h) && hGap >= -4 && hGap <= 36
-
-      var hOverlap = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)
-      var vGap = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h))
-      var vertAdj = hOverlap >= 0.40 * Math.max(a.w, b.w) && vGap >= -4 && vGap <= 64
-
-      if (horizAdj || vertAdj) {
-        adj[aIdx].push(bIdx)
-        adj[bIdx].push(aIdx)
-      }
-    }
-  }
-
-  var groups = []
-  var seenGroups = {}
-
-  for (var t = 0; t < targetWindows.length; t++) {
-    var tw = targetWindows[t]
-    if (!tw) continue
-    var startAddr = normalizeAddress(tw.address).toLowerCase()
-    if (!startAddr || byAddr[startAddr] === undefined) continue
-    var startIdx = byAddr[startAddr]
-    if (adj[startIdx].length === 0) continue
-
-    var visited = {}
-    var queue = [startIdx]
-    visited[startIdx] = true
-    var comp = []
-    while (queue.length > 0) {
-      var cur = queue.shift()
-      comp.push(candidates[cur])
-      var nbrs = adj[cur]
-      for (var j = 0; j < nbrs.length; j++) {
-        var nextIdx = nbrs[j]
-        if (!visited[nextIdx]) {
-          visited[nextIdx] = true
-          queue.push(nextIdx)
-        }
-      }
-    }
-
-    if (comp.length < 2 || comp.length > 4) continue
-
-    var minX = comp[0].x
-    var minY = comp[0].y
-    var maxX = comp[0].x + comp[0].w
-    var maxY = comp[0].y + comp[0].h
-    var sumArea = 0
-    var addrList = []
-    for (var m = 0; m < comp.length; m++) {
-      var cm = comp[m]
-      if (cm.x < minX) minX = cm.x
-      if (cm.y < minY) minY = cm.y
-      if (cm.x + cm.w > maxX) maxX = cm.x + cm.w
-      if (cm.y + cm.h > maxY) maxY = cm.y + cm.h
-      sumArea += cm.w * cm.h
-      addrList.push(cm.normAddr)
-    }
-
-    var bboxW = maxX - minX
-    var bboxH = maxY - minY
-    if (bboxW < 600 || bboxH < 360) continue
-    if (sumArea / (bboxW * bboxH) < 0.72) continue
-
-    addrList.sort()
-    var groupId = addrList.join("|")
-    if (seenGroups[groupId]) continue
-    seenGroups[groupId] = true
-
-    comp.sort(function(p, q) {
-      if (p.y !== q.y) return p.y - q.y
-      if (p.x !== q.x) return p.x - q.x
-      return p.normAddr < q.normAddr ? -1 : (p.normAddr > q.normAddr ? 1 : 0)
-    })
-
-    var members = comp.map(function(node) {
-      return {
-        window: node.window,
-        rx: (node.x - minX) / bboxW,
-        ry: (node.y - minY) / bboxH,
-        rw: node.w / bboxW,
-        rh: node.h / bboxH
-      }
-    })
-
-    groups.push({
-      id: groupId,
-      workspaceId: comp[0].workspaceId,
-      focusAddr: startAddr,
-      members: members
-    })
-  }
-
-  return groups
 }
 
 function resolveIconSource(entry, fallbackId, iconPathFn, fileUrlFn) {
@@ -1335,7 +657,7 @@ function resolveIconSource(entry, fallbackId, iconPathFn, fileUrlFn) {
 }
 
 function resolveSelectedWindowIndex(windows, selectedAddr, fallbackIndex) {
-  if (!Array.isArray(windows) || windows.length === 0) return -1
+  if (!isArrayLike(windows) || windows.length === 0) return -1
   var target = normalizeAddress(selectedAddr).toLowerCase()
   if (target) {
     for (var i = 0; i < windows.length; i++) {
@@ -1347,474 +669,10 @@ function resolveSelectedWindowIndex(windows, selectedAddr, fallbackIndex) {
   return Math.max(0, Math.min(windows.length - 1, idx))
 }
 
-function sanitizePlainLabel(text, maxLen) {
-  var safe = String(text === undefined || text === null ? "" : text)
-    .replace(/[\x00-\x1F\x7F]+/g, " ")
-    .replace(/</g, "\u2039")
-    .replace(/>/g, "\u203A")
-  return sanitizeTooltipText(safe, maxLen)
-}
-
-function _gcdInt(a, b) {
-  var x = Math.abs(Math.round(Number(a) || 0))
-  var y = Math.abs(Math.round(Number(b) || 0))
-  while (y) {
-    var t = x % y
-    x = y
-    y = t
-  }
-  return x
-}
-
-function _formatScaleStr(n) {
-  var val = Number(n)
-  if (!isFinite(val) || val <= 0) return "1"
-  return String(Number(val.toFixed(4)))
-}
-
-function cleanMonitorScale(scale, width, height) {
-  var requested = Number(scale)
-  var w = Math.round(Number(width) || 0)
-  var h = Math.round(Number(height) || 0)
-  if (!isFinite(requested) || requested <= 0 || w <= 0 || h <= 0) return "1"
-
-  var divisor = _gcdInt(w * 120, h * 120)
-  if (divisor <= 0) return _formatScaleStr(requested)
-  var units = Math.max(1, Math.round(requested * 120))
-  if (units > divisor) units = divisor
-  while (divisor % units !== 0) units++
-  return _formatScaleStr(units / 120)
-}
-
-function availableMonitorScales(width, height, currentScale) {
-  var base = ["1", "1.25", "1.5", "1.6", "1.75", "2", "2.5", "3"]
-  var cur = Number(currentScale)
-  if (isFinite(cur) && cur > 0) base.push(_formatScaleStr(cur))
-
-  var byValue = {}
-  for (var i = 0; i < base.length; i++) {
-    var req = Number(base[i])
-    var effStr = cleanMonitorScale(req, width, height)
-    var eff = Number(effStr)
-    if (!isFinite(eff) || eff <= 0) continue
-    var dist = Math.abs(req - eff)
-    if (!byValue[effStr] || dist < byValue[effStr].dist) {
-      byValue[effStr] = {
-        value: effStr,
-        scale: eff,
-        label: Math.round(eff * 100) + "%",
-        dist: dist
-      }
-    }
-  }
-
-  var list = []
-  var keys = Object.keys(byValue)
-  for (var k = 0; k < keys.length; k++) {
-    var entry = byValue[keys[k]]
-    list.push({ value: entry.value, scale: entry.scale, label: entry.label })
-  }
-  list.sort(function(a, b) { return a.scale - b.scale })
-  return list
-}
-
-function parseMonitorMode(modeStr, fallbackW, fallbackH, fallbackHz) {
-  var fw = Math.max(320, Math.round(Number(fallbackW) || 1920))
-  var fh = Math.max(200, Math.round(Number(fallbackH) || 1080))
-  var fhz = Number(fallbackHz)
-  if (!isFinite(fhz) || fhz <= 0) fhz = 60
-
-  var raw = String(modeStr === undefined || modeStr === null ? "" : modeStr).trim()
-  if (!raw || raw.toLowerCase() === "preferred") {
-    return { mode: "preferred", width: fw, height: fh, hz: fhz }
-  }
-
-  var m = /^(\d{3,5})x(\d{3,5})(?:@(\d+(?:\.\d+)?))?(?:hz)?$/i.exec(raw)
-  if (!m) {
-    return { mode: "preferred", width: fw, height: fh, hz: fhz }
-  }
-  var mw = Math.max(320, parseInt(m[1], 10))
-  var mh = Math.max(200, parseInt(m[2], 10))
-  var mhzStr = m[3] ? m[3] : String(Number(fhz.toFixed(2)))
-  var mhz = Number(mhzStr)
-  if (!isFinite(mhz) || mhz <= 0) mhz = fhz
-  return {
-    mode: mw + "x" + mh + "@" + mhzStr,
-    width: mw,
-    height: mh,
-    hz: mhz
-  }
-}
-
-function monitorLogicalSizeForSpec(m) {
-  if (!m || typeof m !== "object") return { w: 1920, h: 1080 }
-  var parsed = parseMonitorMode(m.mode, m.width, m.height, m.refreshRate)
-  var scale = Number(m.scale)
-  if (!isFinite(scale) || scale <= 0) scale = 1
-  var w = Math.max(120, Math.floor(parsed.width / scale))
-  var h = Math.max(120, Math.floor(parsed.height / scale))
-  var tr = ((Math.round(Number(m.transform) || 0) % 4) + 4) % 4
-  if (tr % 2 === 1) {
-    var tmp = w
-    w = h
-    h = tmp
-  }
-  return { w: w, h: h }
-}
-
-function _axisGap(a1, a2, b1, b2) {
-  return Math.max(0, Math.max(a1, b1) - Math.min(a2, b2))
-}
-
-function _axisOverlap(a1, a2, b1, b2) {
-  return Math.min(a2, b2) - Math.max(a1, b1)
-}
-
-function snapMonitorRect(movingRect, otherRects, threshold) {
-  if (!movingRect || typeof movingRect !== "object") {
-    return { x: 0, y: 0, snappedX: false, snappedY: false }
-  }
-  var thresh = (typeof threshold === "number" && threshold >= 0) ? threshold : 72
-  var mx = Math.round(Number(movingRect.x) || 0)
-  var my = Math.round(Number(movingRect.y) || 0)
-  var mw = Math.max(120, Math.round(Number(movingRect.w) || 1920))
-  var mh = Math.max(120, Math.round(Number(movingRect.h) || 1080))
-
-  var bestX = mx
-  var bestXDist = thresh + 1
-  var snappedX = false
-  var bestY = my
-  var bestYDist = thresh + 1
-  var snappedY = false
-
-  var others = Array.isArray(otherRects) ? otherRects : []
-  for (var i = 0; i < others.length; i++) {
-    var o = others[i]
-    if (!o || o.enabled === false) continue
-    var ox = Math.round(Number(o.x) || 0)
-    var oy = Math.round(Number(o.y) || 0)
-    var ow = Math.max(120, Math.round(Number(o.w || o.logicalW) || 1920))
-    var oh = Math.max(120, Math.round(Number(o.h || o.logicalH) || 1080))
-
-    var yGap = _axisGap(my, my + mh, oy, oy + oh)
-    if (yGap <= thresh * 2) {
-      var xCandidates = [
-        ox + ow,
-        ox - mw,
-        ox,
-        ox + ow - mw,
-        ox + Math.round((ow - mw) / 2)
-      ]
-      for (var xi = 0; xi < xCandidates.length; xi++) {
-        var dx = Math.abs(xCandidates[xi] - mx)
-        if (dx <= thresh && dx < bestXDist) {
-          bestXDist = dx
-          bestX = xCandidates[xi]
-          snappedX = true
-        }
-      }
-    }
-
-    var xGap = _axisGap(mx, mx + mw, ox, ox + ow)
-    if (xGap <= thresh * 2) {
-      var yCandidates = [
-        oy + oh,
-        oy - mh,
-        oy,
-        oy + oh - mh,
-        oy + Math.round((oh - mh) / 2)
-      ]
-      for (var yi = 0; yi < yCandidates.length; yi++) {
-        var dy = Math.abs(yCandidates[yi] - my)
-        if (dy <= thresh && dy < bestYDist) {
-          bestYDist = dy
-          bestY = yCandidates[yi]
-          snappedY = true
-        }
-      }
-    }
-  }
-
-  return { x: bestX, y: bestY, snappedX: snappedX, snappedY: snappedY }
-}
-
-function _cloneShallow(obj) {
-  var copy = {}
-  if (!obj || typeof obj !== "object") return copy
-  var keys = Object.keys(obj)
-  for (var i = 0; i < keys.length; i++) copy[keys[i]] = obj[keys[i]]
-  return copy
-}
-
-function _rectsStrictlyOverlap(a, b) {
-  return _axisOverlap(a.x, a.x + a.w, b.x, b.x + b.w) > 0
-    && _axisOverlap(a.y, a.y + a.h, b.y, b.y + b.h) > 0
-}
-
-function _rectsShareEdge(a, b) {
-  var xo = _axisOverlap(a.x, a.x + a.w, b.x, b.x + b.w)
-  var yo = _axisOverlap(a.y, a.y + a.h, b.y, b.y + b.h)
-  var xg = _axisGap(a.x, a.x + a.w, b.x, b.x + b.w)
-  var yg = _axisGap(a.y, a.y + a.h, b.y, b.y + b.h)
-  return (xg === 0 && yo >= 1) || (yg === 0 && xo >= 1)
-}
-
-function _resolveMonitorOverlaps(rects) {
-  for (var pass = 0; pass < 32; pass++) {
-    var movedAny = false
-    for (var i = 0; i < rects.length; i++) {
-      for (var j = i + 1; j < rects.length; j++) {
-        var a = rects[i]
-        var b = rects[j]
-        if (!_rectsStrictlyOverlap(a, b)) continue
-        var shifts = [
-          { dx: a.x - b.w - b.x, dy: 0 },
-          { dx: a.x + a.w - b.x, dy: 0 },
-          { dx: 0, dy: a.y - b.h - b.y },
-          { dx: 0, dy: a.y + a.h - b.y }
-        ]
-        var best = shifts[0]
-        var bestCost = Math.abs(best.dx) + Math.abs(best.dy)
-        for (var s = 1; s < shifts.length; s++) {
-          var cost = Math.abs(shifts[s].dx) + Math.abs(shifts[s].dy)
-          if (cost < bestCost) {
-            bestCost = cost
-            best = shifts[s]
-          }
-        }
-        b.x += best.dx
-        b.y += best.dy
-        movedAny = true
-      }
-    }
-    if (!movedAny) break
-  }
-}
-
-function normalizeMonitorLayout(monitors, movedKey) {
-  var src = Array.isArray(monitors) ? monitors : []
-  var out = []
-  var movedNorm = String(movedKey || "")
-  var enabledRects = []
-
-  for (var i = 0; i < src.length; i++) {
-    var item = _cloneShallow(src[i])
-    var sz = monitorLogicalSizeForSpec(item)
-    item.logicalW = sz.w
-    item.logicalH = sz.h
-    item.x = Math.round(Number(item.x) || 0)
-    item.y = Math.round(Number(item.y) || 0)
-    out.push(item)
-    if (item.enabled !== false) {
-      var key = String(item.matchKey || item.name || ("m" + i))
-      enabledRects.push({
-        ref: item,
-        x: item.x,
-        y: item.y,
-        w: sz.w,
-        h: sz.h,
-        isMoved: movedNorm !== "" && (key === movedNorm || String(item.name || "") === movedNorm)
-      })
-    }
-  }
-
-  if (enabledRects.length === 0) return out
-
-  // Keep un-moved monitors earlier so the actively dragged monitor yields around anchors.
-  enabledRects.sort(function(a, b) {
-    if (a.isMoved !== b.isMoved) return a.isMoved ? 1 : -1
-    if (a.x !== b.x) return a.x - b.x
-    return a.y - b.y
-  })
-
-  _resolveMonitorOverlaps(enabledRects)
-
-  // Connect all enabled monitors into one gapless edge-sharing cluster.
-  var cluster = [enabledRects[0]]
-  var remaining = enabledRects.slice(1)
-
-  while (remaining.length > 0) {
-    var attachedIdx = -1
-    for (var r = 0; r < remaining.length; r++) {
-      for (var c = 0; c < cluster.length; c++) {
-        if (_rectsShareEdge(cluster[c], remaining[r])) {
-          attachedIdx = r
-          break
-        }
-      }
-      if (attachedIdx >= 0) break
-    }
-
-    if (attachedIdx >= 0) {
-      cluster.push(remaining.splice(attachedIdx, 1)[0])
-      continue
-    }
-
-    var bestR = 0
-    var bestDx = 0
-    var bestDy = 0
-    var bestScore = Infinity
-    for (var rr = 0; rr < remaining.length; rr++) {
-      var b = remaining[rr]
-      for (var cc = 0; cc < cluster.length; cc++) {
-        var a = cluster[cc]
-        var xo = _axisOverlap(a.x, a.x + a.w, b.x, b.x + b.w)
-        var yo = _axisOverlap(a.y, a.y + a.h, b.y, b.y + b.h)
-
-        var candShifts = []
-        var syHoriz = 0
-        if (yo < 1) {
-          syHoriz = (b.y + b.h / 2 < a.y + a.h / 2) ? (a.y + 1 - (b.y + b.h)) : (a.y + a.h - 1 - b.y)
-          var snapTop = a.y - b.y
-          if (Math.abs(snapTop) < Math.abs(syHoriz) + 40) syHoriz = snapTop
-        }
-        candShifts.push({
-          dx: (b.x + b.w / 2 < a.x + a.w / 2) ? (a.x - b.w - b.x) : (a.x + a.w - b.x),
-          dy: syHoriz
-        })
-
-        var sxVert = 0
-        if (xo < 1) {
-          sxVert = (b.x + b.w / 2 < a.x + a.w / 2) ? (a.x + 1 - (b.x + b.w)) : (a.x + a.w - 1 - b.x)
-          var snapLeft = a.x - b.x
-          if (Math.abs(snapLeft) < Math.abs(sxVert) + 40) sxVert = snapLeft
-        }
-        candShifts.push({
-          dx: sxVert,
-          dy: (b.y + b.h / 2 < a.y + a.h / 2) ? (a.y - b.h - b.y) : (a.y + a.h - b.y)
-        })
-
-        for (var cs = 0; cs < candShifts.length; cs++) {
-          var cand = { x: b.x + candShifts[cs].dx, y: b.y + candShifts[cs].dy, w: b.w, h: b.h }
-          var collides = false
-          for (var chk = 0; chk < cluster.length; chk++) {
-            if (_rectsStrictlyOverlap(cand, cluster[chk])) {
-              collides = true
-              break
-            }
-          }
-          var dist = Math.hypot(candShifts[cs].dx, candShifts[cs].dy) + (collides ? 100000 : 0)
-          if (dist < bestScore) {
-            bestScore = dist
-            bestR = rr
-            bestDx = candShifts[cs].dx
-            bestDy = candShifts[cs].dy
-          }
-        }
-      }
-    }
-
-    var target = remaining.splice(bestR, 1)[0]
-    target.x += Math.round(bestDx)
-    target.y += Math.round(bestDy)
-    cluster.push(target)
-    _resolveMonitorOverlaps(cluster)
-  }
-
-  var minX = enabledRects[0].x
-  var minY = enabledRects[0].y
-  for (var k = 1; k < enabledRects.length; k++) {
-    if (enabledRects[k].x < minX) minX = enabledRects[k].x
-    if (enabledRects[k].y < minY) minY = enabledRects[k].y
-  }
-
-  for (var u = 0; u < enabledRects.length; u++) {
-    var rec = enabledRects[u]
-    rec.ref.x = Math.round(rec.x - minX)
-    rec.ref.y = Math.round(rec.y - minY)
-  }
-
-  return out
-}
-
-function computeCanvasProjection(monitors, canvasW, canvasH, padPx) {
-  var cw = Math.max(160, Number(canvasW) || 640)
-  var ch = Math.max(120, Number(canvasH) || 240)
-  var pad = (typeof padPx === "number" && padPx >= 0) ? padPx : 36
-  var list = Array.isArray(monitors) ? monitors : []
-
-  var minX = Infinity
-  var minY = Infinity
-  var maxX = -Infinity
-  var maxY = -Infinity
-  var hasEnabled = false
-
-  for (var i = 0; i < list.length; i++) {
-    var m = list[i]
-    if (!m || m.enabled === false) continue
-    var sz = monitorLogicalSizeForSpec(m)
-    var x = Math.round(Number(m.x) || 0)
-    var y = Math.round(Number(m.y) || 0)
-    if (x < minX) minX = x
-    if (y < minY) minY = y
-    if (x + sz.w > maxX) maxX = x + sz.w
-    if (y + sz.h > maxY) maxY = y + sz.h
-    hasEnabled = true
-  }
-
-  if (!hasEnabled) {
-    minX = 0
-    minY = 0
-    maxX = 1920
-    maxY = 1200
-  }
-
-  var bboxW = Math.max(1, maxX - minX)
-  var bboxH = Math.max(1, maxY - minY)
-  var availW = Math.max(80, cw - pad * 2)
-  var availH = Math.max(60, ch - pad * 2)
-  var spanW = bboxW + Math.max(800, bboxW * 0.22)
-  var spanH = bboxH + Math.max(500, bboxH * 0.22)
-  var scale = Math.max(0.025, Math.min(0.14, Math.min(availW / spanW, availH / spanH)))
-
-  var offsetX = (cw - bboxW * scale) / 2 - minX * scale
-  var offsetY = (ch - bboxH * scale) / 2 - minY * scale
-
-  return {
-    scale: scale,
-    originX: offsetX,
-    originY: offsetY,
-    bboxW: bboxW,
-    bboxH: bboxH,
-    minX: minX,
-    minY: minY
-  }
-}
-
-function monitorsStateChanged(draft, baseline) {
-  var a = Array.isArray(draft) ? draft : []
-  var b = Array.isArray(baseline) ? baseline : []
-  if (a.length !== b.length) return true
-
-  var byKey = {}
-  for (var i = 0; i < b.length; i++) {
-    var bm = b[i]
-    if (!bm) continue
-    var bk = String(bm.matchKey || bm.name || i)
-    byKey[bk] = bm
-  }
-
-  for (var j = 0; j < a.length; j++) {
-    var am = a[j]
-    if (!am) return true
-    var ak = String(am.matchKey || am.name || j)
-    var ref = byKey[ak]
-    if (!ref) return true
-    if ((am.enabled !== false) !== (ref.enabled !== false)) return true
-    if (Math.round(Number(am.x) || 0) !== Math.round(Number(ref.x) || 0)) return true
-    if (Math.round(Number(am.y) || 0) !== Math.round(Number(ref.y) || 0)) return true
-    var ta = ((Math.round(Number(am.transform) || 0) % 4) + 4) % 4
-    var tb = ((Math.round(Number(ref.transform) || 0) % 4) + 4) % 4
-    if (ta !== tb) return true
-    if (String(am.mode || "preferred") !== String(ref.mode || "preferred")) return true
-    if (Math.abs((Number(am.scale) || 1) - (Number(ref.scale) || 1)) > 0.002) return true
-  }
-  return false
-}
-
 if (typeof module !== "undefined") {
-  module.exports = {
+  var _core = {
     MINIMIZED_WORKSPACE: MINIMIZED_WORKSPACE,
+    isArrayLike: isArrayLike,
     isMinimizedWorkspace: isMinimizedWorkspace,
     normalizeId: normalizeId,
     normalizeAddress: normalizeAddress,
@@ -1828,34 +686,10 @@ if (typeof module !== "undefined") {
     normalizeWindowFilter: normalizeWindowFilter,
     minimizedOriginWorkspaceId: minimizedOriginWorkspaceId,
     filterWindowsByScope: filterWindowsByScope,
-    complementaryZone: complementaryZone,
-    nextSnapZone: nextSnapZone,
-    jumpToSnapCard: jumpToSnapCard,
-    filterSnapAssistCandidates: filterSnapAssistCandidates,
-    isValidProfileDir: isValidProfileDir,
     sanitizeTooltipText: sanitizeTooltipText,
     sanitizePlainLabel: sanitizePlainLabel,
-    cleanMonitorScale: cleanMonitorScale,
-    availableMonitorScales: availableMonitorScales,
-    parseMonitorMode: parseMonitorMode,
-    monitorLogicalSizeForSpec: monitorLogicalSizeForSpec,
-    snapMonitorRect: snapMonitorRect,
-    normalizeMonitorLayout: normalizeMonitorLayout,
-    computeCanvasProjection: computeCanvasProjection,
-    monitorsStateChanged: monitorsStateChanged,
-    browserProfileSpec: browserProfileSpec,
-    browserProfileConfigDir: browserProfileConfigDir,
-    parseChromeProfiles: parseChromeProfiles,
-    parseGeckoProfiles: parseGeckoProfiles,
-    parseBrowserProfiles: parseBrowserProfiles,
-    browserProfileLaunchArgv: browserProfileLaunchArgv,
-    lookupWindowProfile: lookupWindowProfile,
-    profileBadgeForItem: profileBadgeForItem,
-    formatWindowTooltipWithProfile: formatWindowTooltipWithProfile,
-    parseHiddenEntryIds: parseHiddenEntryIds,
-    entryName: entryName,
-    filterAndSortApps: filterAndSortApps,
     resolveIconSize: resolveIconSize,
+    HYPR_SETTINGS_TOGGLES: HYPR_SETTINGS_TOGGLES,
     HYPR_OPTION_KEYS: HYPR_OPTION_KEYS,
     defaultHyprSettings: defaultHyprSettings,
     parseHyprSettings: parseHyprSettings,
@@ -1864,15 +698,25 @@ if (typeof module !== "undefined") {
     toggleUncombineApp: toggleUncombineApp,
     isTwoLineClockFormat: isTwoLineClockFormat,
     extractPinnedList: extractPinnedList,
-    launchArgvForEntry: launchArgvForEntry,
     formatTemplate: formatTemplate,
     markWindowUrgent: markWindowUrgent,
     clearWindowUrgent: clearWindowUrgent,
     pruneUrgentWindows: pruneUrgentWindows,
     isItemUrgent: isItemUrgent,
     targetWindowForPin: targetWindowForPin,
-    detectSnapGroups: detectSnapGroups,
     resolveIconSource: resolveIconSource,
     resolveSelectedWindowIndex: resolveSelectedWindowIndex
+  }
+  if (typeof require === "function") {
+    module.exports = Object.assign(
+      _core,
+      require("./js/MonitorLayout.js"),
+      require("./js/BrowserProfiles.js"),
+      require("./js/SnapLayoutMath.js"),
+      require("./js/AppSearch.js"),
+      require("./js/WindowActions.js")
+    )
+  } else {
+    module.exports = _core
   }
 }

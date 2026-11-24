@@ -94,5 +94,6 @@
   "display.keepChanges": "保留更改",
   "display.revert": "还原",
   "display.applyError": "无法应用显示设置。",
-  "settings.floatingOnly": "仅限浮动窗口"
+  "settings.floatingOnly": "仅限浮动窗口",
+  "settings.snapResize": "Snap Resize"
 }

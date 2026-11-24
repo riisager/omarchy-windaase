@@ -94,5 +94,6 @@
   "display.keepChanges": "Hifadhi mabadiliko",
   "display.revert": "Rejesha",
   "display.applyError": "Haikuweza kutumia mipangilio ya skrini.",
-  "settings.floatingOnly": "Madirisha yanayoelea pekee"
+  "settings.floatingOnly": "Madirisha yanayoelea pekee",
+  "settings.snapResize": "Snap Resize"
 }

@@ -94,5 +94,6 @@
   "display.keepChanges": "Änderungen behalten",
   "display.revert": "Rückgängig",
   "display.applyError": "Anzeigeeinstellungen konnten nicht angewendet werden.",
-  "settings.floatingOnly": "Nur schwebende Fenster"
+  "settings.floatingOnly": "Nur schwebende Fenster",
+  "settings.snapResize": "Snap Resize"
 }

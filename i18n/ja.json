@@ -94,5 +94,6 @@
   "display.keepChanges": "変更を維持",
   "display.revert": "元に戻す",
   "display.applyError": "ディスプレイ設定を適用できませんでした。",
-  "settings.floatingOnly": "フローティングウィンドウのみ"
+  "settings.floatingOnly": "フローティングウィンドウのみ",
+  "settings.snapResize": "Snap Resize"
 }

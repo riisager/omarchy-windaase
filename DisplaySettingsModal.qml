@@ -8,6 +8,7 @@ import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
 import "TaskbarModel.js" as TaskbarModel
+import "js/MonitorLayout.js" as MonitorLayout
 
 // Visual Windows 11-style multi-monitor layout editor with magnetic snap,
 // dock-profile persistence, hardware Identify overlay, and 15s revert safety.
@@ -56,7 +57,7 @@ Item {
   signal identifyRequested(var items)
 
   readonly property string configScriptPath: String(Qt.resolvedUrl("windaase-config.py")).replace(/^file:\/\//, "")
-  readonly property bool isDirty: TaskbarModel.monitorsStateChanged(root.draftMonitors, root.liveMonitors)
+  readonly property bool isDirty: MonitorLayout.monitorsStateChanged(root.draftMonitors, root.liveMonitors)
 
   readonly property var selectedMonitor: {
     var list = root.draftMonitors || []
@@ -84,7 +85,7 @@ Item {
     return out
   }
 
-  readonly property var canvasProjection: TaskbarModel.computeCanvasProjection(
+  readonly property var canvasProjection: MonitorLayout.computeCanvasProjection(
     root.draftMonitors,
     Math.max(320, canvasArea.width),
     Math.max(180, canvasArea.height),
@@ -97,13 +98,13 @@ Item {
   readonly property var selectedScaleOptions: {
     var m = root.selectedMonitor
     if (!m) return []
-    return TaskbarModel.availableMonitorScales(m.width, m.height, m.scale)
+    return MonitorLayout.availableMonitorScales(m.width, m.height, m.scale)
   }
 
   readonly property string selectedCleanScale: {
     var m = root.selectedMonitor
     if (!m) return "1"
-    return TaskbarModel.cleanMonitorScale(m.scale, m.width, m.height)
+    return MonitorLayout.cleanMonitorScale(m.scale, m.width, m.height)
   }
 
   readonly property var selectedModeOptions: {
@@ -179,7 +180,7 @@ Item {
       var copy = {}
       var keys = Object.keys(m)
       for (var k = 0; k < keys.length; k++) copy[keys[k]] = m[keys[k]]
-      var sz = TaskbarModel.monitorLogicalSizeForSpec(copy)
+      var sz = MonitorLayout.monitorLogicalSizeForSpec(copy)
       copy.logicalW = sz.w
       copy.logicalH = sz.h
       out.push(copy)
@@ -190,7 +191,7 @@ Item {
   function applyStatusPayload(raw) {
     try {
       var parsed = JSON.parse(String(raw || ""))
-      if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.monitors)) return
+      if (!parsed || typeof parsed !== "object" || !MonitorLayout.isArrayLike(parsed.monitors)) return
       root.profileId = String(parsed.profileId || "")
       root.profileSaved = !!parsed.profileSaved
       root.clamshellClosed = !!parsed.clamshellClosed
@@ -246,7 +247,7 @@ Item {
       }
     }
     root.draftMonitors = normalizeAfter
-      ? TaskbarModel.normalizeMonitorLayout(next, targetKey)
+      ? MonitorLayout.normalizeMonitorLayout(next, targetKey)
       : next
   }
 
@@ -258,7 +259,7 @@ Item {
   function setSelectedScale(scaleVal) {
     var m = root.selectedMonitor
     if (!m) return
-    var clean = Number(TaskbarModel.cleanMonitorScale(scaleVal, m.width, m.height))
+    var clean = Number(MonitorLayout.cleanMonitorScale(scaleVal, m.width, m.height))
     if (!isFinite(clean) || clean <= 0) return
     root.updateSelectedField(function(item) { item.scale = clean }, true)
   }
@@ -271,11 +272,11 @@ Item {
   function setSelectedMode(modeVal) {
     root.updateSelectedField(function(item) {
       item.mode = String(modeVal || "preferred")
-      var parsed = TaskbarModel.parseMonitorMode(item.mode, item.width, item.height, item.refreshRate)
+      var parsed = MonitorLayout.parseMonitorMode(item.mode, item.width, item.height, item.refreshRate)
       item.width = parsed.width
       item.height = parsed.height
       item.refreshRate = parsed.hz
-      item.scale = Number(TaskbarModel.cleanMonitorScale(item.scale, parsed.width, parsed.height))
+      item.scale = Number(MonitorLayout.cleanMonitorScale(item.scale, parsed.width, parsed.height))
     }, true)
   }
 
@@ -422,7 +423,7 @@ Item {
       if (code === 0) {
         try {
           var res = JSON.parse(previewOutput.text)
-          root.revertSnapshot = (res && Array.isArray(res.revert)) ? res.revert : []
+          root.revertSnapshot = (res && MonitorLayout.isArrayLike(res.revert)) ? res.revert : []
           if (!root.opened) {
             root.revertChanges(false)
             return
@@ -795,7 +796,7 @@ Item {
                       if (!o || o.enabled === false || String(o.matchKey) === monBox.monKey) continue
                       others.push({ x: o.x, y: o.y, w: o.logicalW, h: o.logicalH, enabled: true })
                     }
-                    var snapped = TaskbarModel.snapMonitorRect(
+                    var snapped = MonitorLayout.snapMonitorRect(
                       { x: rawX, y: rawY, w: monBox.logW, h: monBox.logH },
                       others,
                       72
@@ -823,7 +824,7 @@ Item {
                         break
                       }
                     }
-                    root.draftMonitors = TaskbarModel.normalizeMonitorLayout(next, monBox.monKey)
+                    root.draftMonitors = MonitorLayout.normalizeMonitorLayout(next, monBox.monKey)
                   }
 
                   onReleased: finishDrag()

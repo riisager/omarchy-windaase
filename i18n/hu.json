@@ -94,5 +94,6 @@
   "display.keepChanges": "Módosítások megtartása",
   "display.revert": "Visszavonás",
   "display.applyError": "Nem sikerült alkalmazni a kijelzőbeállításokat.",
-  "settings.floatingOnly": "Csak lebegő ablakok"
+  "settings.floatingOnly": "Csak lebegő ablakok",
+  "settings.snapResize": "Snap Resize"
 }

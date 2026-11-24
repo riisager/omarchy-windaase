@@ -14,7 +14,7 @@ fi
 
 echo "==> Checking Python and JS syntax"
 python3 -m py_compile windaase-config.py configlib/*.py nautilus/windaase_context_menu.py
-node --check TaskbarModel.js
+node --check TaskbarModel.js js/*.js
 
 echo "==> Checking Lua syntax ($LUAC_BIN)"
 "$LUAC_BIN" -p hypr/windaase.lua hypr/windaase/*.lua

@@ -94,5 +94,6 @@
   "display.keepChanges": "تبدیلیاں رکھیں",
   "display.revert": "واپس لیں",
   "display.applyError": "ڈسپلے کی ترتیبات لاگو نہیں ہو سکیں۔",
-  "settings.floatingOnly": "صرف تیرتی ہوئی ونڈوز"
+  "settings.floatingOnly": "صرف تیرتی ہوئی ونڈوز",
+  "settings.snapResize": "Snap Resize"
 }

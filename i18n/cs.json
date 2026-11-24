@@ -94,5 +94,6 @@
   "display.keepChanges": "Ponechat změny",
   "display.revert": "Vrátit",
   "display.applyError": "Nepodařilo se použít nastavení displeje.",
-  "settings.floatingOnly": "Pouze plovoucí okna"
+  "settings.floatingOnly": "Pouze plovoucí okna",
+  "settings.snapResize": "Snap Resize"
 }

@@ -94,5 +94,6 @@
   "display.keepChanges": "Ohrani spremembe",
   "display.revert": "Povrni",
   "display.applyError": "Nastavitev zaslona ni bilo mogoče uveljaviti.",
-  "settings.floatingOnly": "Samo plavajoča okna"
+  "settings.floatingOnly": "Samo plavajoča okna",
+  "settings.snapResize": "Snap Resize"
 }

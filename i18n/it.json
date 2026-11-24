@@ -94,5 +94,6 @@
   "display.keepChanges": "Mantieni modifiche",
   "display.revert": "Ripristina",
   "display.applyError": "Impossibile applicare le impostazioni dello schermo.",
-  "settings.floatingOnly": "Solo finestre mobili"
+  "settings.floatingOnly": "Solo finestre mobili",
+  "settings.snapResize": "Snap Resize"
 }

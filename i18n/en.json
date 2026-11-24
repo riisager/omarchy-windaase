@@ -94,5 +94,6 @@
   "display.keepChanges": "Keep changes",
   "display.revert": "Revert",
   "display.applyError": "Could not apply display settings.",
-  "settings.floatingOnly": "Floating windows only"
+  "settings.floatingOnly": "Floating windows only",
+  "settings.snapResize": "Snap Resize"
 }

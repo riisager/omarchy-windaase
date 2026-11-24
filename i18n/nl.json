@@ -94,5 +94,6 @@
   "display.keepChanges": "Wijzigingen behouden",
   "display.revert": "Herstellen",
   "display.applyError": "Kan beeldscherminstellingen niet toepassen.",
-  "settings.floatingOnly": "Alleen zwevende vensters"
+  "settings.floatingOnly": "Alleen zwevende vensters",
+  "settings.snapResize": "Snap Resize"
 }

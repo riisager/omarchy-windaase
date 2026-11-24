@@ -427,18 +427,7 @@ PopupCard {
       }
 
       Repeater {
-        model: [
-          { key: "floating_only", labelKey: "settings.floatingOnly" },
-          { key: "snap_layouts", labelKey: "settings.snapLayouts" },
-          { key: "snap_assist", labelKey: "settings.snapAssist" },
-          { key: "aero_snap", labelKey: "settings.aeroSnap" },
-          { key: "hover_scroll", labelKey: "settings.hoverScroll" },
-          { key: "soft_maximize", labelKey: "settings.softMaximize" },
-          { key: "auto_raise", labelKey: "settings.autoRaise" },
-          { key: "shortcuts", labelKey: "settings.shortcuts" },
-          { key: "alt_tab", labelKey: "settings.altTab" },
-          { key: "ultrawide_layout", labelKey: "settings.ultrawideLayout" }
-        ]
+        model: TaskbarModel.HYPR_SETTINGS_TOGGLES
 
         delegate: SettingToggleRow {
           required property var modelData

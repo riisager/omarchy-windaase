@@ -94,5 +94,6 @@
   "display.keepChanges": "Manter alterações",
   "display.revert": "Reverter",
   "display.applyError": "Não foi possível aplicar as definições de ecrã.",
-  "settings.floatingOnly": "Apenas janelas flutuantes"
+  "settings.floatingOnly": "Apenas janelas flutuantes",
+  "settings.snapResize": "Snap Resize"
 }

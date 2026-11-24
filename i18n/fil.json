@@ -94,5 +94,6 @@
   "display.keepChanges": "Panatilihin",
   "display.revert": "Ibalik",
   "display.applyError": "Hindi mailapat ang mga setting ng display.",
-  "settings.floatingOnly": "Mga lumulutang na window lang"
+  "settings.floatingOnly": "Mga lumulutang na window lang",
+  "settings.snapResize": "Snap Resize"
 }

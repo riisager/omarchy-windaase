@@ -94,5 +94,6 @@
   "display.keepChanges": "மாற்றங்களை வைத்திரு",
   "display.revert": "மீளப்பெறு",
   "display.applyError": "திரை அமைப்புகளைப் பயன்படுத்த முடியவில்லை.",
-  "settings.floatingOnly": "மிதக்கும் சாளரங்கள் மட்டும்"
+  "settings.floatingOnly": "மிதக்கும் சாளரங்கள் மட்டும்",
+  "settings.snapResize": "Snap Resize"
 }

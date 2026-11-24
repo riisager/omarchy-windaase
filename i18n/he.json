@@ -94,5 +94,6 @@
   "display.keepChanges": "שמור שינויים",
   "display.revert": "שחזר",
   "display.applyError": "לא ניתן להחיל את הגדרות התצוגה.",
-  "settings.floatingOnly": "חלונות צפים בלבד"
+  "settings.floatingOnly": "חלונות צפים בלבד",
+  "settings.snapResize": "Snap Resize"
 }

@@ -94,5 +94,6 @@
   "display.keepChanges": "Säilita muudatused",
   "display.revert": "Taasta",
   "display.applyError": "Kuvasätteid ei saanud rakendada.",
-  "settings.floatingOnly": "Ainult ujuvad aknad"
+  "settings.floatingOnly": "Ainult ujuvad aknad",
+  "settings.snapResize": "Snap Resize"
 }

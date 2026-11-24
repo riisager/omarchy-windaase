@@ -94,5 +94,6 @@
   "display.keepChanges": "Conserva els canvis",
   "display.revert": "Reverteix",
   "display.applyError": "No s'han pogut aplicar els paràmetres de pantalla.",
-  "settings.floatingOnly": "Només finestres flotants"
+  "settings.floatingOnly": "Només finestres flotants",
+  "settings.snapResize": "Snap Resize"
 }

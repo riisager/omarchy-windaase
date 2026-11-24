@@ -94,5 +94,6 @@
   "display.keepChanges": "Zachowaj zmiany",
   "display.revert": "Przywróć",
   "display.applyError": "Nie można zastosować ustawień wyświetlania.",
-  "settings.floatingOnly": "Tylko okna pływające"
+  "settings.floatingOnly": "Tylko okna pływające",
+  "settings.snapResize": "Snap Resize"
 }

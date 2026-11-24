@@ -754,7 +754,12 @@ function run() {
 
   const en = JSON.parse(fs.readFileSync(path.join(i18nDir, "en.json"), "utf8"));
   const enKeys = Object.keys(en).sort();
-  assert.strictEqual(enKeys.length, 96, "Expected 96 keys in en.json");
+  assert.strictEqual(enKeys.length, 97, "Expected 97 keys in en.json");
+  assert.strictEqual(en["settings.snapResize"], "Snap Resize");
+  assert.ok(
+    TaskbarModel.HYPR_SETTINGS_TOGGLES.some((t) => t.key === "snap_resize" && t.labelKey === "settings.snapResize"),
+    "HYPR_SETTINGS_TOGGLES must expose snap_resize"
+  );
 
   assert.strictEqual(TaskbarModel.defaultHyprSettings().floating_only, false);
   assert.strictEqual(TaskbarModel.parseHyprSettings('{"floating_only":true}').floating_only, true);

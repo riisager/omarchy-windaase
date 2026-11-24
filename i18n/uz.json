@@ -94,5 +94,6 @@
   "display.keepChanges": "O‘zgarishlarni saqlash",
   "display.revert": "Bekor qilish",
   "display.applyError": "Ekran sozlamalarini qo'llab bo'lmadi.",
-  "settings.floatingOnly": "Faqat suzuvchi oynalar"
+  "settings.floatingOnly": "Faqat suzuvchi oynalar",
+  "settings.snapResize": "Snap Resize"
 }

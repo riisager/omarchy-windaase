@@ -5,6 +5,7 @@ import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
 import "TaskbarModel.js" as TaskbarModel
+import "js/BrowserProfiles.js" as BrowserProfiles
 
 // Windows 11-style taskbar preview popup with live window thumbnails.
 PopupCard {
@@ -105,7 +106,7 @@ PopupCard {
           readonly property var winProfile: modelData.profile || null
           readonly property var captureToplevel: modelData && modelData.toplevel ? modelData.toplevel : null
           readonly property bool canLiveCapture: root.open && !!captureToplevel && !modelData.minimized
-          readonly property string baseTitle: TaskbarModel.formatWindowTooltipWithProfile(
+          readonly property string baseTitle: BrowserProfiles.formatWindowTooltipWithProfile(
             modelData.title || root.fallbackLabel,
             winProfile
           )

@@ -94,5 +94,6 @@
   "display.keepChanges": "Запази промените",
   "display.revert": "Върни",
   "display.applyError": "Настройките на дисплея не можаха да бъдат приложени.",
-  "settings.floatingOnly": "Само плаващи прозорци"
+  "settings.floatingOnly": "Само плаващи прозорци",
+  "settings.snapResize": "Snap Resize"
 }

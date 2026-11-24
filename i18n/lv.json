@@ -94,5 +94,6 @@
   "display.keepChanges": "Paturēt izmaiņas",
   "display.revert": "Atgriezt",
   "display.applyError": "Neizdevās lietot displeja iestatījumus.",
-  "settings.floatingOnly": "Tikai peldošie logi"
+  "settings.floatingOnly": "Tikai peldošie logi",
+  "settings.snapResize": "Snap Resize"
 }

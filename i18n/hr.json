@@ -94,5 +94,6 @@
   "display.keepChanges": "Zadrži promjene",
   "display.revert": "Vrati",
   "display.applyError": "Nije moguće primijeniti postavke zaslona.",
-  "settings.floatingOnly": "Samo plutajući prozori"
+  "settings.floatingOnly": "Samo plutajući prozori",
+  "settings.snapResize": "Snap Resize"
 }

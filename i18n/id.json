@@ -94,5 +94,6 @@
   "display.keepChanges": "Simpan perubahan",
   "display.revert": "Kembalikan",
   "display.applyError": "Tidak dapat menerapkan pengaturan layar.",
-  "settings.floatingOnly": "Hanya jendela mengambang"
+  "settings.floatingOnly": "Hanya jendela mengambang",
+  "settings.snapResize": "Snap Resize"
 }

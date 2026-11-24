@@ -94,5 +94,6 @@
   "display.keepChanges": "Зберегти зміни",
   "display.revert": "Скасувати",
   "display.applyError": "Не вдалося застосувати налаштування дисплея.",
-  "settings.floatingOnly": "Лише плаваючі вікна"
+  "settings.floatingOnly": "Лише плаваючі вікна",
+  "settings.snapResize": "Snap Resize"
 }

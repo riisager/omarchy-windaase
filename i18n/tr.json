@@ -94,5 +94,6 @@
   "display.keepChanges": "Değişiklikleri koru",
   "display.revert": "Geri al",
   "display.applyError": "Ekran ayarları uygulanamadı.",
-  "settings.floatingOnly": "Yalnızca yüzen pencereler"
+  "settings.floatingOnly": "Yalnızca yüzen pencereler",
+  "settings.snapResize": "Snap Resize"
 }

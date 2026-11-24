@@ -94,5 +94,6 @@
   "display.keepChanges": "Säilytä muutokset",
   "display.revert": "Kumoa",
   "display.applyError": "Näyttöasetuksia ei voitu ottaa käyttöön.",
-  "settings.floatingOnly": "Vain kelluvat ikkunat"
+  "settings.floatingOnly": "Vain kelluvat ikkunat",
+  "settings.snapResize": "Snap Resize"
 }

@@ -94,5 +94,6 @@
   "display.keepChanges": "Ponechať zmeny",
   "display.revert": "Vrátiť",
   "display.applyError": "Nepodarilo sa použiť nastavenia obrazovky.",
-  "settings.floatingOnly": "Iba plávajúce okná"
+  "settings.floatingOnly": "Iba plávajúce okná",
+  "settings.snapResize": "Snap Resize"
 }

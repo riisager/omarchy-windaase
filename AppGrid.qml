@@ -7,6 +7,7 @@ import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
 import "TaskbarModel.js" as TaskbarModel
+import "js/AppSearch.js" as AppSearch
 
 // Self-contained all-apps grid overlay for Omarchy-windåse.
 // Type to filter, arrows to navigate, Enter to launch, right-click for actions.
@@ -21,6 +22,7 @@ Item {
   property int selectedIndex: 0
   property var apps: []
   property bool appsStale: false
+  property bool initialized: false
 
   readonly property string omarchyPath: Quickshell.env("OMARCHY_PATH") || "/usr/share/omarchy"
   property var configuredHidden: ({})
@@ -151,7 +153,13 @@ Item {
 
   function open() {
     root.selectedIndex = 0
-    if (Object.keys(root.iconIndex).length === 0) root.refreshIcons()
+    if (!root.initialized) {
+      root.initialized = true
+      if (!hiddenEntryScan.running) hiddenEntryScan.running = true
+      if (!iconIndexScan.running) iconIndexScan.running = true
+    } else if (Object.keys(root.iconIndex).length === 0) {
+      root.refreshIcons()
+    }
     if (root.appsStale || root.filterText !== "" || root.apps.length === 0) {
       root.filterText = ""
       root.rebuild()
@@ -176,7 +184,7 @@ Item {
   function rebuild() {
     root.appsStale = false
     var values = DesktopEntries.applications.values || []
-    root.apps = TaskbarModel.filterAndSortApps(values, root.filterText, root.combinedHiddenMap())
+    root.apps = AppSearch.filterAndSortApps(values, root.filterText, root.combinedHiddenMap())
     root.selectedIndex = Math.max(0, Math.min(root.selectedIndex, root.apps.length - 1))
     grid.positionViewAtBeginning()
   }
@@ -194,7 +202,7 @@ Item {
   }
 
   function launchEntry(entry) {
-    var argv = TaskbarModel.launchArgvForEntry(entry)
+    var argv = AppSearch.launchArgvForEntry(entry)
     if (argv.length > 0) Util.execArgv(argv)
   }
 
@@ -229,7 +237,7 @@ Item {
     if (!entry) return
     var id = TaskbarModel.normalizeId(entry.id)
     if (!id) return
-    var name = TaskbarModel.entryName(entry) || id
+    var name = AppSearch.entryName(entry) || id
     Util.execArgv([root.omarchyPath + "/bin/omarchy-remove-launcher-entry", id, name])
   }
 
@@ -262,7 +270,7 @@ Item {
     printErrors: false
     onFileChanged: reload()
     onLoaded: {
-      root.configuredHidden = TaskbarModel.parseHiddenEntryIds(text())
+      root.configuredHidden = AppSearch.parseHiddenEntryIds(text())
       if (root.opened) root.rebuild()
       else root.appsStale = true
     }
@@ -283,7 +291,7 @@ Item {
     }
     onStarted: hiddenEntryOutput.text = ""
     onExited: {
-      root.desktopHidden = TaskbarModel.parseHiddenEntryIds(hiddenEntryOutput.text)
+      root.desktopHidden = AppSearch.parseHiddenEntryIds(hiddenEntryOutput.text)
       if (root.opened) root.rebuild()
       else root.appsStale = true
     }
@@ -308,16 +316,13 @@ Item {
   Connections {
     target: DesktopEntries.applications
     function onValuesChanged() {
-      if (!hiddenEntryScan.running) hiddenEntryScan.running = true
-      iconIndexDebounce.restart()
+      if (root.initialized) {
+        if (!hiddenEntryScan.running) hiddenEntryScan.running = true
+        iconIndexDebounce.restart()
+      }
       if (root.opened) root.rebuild()
       else root.appsStale = true
     }
-  }
-
-  Component.onCompleted: {
-    hiddenEntryScan.running = true
-    iconIndexScan.running = true
   }
 
   Component.onDestruction: {
@@ -385,7 +390,7 @@ Item {
         z: 10
         message: TaskbarModel.formatTemplate(
           strings.t("appGrid.uninstallConfirm"),
-          TaskbarModel.entryName(root.uninstallEntry)
+          AppSearch.entryName(root.uninstallEntry)
         )
         confirmText: strings.t("appGrid.uninstall")
         background: Commons.Color.menu.background
@@ -523,7 +528,7 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: parent.width - (root.cellGutter + Style.spacing.md) * 2
                 textFormat: Text.PlainText
-                text: TaskbarModel.entryName(cell.modelData)
+                text: AppSearch.entryName(cell.modelData)
                 color: cell.selected ? Commons.Color.menu.selectedText : Commons.Color.menu.text
                 font.family: Style.font.menuFamily
                 font.pixelSize: Style.font.body

@@ -94,5 +94,6 @@
   "display.keepChanges": "Halda breytingum",
   "display.revert": "Afturkalla",
   "display.applyError": "Ekki tókst að virkja skjástillingar.",
-  "settings.floatingOnly": "Aðeins fljótandi gluggar"
+  "settings.floatingOnly": "Aðeins fljótandi gluggar",
+  "settings.snapResize": "Snap Resize"
 }

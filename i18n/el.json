@@ -94,5 +94,6 @@
   "display.keepChanges": "Διατήρηση αλλαγών",
   "display.revert": "Επαναφορά",
   "display.applyError": "Δεν ήταν δυνατή η εφαρμογή των ρυθμίσεων οθόνης.",
-  "settings.floatingOnly": "Μόνο αιωρούμενα παράθυρα"
+  "settings.floatingOnly": "Μόνο αιωρούμενα παράθυρα",
+  "settings.snapResize": "Snap Resize"
 }

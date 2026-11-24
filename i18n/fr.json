@@ -94,5 +94,6 @@
   "display.keepChanges": "Conserver",
   "display.revert": "Rétablir",
   "display.applyError": "Impossible d'appliquer les paramètres d'affichage.",
-  "settings.floatingOnly": "Fenêtres flottantes uniquement"
+  "settings.floatingOnly": "Fenêtres flottantes uniquement",
+  "settings.snapResize": "Snap Resize"
 }
