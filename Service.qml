@@ -355,14 +355,14 @@ Item {
   function showMonitorIdentify(items) {
     Hyprland.refreshMonitors()
     var next = {}
-    var list = Array.isArray(items) ? items : []
-    for (var i = 0; i < list.length; i++) {
-      var it = list[i]
+    var count = (items && typeof items.length === "number") ? items.length : 0
+    for (var i = 0; i < count; i++) {
+      var it = items[i]
       if (it && it.name) next[String(it.name)] = it
     }
     root.identifyMap = next
-    root.identifyActive = true
-    identifyTimer.restart()
+    root.identifyActive = Object.keys(next).length > 0
+    if (root.identifyActive) identifyTimer.restart()
   }
 
   Timer {
