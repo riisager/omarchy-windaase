@@ -5,9 +5,14 @@ import glob
 import json
 import os
 import re
+import shutil
+import subprocess
+import sys
 import unittest
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
 REGEX_PREFIX_CHARS = set("(=,:?[!&|{;\n")
 
 
@@ -245,6 +250,160 @@ class HygieneTests(unittest.TestCase):
                 staging_block,
                 f"install.sh staging block must copy {rel_file}",
             )
+
+        self.assertIn("${SCRIPT_DIR}/js/\"*.js", staging_block, "install.sh must stage js/*.js")
+        self.assertIn("${SCRIPT_DIR}/configlib/\"*.py", staging_block, "install.sh must stage configlib/*.py")
+        self.assertGreater(len(glob.glob(os.path.join(REPO_ROOT, "js", "*.js"))), 0)
+        self.assertGreater(len(glob.glob(os.path.join(REPO_ROOT, "configlib", "*.py"))), 0)
+
+    def test_qml_avoids_raw_array_isarray(self):
+        pattern = re.compile(r"\bArray\.isArray\s*\(")
+        for path in qml_files():
+            with open(path, "r", encoding="utf-8") as handle:
+                cleaned = strip_qml_comments_and_strings(handle.read())
+            rel = os.path.relpath(path, REPO_ROOT)
+            self.assertNotRegex(
+                cleaned,
+                pattern,
+                f"{rel}: use isArrayLike(...) instead of Array.isArray(...) for Qt6 QVariantList safety",
+            )
+
+    def test_hypr_option_keys_and_defaults_synced(self):
+        from configlib.common import HYPR_OPTION_KEYS as PY_KEYS
+
+        with open(os.path.join(REPO_ROOT, "hypr", "windaase.lua"), "r", encoding="utf-8") as handle:
+            lua_src = handle.read()
+        m_defaults = re.search(r"local\s+DEFAULTS\s*=\s*\{(.*?)\}", lua_src, flags=re.DOTALL)
+        self.assertIsNotNone(m_defaults)
+        lua_bool_defaults = {
+            k: (v == "true")
+            for k, v in re.findall(r"([a-z0-9_]+)\s*=\s*(true|false)", m_defaults.group(1))
+        }
+
+        js_info = json.loads(
+            subprocess.check_output(
+                [
+                    "node",
+                    "-e",
+                    (
+                        "const TM = require('./TaskbarModel.js');"
+                        "console.log(JSON.stringify({"
+                        "keys: TM.HYPR_OPTION_KEYS,"
+                        "defaults: TM.defaultHyprSettings(),"
+                        "toggles: TM.HYPR_SETTINGS_TOGGLES"
+                        "}));"
+                    ),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+            )
+        )
+        with open(os.path.join(REPO_ROOT, "i18n", "en.json"), "r", encoding="utf-8") as handle:
+            en_catalog = json.load(handle)
+
+        py_set = set(PY_KEYS)
+        js_set = set(js_info["keys"])
+        toggle_keys = [t["key"] for t in js_info["toggles"]]
+
+        self.assertEqual(py_set, set(lua_bool_defaults.keys()))
+        self.assertEqual(py_set, js_set)
+        self.assertEqual(js_info["defaults"], lua_bool_defaults)
+        self.assertEqual(set(toggle_keys), py_set)
+        self.assertEqual(len(toggle_keys), len(set(toggle_keys)))
+        for t in js_info["toggles"]:
+            self.assertIn(t["labelKey"], en_catalog)
+
+    def test_browser_catalog_synced_between_js_and_python(self):
+        from configlib.browsers import CHROMIUM_BROWSER_SUBDIRS, GECKO_BROWSER_SUBDIRS
+
+        with open(os.path.join(REPO_ROOT, "js", "BrowserProfiles.js"), "r", encoding="utf-8") as handle:
+            js_src = handle.read()
+        m_chrom = re.search(r"var\s+chromiumMap\s*=\s*\{(.*?)\n  \}", js_src, flags=re.DOTALL)
+        m_gecko = re.search(r"var\s+geckoMap\s*=\s*\{(.*?)\n  \}", js_src, flags=re.DOTALL)
+        self.assertIsNotNone(m_chrom)
+        self.assertIsNotNone(m_gecko)
+
+        js_chromium = set(re.findall(r'"([^"]+)"\s*:\s*\{', m_chrom.group(1)))
+        js_gecko = set(re.findall(r'"([^"]+)"\s*:\s*\{', m_gecko.group(1)))
+
+        self.assertEqual(js_chromium, set(CHROMIUM_BROWSER_SUBDIRS.keys()))
+        self.assertEqual(js_gecko, set(GECKO_BROWSER_SUBDIRS.keys()))
+
+    def test_layouts_fallbacks_match_layouts_json(self):
+        with open(os.path.join(REPO_ROOT, "layouts.json"), "r", encoding="utf-8") as handle:
+            canonical = json.load(handle)
+
+        js_fallback = json.loads(
+            subprocess.check_output(
+                [
+                    "node",
+                    "-e",
+                    "const SL = require('./js/SnapLayoutMath.js'); console.log(JSON.stringify(SL.DEFAULT_LAYOUTS_CONFIG));",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+            )
+        )
+        self.assertEqual(js_fallback, canonical)
+
+        lua_bin = shutil.which("lua") or shutil.which("lua5.4")
+        self.assertIsNotNone(lua_bin)
+        lua_script = (
+            "package.path = './?.lua;' .. package.path;"
+            "local g = require('hypr.windaase.geometry');"
+            "local cfg = g.resolve_layouts_config(nil, true);"
+            "print(cfg.cardW .. ',' .. cfg.cardH .. ',' .. cfg.cardGap .. ',' .. cfg.padX .. ',' .. cfg.padY .. ',' .. cfg.topMargin .. ',' .. #cfg.layouts);"
+            "for _, card in ipairs(cfg.layouts) do "
+            "  local parts = {};"
+            "  for _, z in ipairs(card) do "
+            "    parts[#parts+1] = string.format('%.5f:%.5f:%.5f:%.5f:%s', z.rx, z.ry, z.rw, z.rh, tostring(z.max == true));"
+            "  end;"
+            "  print(table.concat(parts, '|'));"
+            "end"
+        )
+        lua_lines = subprocess.check_output([lua_bin, "-e", lua_script], cwd=REPO_ROOT, text=True).strip().splitlines()
+        meta = [int(x) for x in lua_lines[0].split(",")]
+        expected_cards = list(canonical["layouts"]) + [canonical["ultrawideLayout"]]
+        self.assertEqual(
+            meta,
+            [
+                canonical["cardW"],
+                canonical["cardH"],
+                canonical["cardGap"],
+                canonical["padX"],
+                canonical["padY"],
+                canonical["topMargin"],
+                len(expected_cards),
+            ],
+        )
+        for idx, card in enumerate(expected_cards):
+            zones = lua_lines[idx + 1].split("|")
+            self.assertEqual(len(zones), len(card))
+            for z_raw, z_exp in zip(zones, card):
+                rx, ry, rw, rh, mx = z_raw.split(":")
+                self.assertAlmostEqual(float(rx), float(z_exp["rx"]), places=4)
+                self.assertAlmostEqual(float(ry), float(z_exp["ry"]), places=4)
+                self.assertAlmostEqual(float(rw), float(z_exp["rw"]), places=4)
+                self.assertAlmostEqual(float(rh), float(z_exp["rh"]), places=4)
+                self.assertEqual(mx == "true", bool(z_exp["max"]))
+
+    def test_minimize_tag_prefixes_synced_between_js_and_lua(self):
+        js_prefixes = json.loads(
+            subprocess.check_output(
+                [
+                    "node",
+                    "-e",
+                    "const WA = require('./js/WindowActions.js'); console.log(JSON.stringify(WA.MINIMIZE_TAG_PREFIXES));",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+            )
+        )
+        with open(os.path.join(REPO_ROOT, "hypr", "windaase", "show_desktop.lua"), "r", encoding="utf-8") as handle:
+            lua_src = handle.read()
+        for prefix in js_prefixes:
+            escaped_lua = prefix.replace("-", "%-")
+            self.assertIn(escaped_lua, lua_src, f"show_desktop.lua missing tag pattern for {prefix}")
 
 
 if __name__ == "__main__":

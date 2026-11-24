@@ -782,6 +782,87 @@ function run() {
     }
   }
 
+  // Qt6 QVariantList proxy simulation (array-like objects where Array.isArray(...) is false)
+  const qvariantList = (arr) => {
+    const obj = Object.create(null);
+    for (let i = 0; i < arr.length; i++) obj[i] = arr[i];
+    obj.length = arr.length;
+    return obj;
+  };
+  assert.strictEqual(Array.isArray(qvariantList([1, 2])), false);
+  assert.strictEqual(TaskbarModel.isArrayLike(qvariantList([1, 2])), true);
+
+  const qvMonitors = qvariantList([
+    { matchKey: "DP-1", name: "DP-1", width: 1920, height: 1200, scale: 1, x: 0, y: 0, enabled: true },
+    { matchKey: "DP-2", name: "DP-2", width: 1920, height: 1200, scale: 1, x: 2400, y: 0, enabled: true }
+  ]);
+  const qvNorm = TaskbarModel.normalizeMonitorLayout(qvMonitors, "DP-2");
+  assert.strictEqual(qvNorm.length, 2);
+  assert.strictEqual(qvNorm[1].x, 1920);
+
+  const qvGroup = {
+    workspaceId: 1,
+    focusAddr: "0x1",
+    members: qvariantList([
+      { window: { address: "0x1" } },
+      { window: { address: "0x2" } }
+    ])
+  };
+  const groupSteps = TaskbarModel.buildBringGroupForwardSteps(qvGroup);
+  assert.deepStrictEqual(groupSteps, [
+    'hl.dsp.focus({ workspace = "1" })',
+    'hl.dsp.window.alter_zorder({ mode = "top", window = "address:0x2" })',
+    'hl.dsp.focus({ window = "address:0x1" })',
+    'hl.dsp.window.alter_zorder({ mode = "top", window = "address:0x1" })'
+  ]);
+
+  const qvTl = {
+    address: "0x55",
+    wayland: { appId: "foot", title: "Shell", activated: true },
+    workspace: { id: 2, name: "2" },
+    monitor: { name: "DP-5" },
+    lastIpcObject: {
+      floating: true,
+      fullscreen: 0,
+      pinned: false,
+      at: qvariantList([10, 20]),
+      size: qvariantList([900, 600]),
+      tags: qvariantList(["omarchy-minimized-from-2", "omarchy-showdesktop-2"])
+    }
+  };
+  const normTl = TaskbarModel.normalizeToplevelWindow(qvTl, {});
+  assert.strictEqual(normTl.x, 10);
+  assert.strictEqual(normTl.y, 20);
+  assert.strictEqual(normTl.w, 900);
+  assert.strictEqual(normTl.h, 600);
+  assert.deepStrictEqual(normTl.tags, ["omarchy-minimized-from-2", "omarchy-showdesktop-2"]);
+
+  // WindowActions dispatch builders + mergeProfileProbeOutput
+  const restorePlan = TaskbarModel.buildRestoreDispatchPlan([
+    { address: "0x55", minimized: true, tags: ["omarchy-minimized-from-2", "omarchy-showdesktop-2"] }
+  ], 3);
+  assert.ok(restorePlan.beforeSteps.some((s) => s.includes('tag = "-omarchy-showdesktop-2"')));
+  assert.ok(restorePlan.beforeSteps.some((s) => s.includes('workspace = "3"')));
+  assert.strictEqual(restorePlan.afterSteps.length, 1);
+  const restoreCmd = TaskbarModel.formatRestoreShellCommand(restorePlan, (s) => `'${s}'`);
+  assert.ok(restoreCmd.includes("sleep 0.4"));
+
+  const minSteps = TaskbarModel.buildMinimizeDispatchSteps([
+    { address: "0x55", minimized: false, workspaceId: 2, tags: [] }
+  ], 2);
+  assert.ok(minSteps.some((s) => s.includes('tag = "+omarchy-minimized-from-2"')));
+  assert.ok(minSteps.some((s) => s.includes('workspace = "special:minimized"')));
+
+  const pinSteps = TaskbarModel.buildTogglePinDispatchSteps({ address: "0x55", floating: false, pinned: false });
+  assert.strictEqual(pinSteps.length, 3);
+
+  const probeMerged = TaskbarModel.mergeProfileProbeOutput(
+    JSON.stringify({ "0x55": { dir: "Profile 1", name: "Work", initial: "W", picturePath: "", confident: true } }),
+    {}
+  );
+  assert.strictEqual(probeMerged.changed, true);
+  assert.strictEqual(probeMerged.merged["0x55"].dir, "Profile 1");
+
   console.log("ALL TASKBAR MODEL & I18N TESTS PASSED");
 }
 
