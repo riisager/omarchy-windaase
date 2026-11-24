@@ -60,7 +60,6 @@ Variants {
 
       property int clickSelectedCard: -1
       property int clickSelectedZone: -1
-      property int assistSelectedIndex: -1
 
       readonly property int activeAssistWsId: root.snapState.ws >= 1
         ? root.snapState.ws
@@ -87,15 +86,13 @@ Variants {
 
       onIsAssistChanged: {
         if (win.isAssist) {
-          assistSelectedIndex = -1
           Qt.callLater(function() { if (win) win.closeAssistIfEmpty() })
         }
       }
 
       onAssistCandidatesChanged: {
-        if (win.isAssist) {
-          if (assistCandidates.length === 0) Qt.callLater(function() { if (win) win.closeAssistIfEmpty() })
-          else if (assistSelectedIndex >= 0 && assistSelectedIndex >= assistCandidates.length) assistSelectedIndex = assistCandidates.length - 1
+        if (win.isAssist && assistCandidates.length === 0) {
+          Qt.callLater(function() { if (win) win.closeAssistIfEmpty() })
         }
       }
 
@@ -327,7 +324,6 @@ Variants {
 
           strings: root.strings
           candidates: win.assistCandidates
-          selectedIndex: win.assistSelectedIndex
           maxWidth: Math.max(Style.space(280), Math.min(Style.space(520), root.snapState.pw - Style.space(28)))
           maxHeight: Math.max(Style.space(220), Math.min(Style.space(420), root.snapState.ph - Style.space(28)))
           x: Math.round(Math.max(Style.space(12), Math.min(win.width - width - Style.space(12), root.snapState.px + (root.snapState.pw - width) / 2)))

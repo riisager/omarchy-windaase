@@ -93,6 +93,8 @@ else
      "${SCRIPT_DIR}/layouts.json" \
      "${SCRIPT_DIR}/TaskbarModel.js" \
      "${SCRIPT_DIR}/BarWidget.qml" \
+     "${SCRIPT_DIR}/AppsLauncherSlot.qml" \
+     "${SCRIPT_DIR}/TaskbarSlot.qml" \
      "${SCRIPT_DIR}/WindowPickerCard.qml" \
      "${SCRIPT_DIR}/AppMenuCard.qml" \
      "${SCRIPT_DIR}/ProfileAvatar.qml" \
@@ -100,6 +102,8 @@ else
      "${SCRIPT_DIR}/SnapAssistCard.qml" \
      "${SCRIPT_DIR}/AltTabSwitcher.qml" \
      "${SCRIPT_DIR}/DisplaySettingsModal.qml" \
+     "${SCRIPT_DIR}/MonitorCanvas.qml" \
+     "${SCRIPT_DIR}/MonitorInspector.qml" \
      "${SCRIPT_DIR}/SnapOverlayWindow.qml" \
      "${SCRIPT_DIR}/AltTabOverlayWindow.qml" \
      "${SCRIPT_DIR}/MonitorIdentifyOverlay.qml" \

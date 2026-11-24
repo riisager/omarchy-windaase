@@ -10,25 +10,11 @@ BorderSurface {
 
   required property var strings
   property var candidates: []
-  property int selectedIndex: -1
   property real maxWidth: Style.space(520)
   property real maxHeight: Style.space(420)
 
   signal windowPicked(var candidate)
   signal closeRequested()
-
-  onSelectedIndexChanged: {
-    if (selectedIndex < 0 || root.candidates.length === 0) return
-    var row = Math.floor(selectedIndex / Math.max(1, root.columns))
-    var topY = row * (root.tileH + root.tileGap)
-    var bottomY = topY + root.tileH
-    var maxY = Math.max(0, assistFlickable.contentHeight - assistFlickable.height)
-    if (topY < assistFlickable.contentY) {
-      assistFlickable.contentY = Math.max(0, topY)
-    } else if (bottomY > assistFlickable.contentY + assistFlickable.height) {
-      assistFlickable.contentY = Math.min(maxY, bottomY - assistFlickable.height)
-    }
-  }
 
   readonly property int columns: (root.candidates.length >= 2 && root.maxWidth >= Style.space(420)) ? 2 : 1
   readonly property int rowCount: Math.max(1, Math.ceil(root.candidates.length / root.columns))
@@ -141,7 +127,6 @@ BorderSurface {
             required property int index
             required property var modelData
 
-            readonly property bool selected: root.selectedIndex === index
             readonly property bool hovered: tileMouse.containsMouse
             readonly property real cardWidth: root.columns === 1
               ? candidateGrid.width
@@ -150,9 +135,9 @@ BorderSurface {
             width: cardWidth
             height: root.tileH
             radius: Math.max(Style.space(6), Style.cornerRadius)
-            color: selected ? Style.selectedFill : (hovered ? Style.hoverFill : "transparent")
+            color: hovered ? Style.hoverFill : "transparent"
             border.width: 1
-            border.color: selected ? Commons.Color.accent : (hovered ? Style.normalBorderColor : Commons.Color.popups.border)
+            border.color: hovered ? Style.normalBorderColor : Commons.Color.popups.border
 
             Behavior on color { ColorAnimation { duration: Style.duration(90) } }
 

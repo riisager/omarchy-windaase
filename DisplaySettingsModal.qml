@@ -27,23 +27,13 @@ Item {
   property var draftMonitors: []
   property string selectedKey: ""
 
-  property string draggingKey: ""
-  property var dragProjection: null
-  property point dragStartPoint: Qt.point(0, 0)
-  property int dragStartLogicalX: 0
-  property int dragStartLogicalY: 0
-  property int dragPreviewX: 0
-  property int dragPreviewY: 0
-  property bool dragSnappedX: false
-  property bool dragSnappedY: false
-
   property bool confirmPending: false
   property int confirmSeconds: 15
   property var revertSnapshot: []
 
   onConfirmPendingChanged: {
     if (root.opened) {
-      Qt.callLater(function() { if (root && root.opened && !resolutionDropdown.popupOpen && keyCatcher) keyCatcher.forceActiveFocus() })
+      Qt.callLater(function() { if (root && root.opened && !monitorInspector.dropdownOpen && keyCatcher) keyCatcher.forceActiveFocus() })
     }
   }
 
@@ -84,16 +74,6 @@ Item {
     }
     return out
   }
-
-  readonly property var canvasProjection: MonitorLayout.computeCanvasProjection(
-    root.draftMonitors,
-    Math.max(320, canvasArea.width),
-    Math.max(180, canvasArea.height),
-    Style.space(28)
-  )
-  readonly property var activeProjection: (root.draggingKey !== "" && root.dragProjection)
-    ? root.dragProjection
-    : root.canvasProjection
 
   readonly property var selectedScaleOptions: {
     var m = root.selectedMonitor
@@ -150,7 +130,7 @@ Item {
     root.errorText = ""
     root.preserveErrorOnLoad = false
     root.confirmPending = false
-    root.draggingKey = ""
+    monitorCanvas.cancelDrag()
     root.opened = true
     root.loadStatus(false)
   }
@@ -162,7 +142,7 @@ Item {
       return
     }
     monitorHotplugRefreshTimer.stop()
-    root.draggingKey = ""
+    monitorCanvas.cancelDrag()
     root.opened = false
   }
 
@@ -231,7 +211,7 @@ Item {
 
   function resetDraft() {
     if (root.confirmPending || root.busy) return
-    root.draggingKey = ""
+    monitorCanvas.cancelDrag()
     root.errorText = ""
     root.draftMonitors = root.cloneMonitorsList(root.liveMonitors)
   }
@@ -301,7 +281,7 @@ Item {
 
   function applyDraftPreview() {
     if (!root.isDirty || root.busy || root.confirmPending) return
-    root.draggingKey = ""
+    monitorCanvas.cancelDrag()
     root.errorText = ""
     previewOutput.text = ""
     root.busy = true
@@ -384,7 +364,7 @@ Item {
     interval: 350
     repeat: false
     onTriggered: {
-      if (root.opened && !root.confirmPending && !root.busy && root.draggingKey === "") {
+      if (root.opened && !root.confirmPending && !root.busy && !monitorCanvas.dragging) {
         root.loadStatus(false)
       }
     }
@@ -393,7 +373,7 @@ Item {
   Connections {
     target: Quickshell
     function onScreensChanged() {
-      if (root.opened && !root.confirmPending && !root.busy && root.draggingKey === "") {
+      if (root.opened && !root.confirmPending && !root.busy && !monitorCanvas.dragging) {
         monitorHotplugRefreshTimer.restart()
       }
     }
@@ -488,13 +468,13 @@ Item {
     shownKeyboardFocus: (root.opened && overlay.contentRevealed) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     onContentReadyChanged: {
-      if (contentReady && root.opened && !resolutionDropdown.popupOpen) {
-        Qt.callLater(function() { if (root && root.opened && !resolutionDropdown.popupOpen && keyCatcher) keyCatcher.forceActiveFocus() })
+      if (contentReady && root.opened && !monitorInspector.dropdownOpen) {
+        Qt.callLater(function() { if (root && root.opened && !monitorInspector.dropdownOpen && keyCatcher) keyCatcher.forceActiveFocus() })
       }
     }
     onContentRevealedChanged: {
-      if (contentRevealed && root.opened && !resolutionDropdown.popupOpen) {
-        Qt.callLater(function() { if (root && root.opened && !resolutionDropdown.popupOpen && keyCatcher) keyCatcher.forceActiveFocus() })
+      if (contentRevealed && root.opened && !monitorInspector.dropdownOpen) {
+        Qt.callLater(function() { if (root && root.opened && !monitorInspector.dropdownOpen && keyCatcher) keyCatcher.forceActiveFocus() })
       }
     }
 
@@ -543,7 +523,7 @@ Item {
 
         Keys.priority: Keys.BeforeItem
         Keys.onPressed: function(event) {
-          if (resolutionDropdown.popupOpen) return
+          if (monitorInspector.dropdownOpen) return
           if (root.confirmPending) {
             if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
               root.commitChanges()
@@ -653,469 +633,48 @@ Item {
           }
         }
 
-        // Physical 2D monitor canvas (LTR spatial coordinates preserved regardless of UI RTL)
-        Rectangle {
-          id: canvasFrame
+        MonitorCanvas {
+          id: monitorCanvas
           width: parent.width
           height: Math.round(Math.max(Style.space(150), Math.min(Style.space(240), overlay.height * 0.32)))
-          LayoutMirroring.enabled: false
-          radius: Style.cornerRadius
-          color: Util.alpha(Commons.Color.menu.text, 0.04)
-          border.width: Math.max(1, Style.normalBorderWidth)
-          border.color: Util.alpha(Commons.Color.menu.border, 0.7)
-          clip: true
-
-          Item {
-            id: canvasArea
-            anchors.fill: parent
-
-            Repeater {
-              model: root.draftMonitors
-
-              delegate: Rectangle {
-                id: monBox
-                required property int index
-                required property var modelData
-
-                readonly property string monKey: String(modelData.matchKey || modelData.name || "")
-                readonly property bool isDraggingMe: root.draggingKey === monKey
-                readonly property bool isSelected: root.selectedKey === monKey
-                readonly property bool isSnapping: isDraggingMe && (root.dragSnappedX || root.dragSnappedY)
-                readonly property var proj: root.activeProjection
-                readonly property real posX: isDraggingMe ? root.dragPreviewX : Number(modelData.x || 0)
-                readonly property real posY: isDraggingMe ? root.dragPreviewY : Number(modelData.y || 0)
-                readonly property real logW: Math.max(120, Number(modelData.logicalW || 1920))
-                readonly property real logH: Math.max(120, Number(modelData.logicalH || 1080))
-
-                visible: modelData.enabled !== false
-                x: Math.round(proj.originX + posX * proj.scale)
-                y: Math.round(proj.originY + posY * proj.scale)
-                width: Math.max(Style.space(52), Math.round(logW * proj.scale))
-                height: Math.max(Style.space(36), Math.round(logH * proj.scale))
-                z: isDraggingMe ? 10 : (isSelected ? 5 : 1)
-                radius: Math.max(Style.space(6), Style.cornerRadius)
-                color: isSelected
-                  ? Util.alpha(Commons.Color.accent, 0.22)
-                  : (monMouse.containsMouse ? Style.hoverFill : Util.alpha(Commons.Color.menu.background, 0.92))
-                border.width: (isSelected || isSnapping) ? 2 : 1
-                border.color: (isSelected || isSnapping)
-                  ? Commons.Color.accent
-                  : Util.alpha(Commons.Color.menu.border, 0.9)
-
-                Behavior on x {
-                  enabled: root.draggingKey === ""
-                  NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic }
-                }
-                Behavior on y {
-                  enabled: root.draggingKey === ""
-                  NumberAnimation { duration: Style.duration(120); easing.type: Easing.OutCubic }
-                }
-                Behavior on color { ColorAnimation { duration: Style.duration(90) } }
-
-                Column {
-                  anchors.centerIn: parent
-                  width: Math.max(Style.space(28), monBox.width - Style.spacing.sm * 2)
-                  spacing: Style.space(2)
-
-                  Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    textFormat: Text.PlainText
-                    text: Commons.I18n.formatNumber(modelData.number || (monBox.index + 1))
-                    color: isSelected ? Commons.Color.accent : Commons.Color.menu.text
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.subtitle
-                    font.bold: true
-                  }
-
-                  Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    textFormat: Text.PlainText
-                    elide: Text.ElideRight
-                    visible: monBox.height >= Style.space(64)
-                    text: TaskbarModel.sanitizePlainLabel(modelData.model || modelData.name || "", 32)
-                    color: Commons.Color.menu.text
-                    opacity: 0.85
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
-                  }
-
-                  Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    textFormat: Text.PlainText
-                    elide: Text.ElideRight
-                    visible: monBox.height >= Style.space(86)
-                    text: Commons.I18n.formatNumber(Math.round(monBox.logW)) + " × " + Commons.I18n.formatNumber(Math.round(monBox.logH))
-                    color: Commons.Color.menu.text
-                    opacity: 0.62
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
-                  }
-                }
-
-                MouseArea {
-                  id: monMouse
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  enabled: !root.confirmPending && !root.busy
-                  cursorShape: root.draggingKey === monBox.monKey ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-
-                  onPressed: function(mouse) {
-                    root.selectedKey = monBox.monKey
-                    if (root.enabledCount <= 1) return
-                    var pt = monMouse.mapToItem(canvasArea, mouse.x, mouse.y)
-                    root.dragProjection = root.canvasProjection
-                    root.dragStartPoint = pt
-                    root.dragStartLogicalX = Math.round(Number(monBox.modelData.x) || 0)
-                    root.dragStartLogicalY = Math.round(Number(monBox.modelData.y) || 0)
-                    root.dragPreviewX = root.dragStartLogicalX
-                    root.dragPreviewY = root.dragStartLogicalY
-                    root.dragSnappedX = false
-                    root.dragSnappedY = false
-                    root.draggingKey = monBox.monKey
-                  }
-
-                  onPositionChanged: function(mouse) {
-                    if (!pressed || root.draggingKey !== monBox.monKey || !root.dragProjection) return
-                    var pt = monMouse.mapToItem(canvasArea, mouse.x, mouse.y)
-                    var sc = Math.max(0.01, root.dragProjection.scale)
-                    var rawX = Math.round(root.dragStartLogicalX + (pt.x - root.dragStartPoint.x) / sc)
-                    var rawY = Math.round(root.dragStartLogicalY + (pt.y - root.dragStartPoint.y) / sc)
-                    var margin = Style.space(6)
-                    var minLogX = Math.round((margin - root.dragProjection.originX) / sc)
-                    var maxLogX = Math.round((Math.max(margin, canvasArea.width - monBox.width - margin) - root.dragProjection.originX) / sc)
-                    var minLogY = Math.round((margin - root.dragProjection.originY) / sc)
-                    var maxLogY = Math.round((Math.max(margin, canvasArea.height - monBox.height - margin) - root.dragProjection.originY) / sc)
-                    rawX = Math.max(minLogX, Math.min(maxLogX, rawX))
-                    rawY = Math.max(minLogY, Math.min(maxLogY, rawY))
-                    var others = []
-                    var all = root.draftMonitors || []
-                    for (var i = 0; i < all.length; i++) {
-                      var o = all[i]
-                      if (!o || o.enabled === false || String(o.matchKey) === monBox.monKey) continue
-                      others.push({ x: o.x, y: o.y, w: o.logicalW, h: o.logicalH, enabled: true })
-                    }
-                    var snapped = MonitorLayout.snapMonitorRect(
-                      { x: rawX, y: rawY, w: monBox.logW, h: monBox.logH },
-                      others,
-                      72
-                    )
-                    root.dragPreviewX = snapped.x
-                    root.dragPreviewY = snapped.y
-                    root.dragSnappedX = snapped.snappedX
-                    root.dragSnappedY = snapped.snappedY
-                  }
-
-                  function finishDrag() {
-                    if (root.draggingKey !== monBox.monKey) return
-                    var finalX = root.dragPreviewX
-                    var finalY = root.dragPreviewY
-                    root.draggingKey = ""
-                    root.dragProjection = null
-                    root.dragSnappedX = false
-                    root.dragSnappedY = false
-
-                    var next = root.cloneMonitorsList(root.draftMonitors)
-                    for (var i = 0; i < next.length; i++) {
-                      if (String(next[i].matchKey) === monBox.monKey) {
-                        next[i].x = finalX
-                        next[i].y = finalY
-                        break
-                      }
-                    }
-                    root.draftMonitors = MonitorLayout.normalizeMonitorLayout(next, monBox.monKey)
-                  }
-
-                  onReleased: finishDrag()
-                  onCanceled: finishDrag()
-                }
+          strings: strings
+          draftMonitors: root.draftMonitors
+          disabledMonitors: root.disabledMonitors
+          selectedKey: root.selectedKey
+          enabledCount: root.enabledCount
+          interactive: !root.confirmPending && !root.busy
+          onMonitorSelected: function(matchKey) { root.selectedKey = matchKey }
+          onMonitorMoved: function(matchKey, newX, newY) {
+            var next = root.cloneMonitorsList(root.draftMonitors)
+            for (var i = 0; i < next.length; i++) {
+              if (String(next[i].matchKey) === matchKey) {
+                next[i].x = newX
+                next[i].y = newY
+                break
               }
             }
-
-            // Disabled connected monitors bar at bottom-left of canvas
-            Row {
-              visible: root.disabledMonitors.length > 0
-              anchors.left: parent.left
-              anchors.bottom: parent.bottom
-              anchors.margins: Style.spacing.sm
-              spacing: Style.spacing.xs
-              z: 20
-
-              Repeater {
-                model: root.disabledMonitors
-
-                delegate: Rectangle {
-                  id: disChip
-                  required property var modelData
-                  readonly property string monKey: String(modelData.matchKey || modelData.name || "")
-                  readonly property bool isSelected: root.selectedKey === monKey
-
-                  implicitWidth: disText.implicitWidth + Style.spacing.sm * 2
-                  implicitHeight: disText.implicitHeight + Style.space(6)
-                  radius: Style.cornerRadius
-                  color: isSelected
-                    ? Util.alpha(Commons.Color.accent, 0.18)
-                    : Util.alpha(Commons.Color.menu.background, 0.9)
-                  border.width: isSelected ? 2 : 1
-                  border.color: isSelected ? Commons.Color.accent : Util.alpha(Commons.Color.menu.border, 0.7)
-
-                  Text {
-                    id: disText
-                    anchors.centerIn: parent
-                    textFormat: Text.PlainText
-                    text: Commons.I18n.formatNumber(modelData.number || 0) + " · "
-                      + TaskbarModel.sanitizePlainLabel(modelData.name || "", 20) + " · "
-                      + (modelData.clamshellLocked ? strings.t("display.clamshellTag") : strings.t("display.disabledTag"))
-                    color: Commons.Color.menu.text
-                    opacity: 0.85
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
-                  }
-
-                  MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.selectedKey = disChip.monKey
-                  }
-                }
-              }
-            }
+            root.draftMonitors = MonitorLayout.normalizeMonitorLayout(next, matchKey)
           }
         }
 
-        // Selected monitor details & controls
-        Rectangle {
-          visible: !!root.selectedMonitor
+        MonitorInspector {
+          id: monitorInspector
           width: parent.width
-          implicitHeight: inspectorCol.implicitHeight + Style.spacing.md * 2
-          height: implicitHeight
-          radius: Style.cornerRadius
-          color: Util.alpha(Commons.Color.menu.text, 0.03)
-          border.width: 1
-          border.color: Util.alpha(Commons.Color.menu.border, 0.5)
-
-          Column {
-            id: inspectorCol
-            readonly property real labelWidth: Style.space(164)
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Style.spacing.md
-            spacing: Style.spacing.sm
-
-            RowLayout {
-              width: parent.width
-              spacing: Style.spacing.sm
-
-              Rectangle {
-                width: Style.space(24)
-                height: Style.space(24)
-                radius: width / 2
-                color: Util.alpha(Commons.Color.accent, 0.2)
-                border.width: 1
-                border.color: Commons.Color.accent
-
-                Text {
-                  anchors.centerIn: parent
-                  textFormat: Text.PlainText
-                  text: root.selectedMonitor ? Commons.I18n.formatNumber(root.selectedMonitor.number || 1) : ""
-                  color: Commons.Color.accent
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                  font.bold: true
-                }
-              }
-
-              Column {
-                Layout.fillWidth: true
-                spacing: 1
-
-                Text {
-                  width: parent.width
-                  textFormat: Text.PlainText
-                  elide: Text.ElideRight
-                  text: root.selectedMonitor
-                    ? TaskbarModel.sanitizePlainLabel(
-                        (root.selectedMonitor.name || "") + " · " + (root.selectedMonitor.model || ""),
-                        64
-                      )
-                    : ""
-                  color: Commons.Color.menu.text
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
-                  font.bold: true
-                }
-
-                Text {
-                  width: parent.width
-                  textFormat: Text.PlainText
-                  elide: Text.ElideRight
-                  visible: text !== ""
-                  text: root.selectedMonitor && root.selectedMonitor.clamshellLocked
-                    ? strings.t("display.clamshellHint")
-                    : ((root.selectedMonitor && root.selectedMonitor.enabled && root.enabledCount <= 1)
-                        ? strings.t("display.lastDisplayHint")
-                        : TaskbarModel.sanitizePlainLabel(
-                            root.selectedMonitor ? (root.selectedMonitor.description || "") : "",
-                            72
-                          ))
-                  color: Commons.Color.menu.text
-                  opacity: 0.65
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                }
-              }
-
-              Text {
-                textFormat: Text.PlainText
-                text: strings.t("display.enableDisplay")
-                color: Commons.Color.menu.text
-                opacity: root.selectedCanToggleEnabled ? 1.0 : 0.5
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-              }
-
-              ToggleSwitch {
-                checked: !!(root.selectedMonitor && root.selectedMonitor.enabled !== false)
-                interactive: root.selectedCanToggleEnabled && !root.confirmPending && !root.busy
-                opacity: root.selectedCanToggleEnabled ? 1.0 : 0.45
-                trackHeight: 18
-                foreground: Commons.Color.menu.text
-                accent: Commons.Color.accent
-                onToggled: root.setSelectedEnabled(!(root.selectedMonitor && root.selectedMonitor.enabled !== false))
-              }
-            }
-
-            // Scale presets
-            RowLayout {
-              width: parent.width
-              spacing: Style.spacing.md
-              visible: !!(root.selectedMonitor && root.selectedMonitor.enabled !== false)
-
-              Text {
-                Layout.preferredWidth: inspectorCol.labelWidth
-                Layout.alignment: Qt.AlignTop
-                Layout.topMargin: Style.space(4)
-                textFormat: Text.PlainText
-                text: strings.t("display.scale")
-                color: Commons.Color.menu.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                elide: Text.ElideRight
-              }
-
-              Flow {
-                Layout.fillWidth: true
-                spacing: Style.spacing.xs
-
-                Repeater {
-                  model: root.selectedScaleOptions
-
-                  delegate: Button {
-                    required property var modelData
-                    text: TaskbarModel.sanitizePlainLabel(modelData.label, 24)
-                    bordered: true
-                    focusable: false
-                    selected: String(modelData.value) === root.selectedCleanScale
-                    foreground: Commons.Color.menu.text
-                    background: Commons.Color.menu.background
-                    accent: Commons.Color.accent
-                    fontSize: Style.font.caption
-                    horizontalPadding: Style.spacing.sm
-                    verticalPadding: Style.space(4)
-                    onClicked: root.setSelectedScale(modelData.value)
-                  }
-                }
-              }
-            }
-
-            // Orientation (0 / 90 / 180 / 270)
-            RowLayout {
-              width: parent.width
-              spacing: Style.spacing.md
-              visible: !!(root.selectedMonitor && root.selectedMonitor.enabled !== false)
-
-              Text {
-                Layout.preferredWidth: inspectorCol.labelWidth
-                Layout.alignment: Qt.AlignTop
-                Layout.topMargin: Style.space(4)
-                textFormat: Text.PlainText
-                text: strings.t("display.orientation")
-                color: Commons.Color.menu.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                elide: Text.ElideRight
-              }
-
-              Flow {
-                Layout.fillWidth: true
-                spacing: Style.spacing.xs
-
-                Repeater {
-                  model: [
-                    { value: "0", label: strings.t("display.rot0") },
-                    { value: "1", label: strings.t("display.rot90") },
-                    { value: "2", label: strings.t("display.rot180") },
-                    { value: "3", label: strings.t("display.rot270") }
-                  ]
-
-                  delegate: Button {
-                    required property var modelData
-                    readonly property string curTr: root.selectedMonitor ? String(root.selectedMonitor.transform || 0) : "0"
-                    text: TaskbarModel.sanitizePlainLabel(modelData.label, 32)
-                    bordered: true
-                    focusable: false
-                    selected: modelData.value === curTr
-                    foreground: Commons.Color.menu.text
-                    background: Commons.Color.menu.background
-                    accent: Commons.Color.accent
-                    fontSize: Style.font.caption
-                    horizontalPadding: Style.spacing.sm
-                    verticalPadding: Style.space(4)
-                    onClicked: root.setSelectedTransform(Number(modelData.value))
-                  }
-                }
-              }
-            }
-
-            // Resolution & Refresh Rate dropdown
-            RowLayout {
-              width: parent.width
-              spacing: Style.spacing.md
-              visible: !!(root.selectedMonitor && root.selectedMonitor.enabled !== false)
-
-              Text {
-                Layout.preferredWidth: inspectorCol.labelWidth
-                Layout.alignment: Qt.AlignVCenter
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                textFormat: Text.PlainText
-                text: strings.t("display.resolution")
-                color: Commons.Color.menu.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                elide: Text.ElideRight
-              }
-
-              Dropdown {
-                id: resolutionDropdown
-                Layout.fillWidth: true
-                showLabel: false
-                foreground: Commons.Color.menu.text
-                background: Commons.Color.menu.background
-                popupBorder: Commons.Color.menu.border
-                accent: Commons.Color.accent
-                options: root.selectedModeOptions
-                value: root.selectedMonitor ? String(root.selectedMonitor.mode || "preferred") : "preferred"
-                onPopupOpenChanged: {
-                  if (!popupOpen && root.opened) {
-                    Qt.callLater(function() { if (root && root.opened && !resolutionDropdown.popupOpen && keyCatcher) keyCatcher.forceActiveFocus() })
-                  }
-                }
-                onChanged: function(val) { root.setSelectedMode(val) }
-              }
+          strings: strings
+          selectedMonitor: root.selectedMonitor
+          enabledCount: root.enabledCount
+          selectedCanToggleEnabled: root.selectedCanToggleEnabled
+          selectedScaleOptions: root.selectedScaleOptions
+          selectedCleanScale: root.selectedCleanScale
+          selectedModeOptions: root.selectedModeOptions
+          interactive: !root.confirmPending && !root.busy
+          onEnabledToggled: function(en) { root.setSelectedEnabled(en) }
+          onScaleSelected: function(val) { root.setSelectedScale(val) }
+          onTransformSelected: function(tr) { root.setSelectedTransform(tr) }
+          onModeSelected: function(val) { root.setSelectedMode(val) }
+          onDropdownClosed: {
+            if (root.opened) {
+              Qt.callLater(function() { if (root && root.opened && !monitorInspector.dropdownOpen && keyCatcher) keyCatcher.forceActiveFocus() })
             }
           }
         }
