@@ -16,7 +16,7 @@ for arg in "$@"; do
 Usage: ./uninstall.sh [--restore-stock]
 
 Removes the Omarchy-windåse plugin and Hyprland Lua module.
-Pass --restore-stock to also re-enable omarchy.dock, reset [bar] size-horizontal, and move the bar back to top.
+Pass --restore-stock to also re-enable omarchy.dock, reset [bar] size-horizontal, restore tiling workspace default, and move the bar back to top.
 USAGE
       exit 0
       ;;
@@ -62,6 +62,11 @@ if [[ "$RESTORE_STOCK" -eq 1 ]] && [[ -n "${CONFIG_HELPER}" ]]; then
   python3 "${CONFIG_HELPER}" bar-height-reset || true
   python3 "${CONFIG_HELPER}" strip-monitors-block || true
   rm -f "${HOME}/.config/omarchy/windaase-monitors.json"
+  if command -v omarchy-hyprland-workspace-layout-default >/dev/null 2>&1 && omarchy-hyprland-workspace-layout-default dwindle >/dev/null 2>&1; then
+    :
+  else
+    python3 "${CONFIG_HELPER}" reset-floating-default || true
+  fi
 fi
 
 if command -v omarchy >/dev/null 2>&1; then

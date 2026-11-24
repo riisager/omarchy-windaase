@@ -1444,6 +1444,39 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertFalse(os.path.exists(ws21))
         self.assertTrue(os.path.exists(ws22))
 
+    def test_reset_floating_default_and_uninstall_restore_stock(self):
+        st = self._setup_fake_install_state('o.bind("SUPER + Return", "Term", { term = "foot" })\n')
+        layouts_dir = os.path.join(self.state_home, "omarchy", "workspace-layouts")
+        os.makedirs(layouts_dir, exist_ok=True)
+        default_lua = os.path.join(layouts_dir, "default.lua")
+
+        # Direct reset-floating-default restores dwindle when floating is set
+        with open(default_lua, "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ default = "floating" })\n')
+        res = self.run_helper("reset-floating-default")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(self.read_text(default_lua), 'o.workspace_mode({ default = "dwindle" })\n')
+
+        # Non-floating custom default (e.g. scrolling) is left untouched
+        with open(default_lua, "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ default = "scrolling" })\n')
+        res = self.run_helper("reset-floating-default")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(self.read_text(default_lua), 'o.workspace_mode({ default = "scrolling" })\n')
+
+        # uninstall.sh --restore-stock resets floating default back to dwindle
+        with open(default_lua, "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ default = "floating" })\n')
+        res = subprocess.run(
+            ["bash", UNINSTALL_SH, "--restore-stock"],
+            env=st["env"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+        self.assertEqual(self.read_text(default_lua), 'o.workspace_mode({ default = "dwindle" })\n')
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

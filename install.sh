@@ -88,7 +88,7 @@ else
   STAGING_DIR="${INSTALL_TMP_ROOT}/${PLUGIN_ID}.staging.$$"
   OLD_DIR="${INSTALL_TMP_ROOT}/${PLUGIN_ID}.old.$$"
 
-  mkdir -p "${STAGING_DIR}/i18n" "${STAGING_DIR}/nautilus"
+  mkdir -p "${STAGING_DIR}/i18n" "${STAGING_DIR}/nautilus" "${STAGING_DIR}/configlib"
   cp "${SCRIPT_DIR}/manifest.json" \
      "${SCRIPT_DIR}/layouts.json" \
      "${SCRIPT_DIR}/TaskbarModel.js" \
@@ -108,6 +108,7 @@ else
      "${STAGING_DIR}/"
   chmod +x "${STAGING_DIR}/windaase-config.py"
   cp "${SCRIPT_DIR}/i18n/"*.json "${STAGING_DIR}/i18n/"
+  cp "${SCRIPT_DIR}/configlib/"*.py "${STAGING_DIR}/configlib/"
   cp "${SCRIPT_DIR}/nautilus/windaase_context_menu.py" "${STAGING_DIR}/nautilus/"
 
   omarchy plugin validate "${STAGING_DIR}"
@@ -209,7 +210,7 @@ if [[ -n "$BAR_HEIGHT" ]]; then
     cp "${SHELL_TOML}" "${TOML_BAK}"
     echo "==> Backed up ${SHELL_TOML} to ${TOML_BAK}"
   fi
-  python3 "${SCRIPT_DIR}/windaase-config.py" bar-height "${BAR_HEIGHT}"
+  python3 "${PLUGIN_DEST}/windaase-config.py" bar-height "${BAR_HEIGHT}"
   echo "==> Set [bar] size-horizontal = ${BAR_HEIGHT} in ${SHELL_TOML}"
 fi
 
