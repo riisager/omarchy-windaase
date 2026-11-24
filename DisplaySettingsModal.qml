@@ -337,14 +337,19 @@ Item {
 
   function triggerIdentify() {
     var list = []
-    var src = root.draftMonitors || []
+    var src = (root.liveMonitors && root.liveMonitors.length > 0) ? root.liveMonitors : (root.draftMonitors || [])
     for (var i = 0; i < src.length; i++) {
       var m = src[i]
       if (!m || m.enabled === false) continue
+      var logW = Math.round(Number(m.logicalW) || Number(m.width) || 0)
+      var logH = Math.round(Number(m.logicalH) || Number(m.height) || 0)
       list.push({
         name: String(m.name || ""),
         number: Number(m.number) || (i + 1),
-        label: TaskbarModel.sanitizePlainLabel((m.name || "") + (m.model ? (" · " + m.model) : ""), 48)
+        label: TaskbarModel.sanitizePlainLabel((m.name || "") + (m.model ? (" · " + m.model) : ""), 48),
+        detail: (logW > 0 && logH > 0)
+          ? (Commons.I18n.formatNumber(logW) + " × " + Commons.I18n.formatNumber(logH))
+          : ""
       })
     }
     root.identifyRequested(list)
