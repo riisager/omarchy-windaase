@@ -35,6 +35,11 @@ python3 tests/hygiene_test.py
 echo "==> Checking shell script syntax"
 bash -n install.sh uninstall.sh tests/run.sh
 
+if command -v shellcheck >/dev/null 2>&1; then
+  echo "==> Running shellcheck"
+  shellcheck install.sh uninstall.sh tests/run.sh
+fi
+
 if command -v omarchy >/dev/null 2>&1; then
   echo "==> Validating plugin manifest & bundle"
   omarchy plugin validate .

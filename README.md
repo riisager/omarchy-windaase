@@ -71,17 +71,23 @@ Drag any floating window to the top edge of any monitor - or press **`Super + Z`
 ```
 
 - **Full keyboard navigation (`Super + Z`):** Move across cards and zones with `Arrow` keys or `Tab`, jump straight to cards `1`–`7` with number keys, and press `Enter` to snap (`Esc` to cancel).
-- **Windows 11 Snap Assist (`SnapAssistCard.qml`):** When you snap a floating window to one side (via `Super + Left/Right`, edge drag, or Snap Layouts) while other windows are open on the same workspace, **Snap Assist** appears in the remaining half/column so one click or `Enter` fills the other side cleanly.
-- **Snap Resize (Coupled Divider Resizing):** Drag the shared border or gap between snapped windows with the mouse - or press **`Super + Alt + Arrow`** - to resize all adjacent panes simultaneously with zero overlap, zero gaps drift, and a live `% · %` divider indicator (`snap_resize.lua`).
+- **Windows 11 Snap Assist (`SnapAssistCard.qml`):** When you snap a floating window to one side (via `Super + Left/Right`, edge drag, or Snap Layouts) while other windows are open on the same workspace, **Snap Assist** appears in the remaining half/column so one click fills the other side cleanly.
+- **Snap Resize (Coupled Divider Resizing):** Drag the shared border or gap between snapped windows with the mouse - or press **`Super + Alt + Arrow`** - to resize all adjacent panes simultaneously with zero overlap, zero gaps drift, and a live `% · %` divider indicator (`snap_resize.lua` + `seam.lua`).
+- **Windows Alt+Tab (`AltTabSwitcher.qml` + `alt_tab.lua`):** Live Wayland thumbnail switcher sorted by true MRU order, including minimized windows restored cleanly in place on selection.
 - **Optional Ultrawide `25 / 50 / 25` layout:** Enable *Ultrawide 25/50/25 layout* in Settings (or `ultrawide_layout = true`) to add a 7th centered wide-screen card.
 - **Multi-monitor aware** - Automatically mirrors onto whichever monitor your cursor enters, respecting each monitor's reserved bar margins and gaps.
 - **Aero Snap** - Drag floating windows to screen corners/edges or step cleanly between halves, quarters, maximize, and minimize via `Super + Arrow` keys (`snap.lua`).
 
-### Native Graphical Settings UI
+### Multi-Monitor Display Setup (`DisplaySettingsModal.qml` + `configlib/monitors.py`)
+- Press **`Super + P`** (or open **Settings → Display setup...**) for a visual Windows 11-style 2D monitor editor with magnetic edge snapping, scale presets, rotation, refresh rates, hardware **Identify** overlays (`MonitorIdentifyOverlay.qml`), and a **15-second keep-changes / auto-revert** safety dialog.
+- Automatically saves per-dock hardware profiles to `~/.config/omarchy/windaase-monitors.json` and syncs `~/.config/hypr/monitors.lua` + off-screen window rescue on hotplug (`monitors.lua`).
+
+### Native Graphical Settings UI & Opt-In Nautilus Menu
 Right-click the **3×3 Apps button**, right-click any taskbar icon → *Windåse settings*, or run `omarchy-shell riisager.windaase settings` to open `SettingsCard.qml`:
 
 - **Taskbar:** Bar height presets (`26` / `34` / `40` / `46 px`) + `26–56 px` slider, icon size (`Auto` or manual px), position (`Bottom` / `Top`), **Show windows** filter (`All` / `Workspace` / `Display`), two-line clock toggle, Apps button toggle.
-- **Windows (Hyprland):** Live companion status detection (with one-click copy of `~/.config/omarchy/plugins/riisager.windaase/install.sh` when running shell-only from Marketplace) and toggles for *Snap Layouts*, *Snap Assist*, *Aero Snap*, *Hover-scroll*, *Soft-maximize*, *Auto-raise*, *Windows shortcuts*, and *Ultrawide 25/50/25 layout*, persisted atomically to `~/.config/omarchy/windaase.json`.
+- **Files (Nautilus):** Opt-in Windows-style right-click actions (*Open in Terminal* / *Open with Code*, `nautilus/windaase_context_menu.py`) on folders and folder backgrounds.
+- **Windows (Hyprland):** Live companion status detection (with one-click copy of `~/.config/omarchy/plugins/riisager.windaase/install.sh` when running shell-only from Marketplace) and toggles for *Only floating windows* (`floating_only`, which keeps all workspaces floating and maps `Super + L` to lock screen), *Snap Layouts*, *Snap Assist*, *Snap Resize*, *Aero Snap*, *Windows Alt+Tab*, *Hover-scroll*, *Soft-maximize*, *Auto-raise*, *Windows shortcuts*, and *Ultrawide 25/50/25 layout*, persisted atomically to `~/.config/omarchy/windaase.json`.
 
 ![Omarchy-windåse graphical settings popup](docs/screenshots/settings.png)
 
@@ -155,8 +161,11 @@ Or from a local clone:
 | `Super + Up` | Soft-maximize (or promote left/right half → top corner) | Focus up |
 | `Super + Down` | Un-maximize / un-snap step by step / minimize window | Focus down |
 | `Super + Alt + Left` / `Right` / `Up` / `Down` | Step shared divider ratio (`25 / 35 / 50 / 65 / 75%`) across snapped windows | Move window into group |
+| `Super + P` | Open visual **Display Setup** editor | Same |
+| `Alt + Tab` / `Alt + Shift + Tab` | Live MRU **Windows Alt+Tab** thumbnail switcher | Same |
 | `Super + D` | Toggle **Show Desktop** (minimize / restore workspace) | Same |
 | `Super + E` | Open File Manager (`nautilus`) | Same |
+| `Super + L` *(with Only floating windows)* | Lock screen (`omarchy-system-lock`) | Unbound tiling shortcuts |
 | `Alt + F4` | Close active window | Same |
 
 ### Taskbar Mouse Actions
@@ -176,6 +185,8 @@ Or from a local clone:
 ```bash
 omarchy-shell riisager.windaase apps      # Toggle visual All-Apps Grid
 omarchy-shell riisager.windaase settings  # Toggle Windåse Settings popup
+omarchy-shell riisager.windaase displays  # Toggle Display Setup modal
+omarchy-shell riisager.windaase identify  # Flash display number badges on all monitors
 ```
 
 ---
@@ -237,17 +248,19 @@ require("hypr.windaase").setup({
   snap_assist = true,       -- Show Snap Assist picker after half/side snap
   snap_resize = true,       -- Coupled mouse border & Super + Alt + Arrow divider resize
   ultrawide_layout = false, -- Add 7th 25/50/25 layout card in Snap Layouts
+  floating_only = false,    -- Keep all workspaces floating, bind Super + L to lock, unbind tiling keys
   soft_maximize = true,     -- Edge-to-edge maximize without fullscreen=1 click lock
   auto_raise = true,        -- Raise floating window to top on focus
   hover_scroll = true,      -- Enforce input.follow_mouse = 2
-  shortcuts = true,         -- Alt+F4, Super+D, Super+E, Super+Alt+Space
+  shortcuts = true,         -- Alt+F4, Super+D, Super+P, Super+E, Super+Alt+Space, Super+Home, Super+Alt+P
+  alt_tab = true,           -- Windows-style MRU Alt+Tab switcher with live thumbnails
   gap_out = 8,              -- Outer gap around snapped work area (px)
   gap_in = 8,               -- Inner gap between snapped zones (px)
 })
 ```
 
 ### Customizing Snap Layouts
-Edit [`layouts.json`](layouts.json) to adjust card dimensions (`cardW`, `cardH`, `cardGap`, `padX`, `padY`, `topMargin`) or zone fractions (`rx`, `ry`, `rw`, `rh`, `max`). Both `Service.qml` and `hypr/windaase/geometry.lua` load the same file.
+Edit [`layouts.json`](layouts.json) to adjust card dimensions (`cardW`, `cardH`, `cardGap`, `padX`, `padY`, `topMargin`) or zone fractions (`rx`, `ry`, `rw`, `rh`, `max`). Both `Service.qml`/`SnapOverlayWindow.qml` (`js/SnapLayoutMath.js`) and `hypr/windaase/layouts_config.lua` load the same file.
 
 ---
 
@@ -255,36 +268,70 @@ Edit [`layouts.json`](layouts.json) to adjust card dimensions (`cardW`, `cardH`,
 
 ```text
 omarchy-windaase/
-├── manifest.json            # Omarchy shell plugin manifest (service + bar-widget)
-├── BarWidget.qml            # In-bar taskbar widget & 3×3 Apps launcher button
-├── WindowPickerCard.qml     # Live window thumbnail preview & grouped-window picker
-├── AppMenuCard.qml          # Context menu (Chrome/Chromium/Brave/Vivaldi/Edge/Firefox/Zen profiles, actions & split toggle)
-├── ProfileAvatar.qml        # Shared circular browser profile avatar with initial fallback
-├── SettingsCard.qml         # Native Settings popup (bar height, filter, companion status & toggles)
-├── SnapAssistCard.qml       # Windows 11-style Snap Assist window picker card
-├── Service.qml              # Snap Layouts, Snap Assist & Snap Resize overlay host + ShellIpc (riisager.windaase)
-├── AppGrid.qml              # Self-contained visual All-Apps launcher overlay
-├── TaskbarModel.js          # Pure JS grouping, stable ordering, search, launch & config helpers
-├── windaase-config.py       # Atomic CLI config writer, uninstall cleaner & local browser profile resolver
-├── layouts.json             # Single source of truth for Snap Layouts geometry
-├── i18n/*.json              # All 50 Omarchy locale catalogs (+ automatic RTL support)
+├── manifest.json               # Omarchy shell plugin manifest (service + bar-widget)
+├── BarWidget.qml               # In-bar taskbar state & popup orchestrator
+├── AppsLauncherSlot.qml        # 3×3 Apps launcher slot button
+├── TaskbarSlot.qml             # Individual taskbar icon, drag physics, badges & tooltip
+├── WindowPickerCard.qml        # Live window thumbnail preview & grouped-window picker
+├── AppMenuCard.qml             # Context menu (browser profiles, actions & split toggle)
+├── BrowserProfileTracker.qml   # Background browser profile resolver (Linux & Wayland PIDs)
+├── ProfileAvatar.qml           # Shared circular browser profile avatar with initial fallback
+├── SettingsCard.qml            # Native Settings popup (bar height, Nautilus & Hyprland toggles)
+├── DisplaySettingsModal.qml    # Visual multi-monitor settings controller & 15s revert safety
+├── MonitorCanvas.qml           # Interactive 2D monitor canvas with magnetic edge snapping
+├── MonitorInspector.qml        # Selected monitor properties (enable, scale, rotation, mode)
+├── MonitorIdentifyOverlay.qml  # Hardware monitor badge overlay (Identify)
+├── SnapOverlayWindow.qml       # Per-screen Snap Layouts, preview box, Snap Assist & resize divider
+├── SnapAssistCard.qml          # Windows 11-style Snap Assist window picker card
+├── AltTabOverlayWindow.qml     # Per-screen Alt+Tab backdrop & session host
+├── AltTabSwitcher.qml          # Live-thumbnail Alt+Tab card carousel
+├── Service.qml                 # Overlay coordinator & ShellIpc (riisager.windaase)
+├── AppGrid.qml                 # Self-contained visual All-Apps launcher overlay
+├── TaskbarModel.js             # Taskbar grouping, ordering, settings defaults & icon helpers
+├── js/
+│   ├── AppSearch.js            # AppGrid search filtering, sorting & launch argv builder
+│   ├── BrowserProfiles.js      # Browser Local State / profiles.ini parsers & badge formatters
+│   ├── MonitorLayout.js        # 2D canvas projection, magnetic snapping & scale presets
+│   ├── SnapLayoutMath.js       # Snap zone math, Snap Assist filtering & Snap Group detection
+│   └── WindowActions.js        # Toplevel normalization & hyprctl dispatch chain builders
+├── windaase-config.py          # Thin CLI entry point delegating to configlib/*
+├── configlib/
+│   ├── common.py               # File locks, atomic writes, Hypr option registry & shell helpers
+│   ├── shell_cfg.py            # shell.toml / shell.json / windaase.json writers & CLI subcommands
+│   ├── monitors.py             # Monitor matchKeys, dock profiles, clamshell & monitors.lua sync
+│   ├── browsers.py             # Multi-browser profile & window PID inspection
+│   ├── lua_strip.py            # Safe AST/token stripper for hyprland.lua on uninstall
+│   └── nautilus_cfg.py         # Opt-in Nautilus context menu installer/uninstaller
+├── nautilus/
+│   └── windaase_context_menu.py # Nautilus context menu extension (Terminal / Code)
+├── layouts.json                # Single source of truth for Snap Layouts geometry
+├── i18n/*.json                 # All 50 Omarchy locale catalogs (+ automatic RTL support)
 ├── hypr/
-│   ├── windaase.lua         # Public entry point: require("hypr.windaase").setup(opts)
+│   ├── windaase.lua            # Public entry point: require("hypr.windaase").setup(opts)
 │   └── windaase/
-│       ├── geometry.lua     # JSON loader, monitor work-area math, seam solver & frame/titlebar insets
-│       ├── snap.lua         # Aero Snap, soft-maximize & auto-raise
-│       ├── snap_layouts.lua # Event-driven drag monitor (0% idle CPU) & Super+Z overlay
-│       ├── snap_resize.lua  # Coupled Snap Group divider resizing (mouse + Super+Alt+Arrows)
-│       ├── focus.lua        # follow_mouse = 2 enforcement
-│       └── show_desktop.lua # In-process Super+D workspace minimize/restore toggle
+│       ├── runtime.lua         # Reload generation guard, dry-run detection & Super+K command helper
+│       ├── layouts_config.lua  # Minimal JSON decoder, layouts.json loader & zone hit-testing
+│       ├── seam.lua            # Coupled Snap Resize seam-graph solver & edge detection
+│       ├── geometry.lua        # Monitor work-area math, frame insets & multi-monitor rescue
+│       ├── snap.lua            # Aero Snap, soft-maximize & auto-raise
+│       ├── snap_layouts.lua    # Event-driven drag monitor (0% idle CPU) & Super+Z overlay
+│       ├── snap_resize.lua     # Coupled Snap Group divider resizing (mouse + Super+Alt+Arrows)
+│       ├── alt_tab.lua         # Windows-style MRU Alt+Tab backend & session binds
+│       ├── floating_only.lua   # Opt-in floating workspace lockdown & Win+L lock screen
+│       ├── monitors.lua        # Hotplug dock-profile synchronization trigger
+│       ├── focus.lua           # follow_mouse = 2 enforcement
+│       └── show_desktop.lua    # In-process Super+D workspace minimize/restore toggle
 ├── tests/
-│   ├── taskbar_model.test.js # JS model logic & full 50-locale key/placeholder parity checks
-│   ├── geometry_test.lua     # Snap zone math, Snap Resize seam solver, frame inset & JSON decoder tests
-│   └── config_helper_test.py # Atomic TOML/JSON rewrite, uninstall & multi-browser profile tests
-├── docs/screenshots/        # README screenshots
-├── install.sh               # Validated staging-swap installer (--shell-only / --full / --bar-height)
-├── uninstall.sh             # Clean removal + optional --restore-stock
-└── LICENSE                  # MIT
+│   ├── run.sh                  # Full verification runner (syntax, Lua, JS, Python, hygiene, shellcheck)
+│   ├── taskbar_model.test.js   # JS modules & full 50-locale key/placeholder parity tests
+│   ├── geometry_test.lua       # Snap zone math, seam solver, monitor rescue & JSON tests
+│   ├── modules_test.lua        # Stateful Lua module tests under hl/o mock (reload & Super+K)
+│   ├── config_helper_test.py   # Atomic config, uninstall, Nautilus & multi-monitor profile tests
+│   └── hygiene_test.py         # QML/JS/Lua/Python contract parity, packaging & modularity tests
+├── docs/screenshots/           # README screenshots
+├── install.sh                  # Validated staging-swap installer (--shell-only / --full / --bar-height)
+├── uninstall.sh                # Clean removal + optional --restore-stock
+└── LICENSE                     # MIT
 ```
 
 <details>
@@ -303,15 +350,10 @@ omarchy-windaase/
 ## Development & Testing
 
 ```bash
-node tests/taskbar_model.test.js
-lua tests/geometry_test.lua
-python3 tests/config_helper_test.py
-bash -n install.sh uninstall.sh
-luac -p hypr/windaase.lua hypr/windaase/*.lua
-omarchy plugin validate .
+./tests/run.sh
 ```
 
-The JS test suite automatically verifies key parity, non-empty translations, and `%1`/`%2` placeholder consistency across all 50 `i18n/*.json` files against `/usr/share/omarchy/default/i18n/locales.json`.
+`tests/run.sh` runs syntax checks (`py_compile`, `node --check`, `luac -p`, `bash -n`, `shellcheck`), Lua geometry & stateful module suites, JS model tests (including key parity, non-empty translations, and `%1`/`%2` placeholder checks across all 50 `i18n/*.json` catalogs), Python config/monitor/installer tests, cross-language hygiene checks, and `omarchy plugin validate`.
 
 ---
 

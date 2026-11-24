@@ -405,6 +405,23 @@ class HygieneTests(unittest.TestCase):
             escaped_lua = prefix.replace("-", "%-")
             self.assertIn(escaped_lua, lua_src, f"show_desktop.lua missing tag pattern for {prefix}")
 
+    def test_production_files_stay_modular(self):
+        max_lines = 1100
+        for root, dirs, files in os.walk(REPO_ROOT, followlinks=False):
+            dirs[:] = [d for d in dirs if d not in (".git", "__pycache__", "tests")]
+            for name in files:
+                if not name.endswith((".qml", ".js", ".py", ".lua")):
+                    continue
+                full_path = os.path.join(root, name)
+                with open(full_path, "r", encoding="utf-8") as handle:
+                    line_count = sum(1 for _ in handle)
+                rel = os.path.relpath(full_path, REPO_ROOT)
+                self.assertLessEqual(
+                    line_count,
+                    max_lines,
+                    f"{rel} has {line_count} lines (limit {max_lines}); keep production modules focused",
+                )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
