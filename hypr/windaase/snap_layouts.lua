@@ -119,7 +119,7 @@ local function finish_active_drag(cur, c)
   end
 
   local picked_zone = st.snap_open and st.snap_zone or nil
-  local picked_mon = st.snap_open and st.snap_mon or nil
+  local picked_mon = st.snap_open and ((st.snap_mon_name and hl.get_monitor(st.snap_mon_name)) or st.snap_mon) or nil
   if st.snap_open then
     write_snap_state({ open = false })
   end
@@ -154,10 +154,12 @@ local function update_drag_overlay(st, cur, c)
       assist_seq = assist_seq + 1
       st.snap_open = true
       st.snap_mon = m
+      st.snap_mon_name = m.name
     end
   elseif st.snap_mon and m.name ~= st.snap_mon.name and (ly <= 48 or win_top <= 36) then
     assist_seq = assist_seq + 1
     st.snap_mon = m
+    st.snap_mon_name = m.name
   end
 
   if st.snap_open then
@@ -188,6 +190,8 @@ local function update_drag_overlay(st, cur, c)
       end
     else
       st.snap_open = false
+      st.snap_mon = nil
+      st.snap_mon_name = nil
       st.snap_zone = nil
       write_snap_state({ open = false })
     end
@@ -236,7 +240,7 @@ local function tick(expected_token)
     local dcx = c.x - st.last_cx
     local dcy = c.y - st.last_cy
     local win_moved = math.abs(dwx) >= 1 or math.abs(dwy) >= 1
-    local cur_moved = math.abs(dcx) >= 3 or math.abs(dcy) >= 3
+    local cur_moved = math.abs(dcx) >= 2 or math.abs(dcy) >= 2
 
     if win_moved then
       st.detached_ticks = 0
@@ -244,34 +248,40 @@ local function tick(expected_token)
       st.last_wy = cur.at.y
       st.last_cx = c.x
       st.last_cy = c.y
+      st.drop_cx = c.x
+      st.drop_cy = c.y
       update_drag_overlay(st, cur, c)
     elseif cur_moved then
       local m, mw = geometry.get_monitor_at(c.x, c.y)
       local clamped_push = false
-      if st.snap_open then
-        clamped_push = true
-      elseif m then
+      if m then
         local mx, my = m.x or 0, m.y or 0
-        local push_top = (c.y <= my + 48) or (cur.at.y <= my + 48)
-        local push_left = (c.x <= mx + 24)
-        local push_right = (c.x >= mx + mw - 24)
+        local push_top = (cur.at.y <= my + 38) and (dcy <= 0) and (math.abs(dcx) < 3)
+        local push_left = (cur.at.x <= mx + 4) and (dcx < 0) and (math.abs(dcy) < 3)
+        local push_right = (cur.at.x + cur.size.x >= mx + mw - 4) and (dcx > 0) and (math.abs(dcy) < 3)
         clamped_push = push_top or push_left or push_right
       end
       if clamped_push then
         st.detached_ticks = 0
         st.last_cx = c.x
         st.last_cy = c.y
+        st.drop_cx = c.x
+        st.drop_cy = c.y
         update_drag_overlay(st, cur, c)
       else
         st.detached_ticks = (st.detached_ticks or 0) + 1
         st.last_cx = c.x
         st.last_cy = c.y
-        if st.detached_ticks >= 16 then
-          finish_active_drag(cur, c)
+        if st.detached_ticks >= 2 then
+          finish_active_drag(cur, { x = st.drop_cx or c.x, y = st.drop_cy or c.y })
           hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
           return
         end
       end
+    elseif (st.detached_ticks or 0) > 0 then
+      finish_active_drag(cur, { x = st.drop_cx or c.x, y = st.drop_cy or c.y })
+      hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
+      return
     end
 
     hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 25 })
@@ -312,9 +322,12 @@ local function tick(expected_token)
         last_wy = cur.at.y,
         last_cx = c.x,
         last_cy = c.y,
+        drop_cx = c.x,
+        drop_cy = c.y,
         detached_ticks = 0,
         snap_open = false,
         snap_mon = nil,
+        snap_mon_name = nil,
         snap_zone = nil,
       }
       update_drag_overlay(mouse_drag_state, cur, c)
