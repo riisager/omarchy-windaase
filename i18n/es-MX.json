@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Se revertirá en %1 s.",
   "display.keepChanges": "Conservar cambios",
   "display.revert": "Revertir",
-  "display.applyError": "No se pudieron aplicar los ajustes de pantalla."
+  "display.applyError": "No se pudieron aplicar los ajustes de pantalla.",
+  "settings.floatingOnly": "Solo ventanas flotantes"
 }

@@ -93,5 +93,6 @@
   "display.confirmCountdown": "%1 வினாடியில் முந்தைய அமைப்புகளுக்குத் திரும்பும்.",
   "display.keepChanges": "மாற்றங்களை வைத்திரு",
   "display.revert": "மீளப்பெறு",
-  "display.applyError": "திரை அமைப்புகளைப் பயன்படுத்த முடியவில்லை."
+  "display.applyError": "திரை அமைப்புகளைப் பயன்படுத்த முடியவில்லை.",
+  "settings.floatingOnly": "மிதக்கும் சாளரங்கள் மட்டும்"
 }

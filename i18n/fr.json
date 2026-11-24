@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Rétablissement des paramètres précédents dans %1 s.",
   "display.keepChanges": "Conserver",
   "display.revert": "Rétablir",
-  "display.applyError": "Impossible d'appliquer les paramètres d'affichage."
+  "display.applyError": "Impossible d'appliquer les paramètres d'affichage.",
+  "settings.floatingOnly": "Fenêtres flottantes uniquement"
 }

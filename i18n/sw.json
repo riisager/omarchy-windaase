@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Inarejesha mipangilio ya awali baada ya sekunde %1.",
   "display.keepChanges": "Hifadhi mabadiliko",
   "display.revert": "Rejesha",
-  "display.applyError": "Haikuweza kutumia mipangilio ya skrini."
+  "display.applyError": "Haikuweza kutumia mipangilio ya skrini.",
+  "settings.floatingOnly": "Madirisha yanayoelea pekee"
 }

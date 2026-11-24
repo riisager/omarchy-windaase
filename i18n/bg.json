@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Връщане към предишните настройки след %1 сек.",
   "display.keepChanges": "Запази промените",
   "display.revert": "Върни",
-  "display.applyError": "Настройките на дисплея не можаха да бъдат приложени."
+  "display.applyError": "Настройките на дисплея не можаха да бъдат приложени.",
+  "settings.floatingOnly": "Само плаващи прозорци"
 }

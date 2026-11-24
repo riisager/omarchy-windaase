@@ -93,5 +93,6 @@
   "display.confirmCountdown": "חוזר להגדרות הקודמות בעוד %1 שנ׳.",
   "display.keepChanges": "שמור שינויים",
   "display.revert": "שחזר",
-  "display.applyError": "לא ניתן להחיל את הגדרות התצוגה."
+  "display.applyError": "לא ניתן להחיל את הגדרות התצוגה.",
+  "settings.floatingOnly": "חלונות צפים בלבד"
 }

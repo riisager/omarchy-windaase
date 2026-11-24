@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Återgår till föregående inställningar om %1 s.",
   "display.keepChanges": "Behåll ändringar",
   "display.revert": "Återställ",
-  "display.applyError": "Kunde inte tillämpa skärminställningarna."
+  "display.applyError": "Kunde inte tillämpa skärminställningarna.",
+  "settings.floatingOnly": "Endast flytande fönster"
 }

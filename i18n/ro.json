@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Revenire la setările anterioare în %1 s.",
   "display.keepChanges": "Păstrează modificările",
   "display.revert": "Revino",
-  "display.applyError": "Nu s-au putut aplica setările de afișare."
+  "display.applyError": "Nu s-au putut aplica setările de afișare.",
+  "settings.floatingOnly": "Doar ferestre flotante"
 }

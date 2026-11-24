@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Mengembalikan tetapan terdahulu dalam %1 s.",
   "display.keepChanges": "Kekalkan perubahan",
   "display.revert": "Kembalikan",
-  "display.applyError": "Tidak dapat menggunakan tetapan paparan."
+  "display.applyError": "Tidak dapat menggunakan tetapan paparan.",
+  "settings.floatingOnly": "Tetingkap terapung sahaja"
 }

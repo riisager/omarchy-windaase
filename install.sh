@@ -199,6 +199,7 @@ if [[ "$MODE" == "full" ]]; then
 
   omarchy plugin disable omarchy.dock || true
   omarchy bar position bottom || true
+  python3 "${PLUGIN_DEST}/windaase-config.py" hypr-set floating_only true --no-reload || true
 fi
 
 if [[ -n "$BAR_HEIGHT" ]]; then

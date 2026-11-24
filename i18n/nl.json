@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Vorige instellingen worden hersteld over %1 s.",
   "display.keepChanges": "Wijzigingen behouden",
   "display.revert": "Herstellen",
-  "display.applyError": "Kan beeldscherminstellingen niet toepassen."
+  "display.applyError": "Kan beeldscherminstellingen niet toepassen.",
+  "settings.floatingOnly": "Alleen zwevende vensters"
 }

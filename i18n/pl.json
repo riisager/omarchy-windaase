@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Przywracanie poprzednich ustawień za %1 s.",
   "display.keepChanges": "Zachowaj zmiany",
   "display.revert": "Przywróć",
-  "display.applyError": "Nie można zastosować ustawień wyświetlania."
+  "display.applyError": "Nie można zastosować ustawień wyświetlania.",
+  "settings.floatingOnly": "Tylko okna pływające"
 }

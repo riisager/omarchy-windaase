@@ -10,6 +10,7 @@ local focus = require("hypr.windaase.focus")
 local show_desktop = require("hypr.windaase.show_desktop")
 local alt_tab = require("hypr.windaase.alt_tab")
 local monitors = require("hypr.windaase.monitors")
+local floating_only = require("hypr.windaase.floating_only")
 
 local M = {}
 
@@ -19,6 +20,7 @@ local DEFAULTS = {
   snap_assist = true,
   snap_resize = true,
   ultrawide_layout = false,
+  floating_only = false,
   soft_maximize = true,
   auto_raise = true,
   hover_scroll = true,
@@ -84,6 +86,7 @@ function M.setup(user_opts)
   snap_layouts.setup(opts)
   snap_resize.setup(opts, snap_layouts.write_state, snap_layouts.suppress)
   alt_tab.setup(opts)
+  floating_only.setup(opts)
   focus.setup(opts.hover_scroll ~= false)
   monitors.setup(opts)
 

@@ -93,5 +93,6 @@
   "display.confirmCountdown": "กำลังย้อนกลับไปใช้ค่าเดิมใน %1 วินาที",
   "display.keepChanges": "เก็บการเปลี่ยนแปลง",
   "display.revert": "ย้อนกลับ",
-  "display.applyError": "ไม่สามารถใช้การตั้งค่าจอภาพได้"
+  "display.applyError": "ไม่สามารถใช้การตั้งค่าจอภาพได้",
+  "settings.floatingOnly": "หน้าต่างแบบลอยเท่านั้น"
 }

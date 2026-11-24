@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Atgriezīsies iepriekšējie iestatījumi pēc %1 s.",
   "display.keepChanges": "Paturēt izmaiņas",
   "display.revert": "Atgriezt",
-  "display.applyError": "Neizdevās lietot displeja iestatījumus."
+  "display.applyError": "Neizdevās lietot displeja iestatījumus.",
+  "settings.floatingOnly": "Tikai peldošie logi"
 }

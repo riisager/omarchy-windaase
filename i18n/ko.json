@@ -93,5 +93,6 @@
   "display.confirmCountdown": "%1초 후 이전 설정으로 되돌립니다.",
   "display.keepChanges": "변경 사항 유지",
   "display.revert": "되돌리기",
-  "display.applyError": "디스플레이 설정을 적용할 수 없습니다."
+  "display.applyError": "디스플레이 설정을 적용할 수 없습니다.",
+  "settings.floatingOnly": "플로팅 창만 사용"
 }

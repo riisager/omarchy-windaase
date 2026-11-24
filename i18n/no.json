@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Gjenoppretter forrige innstillinger om %1 sek.",
   "display.keepChanges": "Behold endringer",
   "display.revert": "Tilbakestill",
-  "display.applyError": "Kunne ikke bruke skjerminnstillingene."
+  "display.applyError": "Kunne ikke bruke skjerminnstillingene.",
+  "settings.floatingOnly": "Kun flytende vinduer"
 }

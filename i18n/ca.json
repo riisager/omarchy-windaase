@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Es tornarà a la configuració anterior en %1 s.",
   "display.keepChanges": "Conserva els canvis",
   "display.revert": "Reverteix",
-  "display.applyError": "No s'han pogut aplicar els paràmetres de pantalla."
+  "display.applyError": "No s'han pogut aplicar els paràmetres de pantalla.",
+  "settings.floatingOnly": "Només finestres flotants"
 }

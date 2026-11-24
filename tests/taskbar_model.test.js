@@ -356,6 +356,7 @@ function run() {
     snap_assist: true,
     snap_resize: true,
     aero_snap: true,
+    floating_only: false,
     hover_scroll: true,
     soft_maximize: true,
     auto_raise: true,
@@ -371,6 +372,7 @@ function run() {
       snap_assist: true,
       snap_resize: false,
       aero_snap: true,
+      floating_only: false,
       hover_scroll: false,
       soft_maximize: true,
       auto_raise: true,
@@ -752,7 +754,10 @@ function run() {
 
   const en = JSON.parse(fs.readFileSync(path.join(i18nDir, "en.json"), "utf8"));
   const enKeys = Object.keys(en).sort();
-  assert.strictEqual(enKeys.length, 95, "Expected 95 keys in en.json");
+  assert.strictEqual(enKeys.length, 96, "Expected 96 keys in en.json");
+
+  assert.strictEqual(TaskbarModel.defaultHyprSettings().floating_only, false);
+  assert.strictEqual(TaskbarModel.parseHyprSettings('{"floating_only":true}').floating_only, true);
 
   const placeholders = (str) => [...(str.match(/%[12]/g) || [])].sort();
 

@@ -20,6 +20,7 @@ HYPR_OPTION_KEYS = (
     "snap_assist",
     "snap_resize",
     "ultrawide_layout",
+    "floating_only",
     "soft_maximize",
     "auto_raise",
     "hover_scroll",
@@ -267,6 +268,104 @@ def cmd_two_line_clock(args):
         atomic_write(path, json.dumps(data, indent=2) + "\n")
 
 
+FLOATING_DEFAULT_LUA = 'o.workspace_mode({ default = "floating" })\n'
+
+
+def state_omarchy_dir(home_dir=None, state_home=None):
+    if state_home:
+        base = os.path.abspath(os.path.expanduser(state_home))
+    elif not home_dir and os.environ.get("XDG_STATE_HOME"):
+        base = os.path.abspath(os.path.expanduser(os.environ["XDG_STATE_HOME"]))
+    else:
+        home = os.path.abspath(os.path.expanduser(home_dir)) if home_dir else os.path.expanduser("~")
+        base = os.path.join(home, ".local", "state")
+    return os.path.join(base, "omarchy")
+
+
+def workspace_layouts_dir(home_dir=None, state_home=None):
+    return os.path.join(state_omarchy_dir(home_dir=home_dir, state_home=state_home), "workspace-layouts")
+
+
+def sync_floating_workspace_layouts(ws_id=None, home_dir=None, state_home=None):
+    layouts_dir = workspace_layouts_dir(home_dir=home_dir, state_home=state_home)
+    os.makedirs(layouts_dir, exist_ok=True)
+    default_path = os.path.join(layouts_dir, "default.lua")
+    if os.path.islink(default_path):
+        raise ValueError(f"Refusing to follow symlink at {default_path}")
+
+    existing_default = ""
+    if os.path.isfile(default_path):
+        with open(default_path, "r", encoding="utf-8", errors="ignore") as handle:
+            existing_default = handle.read()
+
+    default_updated = 'default = "floating"' not in existing_default
+    if default_updated:
+        atomic_write(default_path, FLOATING_DEFAULT_LUA)
+
+    if ws_id is not None:
+        ws_str = str(ws_id).strip()
+        if not re.fullmatch(r"[1-9]\d*", ws_str):
+            raise ValueError(f"Invalid workspace ID for floating-only enforcement: {ws_id!r}")
+        candidates = [os.path.join(layouts_dir, f"{ws_str}.lua")]
+    else:
+        candidates = sorted(glob.glob(os.path.join(layouts_dir, "[0-9]*.lua")))
+
+    removed = []
+    for path in candidates:
+        if os.path.islink(path) or not os.path.isfile(path):
+            continue
+        with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+            text = handle.read()
+        if 'mode = "floating"' not in text:
+            os.unlink(path)
+            removed.append(os.path.basename(path))
+
+    return {"defaultUpdated": default_updated, "removed": removed}
+
+
+def _refresh_workspaces_bar_and_toast(state_home=None, replace_toast=False):
+    try:
+        subprocess.run(
+            ["omarchy-shell", "-q", "omarchy.workspaces", "refresh"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    if not replace_toast:
+        return
+
+    notif_state = os.path.join(state_omarchy_dir(state_home=state_home), "workspace-layout-notification")
+    if os.path.islink(notif_state) or not os.path.isfile(notif_state):
+        return
+    try:
+        with open(notif_state, "r", encoding="utf-8", errors="ignore") as handle:
+            last_id = handle.read().strip()
+        if not re.fullmatch(r"\d+", last_id):
+            return
+        msg_res = subprocess.run(
+            ["omarchy-i18n", "layout.workspaceFloating"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+        msg = (msg_res.stdout or "").strip() if msg_res.returncode == 0 else ""
+        if msg:
+            subprocess.run(
+                ["omarchy-notification-send", "-p", "-r", last_id, "-g", "󱂬", msg],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
 def cmd_hypr_set(args):
     no_reload = False
     pos_args = []
@@ -299,6 +398,8 @@ def cmd_hypr_set(args):
 
         data[key] = val
         atomic_write(path, json.dumps(data, indent=2) + "\n")
+        if key == "floating_only" and val and not no_reload:
+            sync_floating_workspace_layouts()
 
     if not no_reload:
         try:
@@ -311,6 +412,8 @@ def cmd_hypr_set(args):
             )
         except (OSError, subprocess.TimeoutExpired):
             pass
+        if key == "floating_only" and val:
+            _refresh_workspaces_bar_and_toast(replace_toast=False)
 
 
 _LUA_KEYWORDS = frozenset({
@@ -2117,10 +2220,20 @@ def cmd_strip_monitors_block(args):
         strip_monitors_lua_block(monitors_lua_path())
 
 
+def cmd_enforce_floating_workspace(args):
+    if len(args) > 1:
+        raise ValueError("Expected optional <workspace_id> for enforce-floating-workspace")
+    ws_id = args[0] if len(args) == 1 else None
+    with config_lock():
+        res = sync_floating_workspace_layouts(ws_id=ws_id)
+    _refresh_workspaces_bar_and_toast(replace_toast=True)
+    sys.stdout.write(json.dumps(res, separators=(",", ":"), ensure_ascii=False) + "\n")
+
+
 def main(argv):
     if len(argv) < 2:
         raise ValueError(
-            "Usage: windaase-config.py <bar-height|bar-height-reset|two-line-clock|hypr-set|strip-hyprland-loader|browser-window-profiles|nautilus-menu|monitors-status|monitors-preview|monitors-commit|monitors-revert|monitors-apply|strip-monitors-block> ..."
+            "Usage: windaase-config.py <bar-height|bar-height-reset|two-line-clock|hypr-set|enforce-floating-workspace|strip-hyprland-loader|browser-window-profiles|nautilus-menu|monitors-status|monitors-preview|monitors-commit|monitors-revert|monitors-apply|strip-monitors-block> ..."
         )
     cmd, rest = argv[1], argv[2:]
     handlers = {
@@ -2128,6 +2241,7 @@ def main(argv):
         "bar-height-reset": cmd_bar_height_reset,
         "two-line-clock": cmd_two_line_clock,
         "hypr-set": cmd_hypr_set,
+        "enforce-floating-workspace": cmd_enforce_floating_workspace,
         "strip-hyprland-loader": cmd_strip_hyprland_loader,
         "browser-window-profiles": cmd_browser_window_profiles,
         "nautilus-menu": cmd_nautilus_menu,

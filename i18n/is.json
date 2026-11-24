@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Fyrri stillingar endurheimtar eftir %1 sek.",
   "display.keepChanges": "Halda breytingum",
   "display.revert": "Afturkalla",
-  "display.applyError": "Ekki tókst að virkja skjástillingar."
+  "display.applyError": "Ekki tókst að virkja skjástillingar.",
+  "settings.floatingOnly": "Aðeins fljótandi gluggar"
 }

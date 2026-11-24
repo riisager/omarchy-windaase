@@ -93,5 +93,6 @@
   "display.confirmCountdown": "%1 秒後に以前の設定に戻ります。",
   "display.keepChanges": "変更を維持",
   "display.revert": "元に戻す",
-  "display.applyError": "ディスプレイ設定を適用できませんでした。"
+  "display.applyError": "ディスプレイ設定を適用できませんでした。",
+  "settings.floatingOnly": "フローティングウィンドウのみ"
 }

@@ -93,5 +93,6 @@
   "display.confirmCountdown": "%1 सेकंड में पिछली सेटिंग्स पर वापस लौटेगा।",
   "display.keepChanges": "बदलाव रखें",
   "display.revert": "वापस लौटाएं",
-  "display.applyError": "डिस्प्ले सेटिंग्स लागू नहीं की जा सकीं।"
+  "display.applyError": "डिस्प्ले सेटिंग्स लागू नहीं की जा सकीं।",
+  "settings.floatingOnly": "केवल फ़्लोटिंग विंडो"
 }

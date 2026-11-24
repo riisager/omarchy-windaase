@@ -93,5 +93,6 @@
   "display.confirmCountdown": "العودة إلى الإعدادات السابقة خلال %1 ث.",
   "display.keepChanges": "الاحتفاظ بالتغييرات",
   "display.revert": "تراجع",
-  "display.applyError": "تعذر تطبيق إعدادات الشاشة."
+  "display.applyError": "تعذر تطبيق إعدادات الشاشة.",
+  "settings.floatingOnly": "نوافذ عائمة فقط"
 }

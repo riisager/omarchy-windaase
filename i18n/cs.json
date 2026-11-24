@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Návrat k předchozímu nastavení za %1 s.",
   "display.keepChanges": "Ponechat změny",
   "display.revert": "Vrátit",
-  "display.applyError": "Nepodařilo se použít nastavení displeje."
+  "display.applyError": "Nepodařilo se použít nastavení displeje.",
+  "settings.floatingOnly": "Pouze plovoucí okna"
 }

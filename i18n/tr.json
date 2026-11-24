@@ -93,5 +93,6 @@
   "display.confirmCountdown": "%1 sn içinde önceki ayarlara dönülecek.",
   "display.keepChanges": "Değişiklikleri koru",
   "display.revert": "Geri al",
-  "display.applyError": "Ekran ayarları uygulanamadı."
+  "display.applyError": "Ekran ayarları uygulanamadı.",
+  "settings.floatingOnly": "Yalnızca yüzen pencereler"
 }

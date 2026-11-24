@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Povrnitev prejšnjih nastavitev čez %1 s.",
   "display.keepChanges": "Ohrani spremembe",
   "display.revert": "Povrni",
-  "display.applyError": "Nastavitev zaslona ni bilo mogoče uveljaviti."
+  "display.applyError": "Nastavitev zaslona ni bilo mogoče uveljaviti.",
+  "settings.floatingOnly": "Samo plavajoča okna"
 }

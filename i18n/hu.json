@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Visszaáll az előző beállításokra %1 mp múlva.",
   "display.keepChanges": "Módosítások megtartása",
   "display.revert": "Visszavonás",
-  "display.applyError": "Nem sikerült alkalmazni a kijelzőbeállításokat."
+  "display.applyError": "Nem sikerült alkalmazni a kijelzőbeállításokat.",
+  "settings.floatingOnly": "Csak lebegő ablakok"
 }

@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Palautetaan aiemmat asetukset %1 s kuluttua.",
   "display.keepChanges": "Säilytä muutokset",
   "display.revert": "Kumoa",
-  "display.applyError": "Näyttöasetuksia ei voitu ottaa käyttöön."
+  "display.applyError": "Näyttöasetuksia ei voitu ottaa käyttöön.",
+  "settings.floatingOnly": "Vain kelluvat ikkunat"
 }

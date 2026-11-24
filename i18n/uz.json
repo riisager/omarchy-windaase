@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Avvalgi sozlamalarga %1 soniyadan keyin qaytadi.",
   "display.keepChanges": "O‘zgarishlarni saqlash",
   "display.revert": "Bekor qilish",
-  "display.applyError": "Ekran sozlamalarini qo'llab bo'lmadi."
+  "display.applyError": "Ekran sozlamalarini qo'llab bo'lmadi.",
+  "settings.floatingOnly": "Faqat suzuvchi oynalar"
 }

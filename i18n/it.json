@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Ripristino delle impostazioni precedenti tra %1 s.",
   "display.keepChanges": "Mantieni modifiche",
   "display.revert": "Ripristina",
-  "display.applyError": "Impossibile applicare le impostazioni dello schermo."
+  "display.applyError": "Impossibile applicare le impostazioni dello schermo.",
+  "settings.floatingOnly": "Solo finestre mobili"
 }

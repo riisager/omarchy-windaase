@@ -25,13 +25,16 @@ class ConfigHelperTests(unittest.TestCase):
         self.omarchy_dir = os.path.join(self.home, ".config", "omarchy")
         self.runtime_dir = os.path.join(self.home, ".runtime")
         self.cache_dir = os.path.join(self.home, ".cache")
+        self.state_home = os.path.join(self.home, ".local", "state")
         os.makedirs(self.omarchy_dir, exist_ok=True)
         os.makedirs(self.runtime_dir, exist_ok=True)
         os.makedirs(self.cache_dir, exist_ok=True)
+        os.makedirs(self.state_home, exist_ok=True)
         self.env = os.environ.copy()
         self.env["HOME"] = self.home
         self.env["XDG_RUNTIME_DIR"] = self.runtime_dir
         self.env["XDG_CACHE_HOME"] = self.cache_dir
+        self.env["XDG_STATE_HOME"] = self.state_home
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -347,6 +350,8 @@ class ConfigHelperTests(unittest.TestCase):
             self.read_text(os.path.join(layouts_dir, "3.lua")),
             'o.workspace_mode({ workspace = "3", mode = "scrolling" })\n',
         )
+        windaase_cfg = self.read_json(os.path.join(self.omarchy_dir, "windaase.json"))
+        self.assertTrue(windaase_cfg.get("floating_only"))
 
     def test_strip_hyprland_loader_refuses_submodule_and_handles_crlf(self):
         lua_path = os.path.join(self.home, "hyprland.lua")
@@ -1375,6 +1380,69 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertFalse(os.path.exists(install_tmp_dir))
         for path in runtime_files:
             self.assertFalse(os.path.exists(path), f"Expected {path} to be removed")
+
+    def test_floating_only_hypr_set_and_enforce_workspace_layouts(self):
+        layouts_dir = os.path.join(self.state_home, "omarchy", "workspace-layouts")
+        os.makedirs(layouts_dir, exist_ok=True)
+        default_lua = os.path.join(layouts_dir, "default.lua")
+        ws21 = os.path.join(layouts_dir, "21.lua")
+        ws22 = os.path.join(layouts_dir, "22.lua")
+        ws23 = os.path.join(layouts_dir, "23.lua")
+
+        with open(default_lua, "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ default = "dwindle" })\n')
+        with open(ws21, "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ workspace = "21", mode = "scrolling" })\n')
+        with open(ws22, "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ workspace = "22", mode = "floating" })\n')
+        with open(ws23, "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ workspace = "23", mode = "dwindle" })\n')
+
+        # --no-reload persists config without mutating existing workspace overrides
+        res = self.run_helper("hypr-set", "floating_only", "true", "--no-reload")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        cfg_path = os.path.join(self.omarchy_dir, "windaase.json")
+        self.assertTrue(self.read_json(cfg_path).get("floating_only"))
+        self.assertTrue(os.path.exists(ws21))
+
+        # Targeting workspace 21 updates default.lua, removes non-floating 21.lua, preserves 22.lua & 23.lua
+        res = self.run_helper("enforce-floating-workspace", "21")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(self.read_text(default_lua), 'o.workspace_mode({ default = "floating" })\n')
+        self.assertFalse(os.path.exists(ws21))
+        self.assertTrue(os.path.exists(ws22))
+        self.assertTrue(os.path.exists(ws23))
+
+        # No-arg enforce cleans remaining non-floating workspace overrides while keeping floating ones
+        res = self.run_helper("enforce-floating-workspace")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertFalse(os.path.exists(ws23))
+        self.assertTrue(os.path.exists(ws22))
+
+        # Invalid workspace IDs are rejected
+        self.assertNotEqual(self.run_helper("enforce-floating-workspace", "../evil").returncode, 0)
+        self.assertNotEqual(self.run_helper("enforce-floating-workspace", "0").returncode, 0)
+
+        # Full hypr-set floating_only true (without --no-reload) also cleans non-floating overrides
+        stub_dir = self._make_stub_bin()
+        with open(default_lua, "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ default = "dwindle" })\n')
+        with open(ws21, "w", encoding="utf-8") as handle:
+            handle.write('o.workspace_mode({ workspace = "21", mode = "dwindle" })\n')
+        env = self.env.copy()
+        env["PATH"] = f"{stub_dir}:{env['PATH']}"
+        res = subprocess.run(
+            [sys.executable, SCRIPT_PATH, "hypr-set", "floating_only", "true"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertTrue(self.read_json(cfg_path).get("floating_only"))
+        self.assertEqual(self.read_text(default_lua), 'o.workspace_mode({ default = "floating" })\n')
+        self.assertFalse(os.path.exists(ws21))
+        self.assertTrue(os.path.exists(ws22))
 
 
 if __name__ == "__main__":

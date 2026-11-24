@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Zurücksetzen in %1 Sek.",
   "display.keepChanges": "Änderungen behalten",
   "display.revert": "Rückgängig",
-  "display.applyError": "Anzeigeeinstellungen konnten nicht angewendet werden."
+  "display.applyError": "Anzeigeeinstellungen konnten nicht angewendet werden.",
+  "settings.floatingOnly": "Nur schwebende Fenster"
 }

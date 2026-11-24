@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Ankstesni nustatymai bus grąžinti po %1 s.",
   "display.keepChanges": "Išsaugoti pakeitimus",
   "display.revert": "Atšaukti",
-  "display.applyError": "Nepavyko pritaikyti ekrano nustatymų."
+  "display.applyError": "Nepavyko pritaikyti ekrano nustatymų.",
+  "settings.floatingOnly": "Tik slankiojantys langai"
 }

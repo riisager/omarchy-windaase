@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Mengembalikan pengaturan sebelumnya dalam %1 d.",
   "display.keepChanges": "Simpan perubahan",
   "display.revert": "Kembalikan",
-  "display.applyError": "Tidak dapat menerapkan pengaturan layar."
+  "display.applyError": "Tidak dapat menerapkan pengaturan layar.",
+  "settings.floatingOnly": "Hanya jendela mengambang"
 }

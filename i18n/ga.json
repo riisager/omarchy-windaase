@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Ag filleadh ar na seansocruithe i gceann %1 s.",
   "display.keepChanges": "Coinnigh na hathruithe",
   "display.revert": "Cuir ar ais",
-  "display.applyError": "Níorbh fhéidir socruithe an taispeántais a chur i bhfeidhm."
+  "display.applyError": "Níorbh fhéidir socruithe an taispeántais a chur i bhfeidhm.",
+  "settings.floatingOnly": "Fuinneoga ar snámh amháin"
 }

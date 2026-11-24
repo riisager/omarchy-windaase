@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Επαναφορά στις προηγούμενες ρυθμίσεις σε %1 δευτ.",
   "display.keepChanges": "Διατήρηση αλλαγών",
   "display.revert": "Επαναφορά",
-  "display.applyError": "Δεν ήταν δυνατή η εφαρμογή των ρυθμίσεων οθόνης."
+  "display.applyError": "Δεν ήταν δυνατή η εφαρμογή των ρυθμίσεων οθόνης.",
+  "settings.floatingOnly": "Μόνο αιωρούμενα παράθυρα"
 }

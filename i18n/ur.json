@@ -93,5 +93,6 @@
   "display.confirmCountdown": "%1 سیکنڈ میں پچھلی ترتیبات پر واپس لوٹ جائے گا۔",
   "display.keepChanges": "تبدیلیاں رکھیں",
   "display.revert": "واپس لیں",
-  "display.applyError": "ڈسپلے کی ترتیبات لاگو نہیں ہو سکیں۔"
+  "display.applyError": "ڈسپلے کی ترتیبات لاگو نہیں ہو سکیں۔",
+  "settings.floatingOnly": "صرف تیرتی ہوئی ونڈوز"
 }

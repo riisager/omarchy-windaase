@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Povratak na prethodne postavke za %1 s.",
   "display.keepChanges": "Zadrži promjene",
   "display.revert": "Vrati",
-  "display.applyError": "Nije moguće primijeniti postavke zaslona."
+  "display.applyError": "Nije moguće primijeniti postavke zaslona.",
+  "settings.floatingOnly": "Samo plutajući prozori"
 }

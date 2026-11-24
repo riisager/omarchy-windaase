@@ -93,5 +93,6 @@
   "display.confirmCountdown": "بازگشت به تنظیمات قبلی تا %1 ثانیه.",
   "display.keepChanges": "حفظ تغییرات",
   "display.revert": "بازگردانی",
-  "display.applyError": "اعمال تنظیمات نمایشگر ممکن نشد."
+  "display.applyError": "اعمال تنظیمات نمایشگر ممکن نشد.",
+  "settings.floatingOnly": "فقط پنجره‌های شناور"
 }

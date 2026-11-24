@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Reverting to previous settings in %1 s.",
   "display.keepChanges": "Keep changes",
   "display.revert": "Revert",
-  "display.applyError": "Could not apply display settings."
+  "display.applyError": "Could not apply display settings.",
+  "settings.floatingOnly": "Floating windows only"
 }

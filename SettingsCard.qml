@@ -428,6 +428,7 @@ PopupCard {
 
       Repeater {
         model: [
+          { key: "floating_only", labelKey: "settings.floatingOnly" },
           { key: "snap_layouts", labelKey: "settings.snapLayouts" },
           { key: "snap_assist", labelKey: "settings.snapAssist" },
           { key: "aero_snap", labelKey: "settings.aeroSnap" },

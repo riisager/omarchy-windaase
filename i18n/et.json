@@ -93,5 +93,6 @@
   "display.confirmCountdown": "Eelmised seaded taastatakse %1 s pärast.",
   "display.keepChanges": "Säilita muudatused",
   "display.revert": "Taasta",
-  "display.applyError": "Kuvasätteid ei saanud rakendada."
+  "display.applyError": "Kuvasätteid ei saanud rakendada.",
+  "settings.floatingOnly": "Ainult ujuvad aknad"
 }
