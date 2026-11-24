@@ -188,7 +188,7 @@ PopupCard {
 
       TaskMenuRow {
         visible: root.running
-        text: (root.item && root.item.windows.length === 1) ? root.strings.t("taskbar.closeWindow") : root.strings.t("taskbar.closeAll")
+        text: (root.item && root.item.windows && root.item.windows.length === 1) ? root.strings.t("taskbar.closeWindow") : root.strings.t("taskbar.closeAll")
         onTriggered: root.closeRequested()
       }
 

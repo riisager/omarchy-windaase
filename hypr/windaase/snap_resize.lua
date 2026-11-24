@@ -542,6 +542,9 @@ function M.setup(opts, write_state_cb, suppress_cb)
   write_state_fn = write_state_cb
   suppress_fn = suppress_cb
 
+  if active_resize ~= nil then
+    set_window_no_anim(active_resize.partner_addrs, false)
+  end
   active_resize = nil
   last_geom_by_addr = {}
   flash_seq = flash_seq + 1

@@ -68,7 +68,7 @@ BorderSurface {
 
   onActiveChanged: {
     if (!active) switcherFlickable.contentY = 0
-    else Qt.callLater(root.scrollToSelected)
+    else Qt.callLater(function() { if (root && root.active && switcherFlickable) root.scrollToSelected() })
   }
   onSelectedIndexChanged: root.scrollToSelected()
 

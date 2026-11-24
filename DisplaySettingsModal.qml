@@ -109,7 +109,7 @@ Item {
   readonly property var selectedModeOptions: {
     var m = root.selectedMonitor
     if (!m) return []
-    var avail = Array.isArray(m.availableModes) ? m.availableModes : []
+    var avail = (m.availableModes && typeof m.availableModes.length === "number") ? m.availableModes : []
     var prefHint = avail.length > 0 ? avail[0] : (m.liveMode || "")
     var out = [{
       value: "preferred",
@@ -172,7 +172,7 @@ Item {
 
   function cloneMonitorsList(src) {
     var out = []
-    var list = Array.isArray(src) ? src : []
+    var list = (src && typeof src.length === "number") ? src : []
     for (var i = 0; i < list.length; i++) {
       var m = list[i]
       if (!m || typeof m !== "object") continue
@@ -326,7 +326,7 @@ Item {
     root.closeOnRevert = !!closeAfter
     root.busy = true
     var argList = ["python3", root.configScriptPath, "monitors-revert"]
-    if (Array.isArray(root.revertSnapshot) && root.revertSnapshot.length > 0) {
+    if (root.revertSnapshot && typeof root.revertSnapshot.length === "number" && root.revertSnapshot.length > 0) {
       argList.push(JSON.stringify({ monitors: root.revertSnapshot }))
     }
     revertProc.command = argList
@@ -897,6 +897,7 @@ Item {
 
           Column {
             id: inspectorCol
+            readonly property real labelWidth: Style.space(164)
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
@@ -936,7 +937,7 @@ Item {
                   elide: Text.ElideRight
                   text: root.selectedMonitor
                     ? TaskbarModel.sanitizePlainLabel(
-                        (root.selectedMonitor.name || "") + " — " + (root.selectedMonitor.model || ""),
+                        (root.selectedMonitor.name || "") + " · " + (root.selectedMonitor.model || ""),
                         64
                       )
                     : ""
@@ -993,7 +994,7 @@ Item {
               visible: !!(root.selectedMonitor && root.selectedMonitor.enabled !== false)
 
               Text {
-                Layout.preferredWidth: Style.space(130)
+                Layout.preferredWidth: inspectorCol.labelWidth
                 Layout.alignment: Qt.AlignTop
                 Layout.topMargin: Style.space(4)
                 textFormat: Text.PlainText
@@ -1036,7 +1037,7 @@ Item {
               visible: !!(root.selectedMonitor && root.selectedMonitor.enabled !== false)
 
               Text {
-                Layout.preferredWidth: Style.space(130)
+                Layout.preferredWidth: inspectorCol.labelWidth
                 Layout.alignment: Qt.AlignTop
                 Layout.topMargin: Style.space(4)
                 textFormat: Text.PlainText
@@ -1085,7 +1086,10 @@ Item {
               visible: !!(root.selectedMonitor && root.selectedMonitor.enabled !== false)
 
               Text {
-                Layout.preferredWidth: Style.space(130)
+                Layout.preferredWidth: inspectorCol.labelWidth
+                Layout.alignment: Qt.AlignVCenter
+                wrapMode: Text.WordWrap
+                maximumLineCount: 2
                 textFormat: Text.PlainText
                 text: strings.t("display.resolution")
                 color: Commons.Color.menu.text

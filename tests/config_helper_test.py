@@ -1226,6 +1226,17 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertNotIn('output = "DP-5"', synced)
         # Idempotent second write returns False
         self.assertFalse(mod.sync_monitors_lua(mon_lua, rules, 1))
+        # Enabled rules are always written before disabled rules so Hyprland never hits 0 monitors mid-reload
+        disabled_first_rules = [
+            {"name": "eDP-1", "matchKey": "eDP-1", "enabled": False, "mode": "preferred", "x": 0, "y": 0, "scale": 1.25, "transform": 0},
+            {"name": "DP-1", "matchKey": "desc:Dell Inc. DELL U2412M YPPY091S1W7B", "enabled": True, "mode": "preferred", "x": 0, "y": 0, "scale": 1, "transform": 0},
+        ]
+        self.assertTrue(mod.sync_monitors_lua(mon_lua, disabled_first_rules, 1))
+        ordered_text = self.read_text(mon_lua)
+        self.assertLess(
+            ordered_text.index('output = "desc:Dell Inc. DELL U2412M YPPY091S1W7B"'),
+            ordered_text.index('output = "eDP-1", disabled = true'),
+        )
         # Clean strip leaves user catch-all & GDK_SCALE intact
         self.assertTrue(mod.strip_monitors_lua_block(mon_lua))
         stripped = self.read_text(mon_lua)
@@ -1334,6 +1345,7 @@ class ConfigHelperTests(unittest.TestCase):
         rec_res = mod.monitors_apply_action(solo_disabled, home_dir=self.home, runtime_dir=runtime_dir, lid_paths=[lid_file], hypr_eval=rec_calls.append)
         self.assertTrue(rec_res.get("recovered"))
         self.assertTrue(any('output = "eDP-1", disabled = false' in c for c in rec_calls))
+        self.assertIn('pcall(require, "hypr.windaase")', rec_calls[-1])
 
         # Injection / unsafe input validation
         with self.assertRaises(ValueError):

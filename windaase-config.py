@@ -1265,8 +1265,7 @@ MODE_STRING_RE = re.compile(r"^(\d{3,5})x(\d{3,5})(?:@(\d+(?:\.\d+)?))?$")
 
 
 def monitors_profiles_path(home_dir=None):
-    base = os.path.join(os.path.expanduser(home_dir), ".config", "omarchy") if home_dir else omarchy_dir()
-    return os.path.join(base, "windaase-monitors.json")
+    return os.path.join(omarchy_dir(home_dir=home_dir), "windaase-monitors.json")
 
 
 def monitors_lua_path(home_dir=None):
@@ -1631,7 +1630,10 @@ def sync_monitors_lua(path, rules, gdk_scale, create_backup=True):
         MONITORS_BLOCK_BEGIN,
         "-- Managed automatically by Omarchy-windaase dock profiles.",
     ]
-    for r in rules:
+    ordered_rules = [r for r in rules if bool(r.get("enabled", True))] + [
+        r for r in rules if not bool(r.get("enabled", True))
+    ]
+    for r in ordered_rules:
         sel = r["name"] if is_internal_connector(r["name"]) else r.get("matchKey", r["name"])
         rule_lines.append(
             format_hl_monitor_call(
@@ -2007,17 +2009,19 @@ def monitors_apply_action(raw_monitors, home_dir=None, runtime_dir=None, lid_pat
         if all(bool(it["raw"].get("disabled")) for it in items):
             target = next((it for it in items if it["internal"]), items[0])
             raw = target["raw"]
-            hypr_eval(format_hl_monitor_call(
-                target["name"],
-                True,
-                mode="preferred",
-                x=0,
-                y=0,
-                scale=float(raw.get("scale") or 1.0),
-                transform=int(raw.get("transform") or 0) % 4,
-                include_disabled_false=True,
-            ))
-            hypr_eval('require("hypr.windaase").rescue_offscreen_windows()')
+            _eval_monitor_entries(
+                [{
+                    "name": target["name"],
+                    "enabled": True,
+                    "mode": "preferred",
+                    "x": 0,
+                    "y": 0,
+                    "scale": float(raw.get("scale") or 1.0),
+                    "transform": int(raw.get("transform") or 0) % 4,
+                }],
+                hypr_eval=hypr_eval,
+                rescue=True,
+            )
             return {"ok": True, "recovered": True}
         return {"ok": True, "applied": False}
 

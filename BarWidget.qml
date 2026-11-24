@@ -903,7 +903,7 @@ BarWidget {
   }
 
   function bringGroupForward(group) {
-    if (!group || !Array.isArray(group.members) || group.members.length < 2) return
+    if (!group || !group.members || typeof group.members.length !== "number" || group.members.length < 2) return
     var steps = []
     if (group.workspaceId >= 1) {
       steps.push("hl.dsp.focus({ workspace = \"" + group.workspaceId + "\" })")

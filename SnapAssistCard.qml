@@ -15,7 +15,6 @@ BorderSurface {
   property real maxHeight: Style.space(420)
 
   signal windowPicked(var candidate)
-  signal hoveredIndexChanged(int idx)
   signal closeRequested()
 
   onSelectedIndexChanged: {
@@ -208,7 +207,6 @@ BorderSurface {
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              onEntered: root.hoveredIndexChanged(candidateTile.index)
               onClicked: root.windowPicked(candidateTile.modelData)
             }
           }

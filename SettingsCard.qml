@@ -37,9 +37,11 @@ PopupCard {
   signal displaySetupRequested()
 
   onOpenChanged: if (!open) {
+    copyResetTimer.stop()
     copyDone = false
     nautilusRestartNeeded = false
   }
+  Component.onDestruction: copyResetTimer.stop()
 
   readonly property int maxIconPx: Math.max(16, root.barSize - 6)
   readonly property bool isAutoIcon: Number(root.configuredIconSize) <= 0
