@@ -2,7 +2,9 @@
 -- Usage in ~/.config/hypr/hyprland.lua:
 --   require("hypr.windaase").setup()
 
+local runtime = require("hypr.windaase.runtime")
 local geometry = require("hypr.windaase.geometry")
+local layouts_config = require("hypr.windaase.layouts_config")
 local snap = require("hypr.windaase.snap")
 local snap_layouts = require("hypr.windaase.snap_layouts")
 local snap_resize = require("hypr.windaase.snap_resize")
@@ -41,7 +43,7 @@ local function load_user_config()
   end
   local raw = f:read("*a")
   f:close()
-  local ok, parsed = pcall(geometry.decode_json, raw)
+  local ok, parsed = pcall(layouts_config.decode_json, raw)
   if ok and type(parsed) == "table" then
     return parsed
   end
@@ -69,7 +71,31 @@ local function merge_opts(user_opts)
   return opts
 end
 
+function M.minimize_others_or_restore()
+  local w = hl.get_active_window()
+  if w and w.floating then
+    show_desktop.toggle_minimize_others()
+  else
+    hl.exec_cmd("omarchy-hyprland-window-width restore")
+  end
+end
+
+function M.toggle_pin_active()
+  local w = hl.get_active_window()
+  if not w then
+    return
+  end
+  if not w.floating and not w.pinned then
+    hl.dispatch(hl.dsp.window.float({ action = "on", window = w }))
+  end
+  hl.dispatch(hl.dsp.window.pin({ window = w }))
+  if not w.pinned then
+    hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = w }))
+  end
+end
+
 function M.setup(user_opts)
+  runtime.bump_generation()
   geometry.invalidate_frame_insets_cache()
   local opts = merge_opts(user_opts)
 
@@ -93,35 +119,23 @@ function M.setup(user_opts)
 
   if opts.shortcuts then
     o.rebind("ALT + F4", "Close window", hl.dsp.window.close())
-    o.rebind("SUPER + D", "Show desktop", show_desktop.toggle)
+    runtime.rebind_fn("SUPER + D", "Show desktop", show_desktop.toggle, "show_desktop()")
     o.rebind("SUPER + P", "Display setup", "omarchy-shell riisager.windaase displays")
     o.rebind("SUPER + E", "File manager", { omarchy = "nautilus" })
     o.rebind("SUPER + ALT + SPACE", "Apps", "omarchy-shell riisager.windaase apps")
-    o.rebind("SUPER + Home", "Minimize other windows (or restore tiled width)", function()
-      local w = hl.get_active_window()
-      if w and w.floating then
-        show_desktop.toggle_minimize_others()
-      else
-        hl.exec_cmd("omarchy-hyprland-window-width restore")
-      end
-    end)
-    o.rebind("SUPER + ALT + P", "Toggle always on top", function()
-      local w = hl.get_active_window()
-      if not w then
-        return
-      end
-      if not w.floating and not w.pinned then
-        hl.dispatch(hl.dsp.window.float({ action = "on", window = w }))
-      end
-      hl.dispatch(hl.dsp.window.pin({ window = w }))
-      if not w.pinned then
-        hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = w }))
-      end
-    end)
+    runtime.rebind_fn(
+      "SUPER + Home",
+      "Minimize other windows (or restore tiled width)",
+      M.minimize_others_or_restore,
+      "minimize_others_or_restore()"
+    )
+    runtime.rebind_fn("SUPER + ALT + P", "Toggle always on top", M.toggle_pin_active, "toggle_pin_active()")
   end
 end
 
 M.snap = snap.apply_snap
+M.key_snap = snap.key_snap
+M.key_move_to_monitor = snap.key_move_to_monitor
 M.snap_resize = snap_resize.resize_by_keyboard
 M.move_to_monitor = snap.move_to_monitor
 M.rescue_offscreen_windows = snap.rescue_offscreen_windows
@@ -135,5 +149,6 @@ M.alt_tab_step = alt_tab.step
 M.alt_tab_commit = alt_tab.commit
 M.alt_tab_commit_addr = alt_tab.commit_addr
 M.alt_tab_cancel = alt_tab.cancel
+M.alt_tab_menu_switch = alt_tab.menu_switch
 
 return M

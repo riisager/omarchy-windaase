@@ -2,6 +2,7 @@
 -- and automatic z-order raising when focusing floating windows.
 
 local geometry = require("hypr.windaase.geometry")
+local runtime = require("hypr.windaase.runtime")
 
 local M = {}
 
@@ -526,16 +527,87 @@ end
 local function schedule_rescue()
   rescue_seq = rescue_seq + 1
   local seq = rescue_seq
-  hl.timer(function()
+  runtime.timer(function()
     if seq == rescue_seq then
       M.rescue_offscreen_windows()
     end
   end, { type = "oneshot", timeout = 300 })
-  hl.timer(function()
+  runtime.timer(function()
     if seq == rescue_seq then
       M.rescue_offscreen_windows()
     end
   end, { type = "oneshot", timeout = 1100 })
+end
+
+function M.key_snap(dir)
+  local w = hl.get_active_window()
+  if not w or not w.floating then
+    local focus_dir = ({ left = "l", right = "r", up = "u", down = "d" })[dir]
+    if focus_dir then
+      hl.dispatch(hl.dsp.focus({ direction = focus_dir }))
+    end
+    return
+  end
+
+  local cur = snap_current_zone[w.address]
+  if dir == "left" then
+    if cur == "top" then
+      M.apply_snap(w, "top-left")
+    elseif cur == "bottom" then
+      M.apply_snap(w, "bottom-left")
+    elseif cur == "right" then
+      M.apply_snap(w, "restore")
+    else
+      M.apply_snap(w, "left")
+    end
+  elseif dir == "right" then
+    if cur == "top" then
+      M.apply_snap(w, "top-right")
+    elseif cur == "bottom" then
+      M.apply_snap(w, "bottom-right")
+    elseif cur == "left" then
+      M.apply_snap(w, "restore")
+    else
+      M.apply_snap(w, "right")
+    end
+  elseif dir == "up" then
+    if cur == "left" then
+      M.apply_snap(w, "top-left")
+    elseif cur == "right" then
+      M.apply_snap(w, "top-right")
+    elseif cur == "bottom-left" then
+      M.apply_snap(w, "left")
+    elseif cur == "bottom-right" then
+      M.apply_snap(w, "right")
+    else
+      M.apply_snap(w, "maximize")
+    end
+  elseif dir == "down" then
+    if (w.fullscreen or 0) ~= 0 or M.is_soft_maximized(w, work_area_for_window(w)) then
+      M.apply_snap(w, "restore")
+    elseif cur == "top-left" then
+      M.apply_snap(w, "left")
+    elseif cur == "top-right" then
+      M.apply_snap(w, "right")
+    elseif cur == "left" then
+      M.apply_snap(w, "bottom-left")
+    elseif cur == "right" then
+      M.apply_snap(w, "bottom-right")
+    elseif cur then
+      M.apply_snap(w, "restore")
+    else
+      hl.exec_cmd("omarchy-hyprland-window-minimize")
+    end
+  end
+end
+
+function M.key_move_to_monitor(dir)
+  local w = hl.get_active_window()
+  if w and w.floating then
+    M.move_to_monitor(w, dir)
+  else
+    hl.dispatch(hl.dsp.window.swap({ direction = dir }))
+  end
 end
 
 function M.setup(opts, before_snap_cb, after_snap_cb, is_dragging_cb)
@@ -548,176 +620,87 @@ function M.setup(opts, before_snap_cb, after_snap_cb, is_dragging_cb)
   on_after_snap = after_snap_cb
   is_dragging_fn = is_dragging_cb
 
-  if not hooks_registered then
-    hooks_registered = true
+  if runtime.is_live_compositor() then
+    if not hooks_registered then
+      hooks_registered = true
 
-    hl.on("window.destroy", function(window)
-      if not window or not window.address then
-        return
-      end
-      snap_restore_geom[window.address] = nil
-      snap_current_zone[window.address] = nil
-      snap_custom_zone[window.address] = nil
-      last_normal_geom[window.address] = nil
-    end)
-
-    hl.on("window.active", function(window)
-      if not window or not window.floating then
-        return
-      end
-      if (window.fullscreen or 0) ~= 2 and M.rescue_window(window, nil, { only_unreachable = true }) then
-        window = (window.address and hl.get_window("address:" .. window.address)) or window
-      end
-      if not options.auto_raise or window.pinned or (window.fullscreen or 0) ~= 0 then
-        return
-      end
-      hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
-    end)
-
-    hl.on("window.fullscreen", function(window)
-      if not options.soft_maximize then
-        return
-      end
-      if not window or not window.floating or (window.fullscreen or 0) ~= 1 then
-        return
-      end
-      local addr = window.address
-      hl.timer(function()
-        convert_native_maximize(addr)
-      end, { type = "oneshot", timeout = 5 })
-    end)
-
-    hl.on("monitor.added", schedule_rescue)
-    hl.on("monitor.removed", schedule_rescue)
-    hl.on("monitor.layout_changed", schedule_rescue)
-    hl.on("workspace.move_to_monitor", schedule_rescue)
-    hl.on("window.move_to_workspace", function(window)
-      local addr = window and window.address
-      if not addr then
-        return
-      end
-      hl.timer(function()
-        local cur = hl.get_window("address:" .. addr)
-        if cur then
-          M.rescue_window(cur)
+      hl.on("window.destroy", function(window)
+        if not window or not window.address then
+          return
         end
-      end, { type = "oneshot", timeout = 30 })
-    end)
-  end
+        snap_restore_geom[window.address] = nil
+        snap_current_zone[window.address] = nil
+        snap_custom_zone[window.address] = nil
+        last_normal_geom[window.address] = nil
+      end)
 
-  schedule_rescue()
-
-  if options.soft_maximize then
-    hl.timer(function()
-      for _, w in ipairs(hl.get_windows()) do
-        if w.floating and (w.fullscreen or 0) == 1 and geometry.has_floating_workspace_tag(w) then
-          convert_native_maximize(w.address)
+      hl.on("window.active", function(window)
+        if not window or not window.floating then
+          return
         end
-      end
-    end, { type = "oneshot", timeout = 100 })
+        if (window.fullscreen or 0) ~= 2 and M.rescue_window(window, nil, { only_unreachable = true }) then
+          window = (window.address and hl.get_window("address:" .. window.address)) or window
+        end
+        if not options.auto_raise or window.pinned or (window.fullscreen or 0) ~= 0 then
+          return
+        end
+        hl.dispatch(hl.dsp.window.alter_zorder({ mode = "top", window = window }))
+      end)
+
+      hl.on("window.fullscreen", function(window)
+        if not options.soft_maximize then
+          return
+        end
+        if not window or not window.floating or (window.fullscreen or 0) ~= 1 then
+          return
+        end
+        local addr = window.address
+        runtime.timer(function()
+          convert_native_maximize(addr)
+        end, { type = "oneshot", timeout = 5 })
+      end)
+
+      hl.on("monitor.added", schedule_rescue)
+      hl.on("monitor.removed", schedule_rescue)
+      hl.on("monitor.layout_changed", schedule_rescue)
+      hl.on("workspace.move_to_monitor", schedule_rescue)
+      hl.on("window.move_to_workspace", function(window)
+        local addr = window and window.address
+        if not addr then
+          return
+        end
+        runtime.timer(function()
+          local cur = hl.get_window("address:" .. addr)
+          if cur then
+            M.rescue_window(cur)
+          end
+        end, { type = "oneshot", timeout = 30 })
+      end)
+    end
+
+    schedule_rescue()
+
+    if options.soft_maximize then
+      runtime.timer(function()
+        for _, w in ipairs(hl.get_windows()) do
+          if w.floating and (w.fullscreen or 0) == 1 and geometry.has_floating_workspace_tag(w) then
+            convert_native_maximize(w.address)
+          end
+        end
+      end, { type = "oneshot", timeout = 100 })
+    end
   end
 
   if not options.aero_snap then
     return
   end
 
-  o.rebind("SUPER + LEFT", "Snap window left (or focus left)", function()
-    local w = hl.get_active_window()
-    if w and w.floating then
-      local cur = snap_current_zone[w.address]
-      if cur == "top" then
-        M.apply_snap(w, "top-left")
-      elseif cur == "bottom" then
-        M.apply_snap(w, "bottom-left")
-      elseif cur == "right" then
-        M.apply_snap(w, "restore")
-      else
-        M.apply_snap(w, "left")
-      end
-    else
-      hl.dispatch(hl.dsp.focus({ direction = "l" }))
-    end
-  end)
-
-  o.rebind("SUPER + RIGHT", "Snap window right (or focus right)", function()
-    local w = hl.get_active_window()
-    if w and w.floating then
-      local cur = snap_current_zone[w.address]
-      if cur == "top" then
-        M.apply_snap(w, "top-right")
-      elseif cur == "bottom" then
-        M.apply_snap(w, "bottom-right")
-      elseif cur == "left" then
-        M.apply_snap(w, "restore")
-      else
-        M.apply_snap(w, "right")
-      end
-    else
-      hl.dispatch(hl.dsp.focus({ direction = "r" }))
-    end
-  end)
-
-  o.rebind("SUPER + UP", "Maximize / snap window up (or focus up)", function()
-    local w = hl.get_active_window()
-    if w and w.floating then
-      local cur = snap_current_zone[w.address]
-      if cur == "left" then
-        M.apply_snap(w, "top-left")
-      elseif cur == "right" then
-        M.apply_snap(w, "top-right")
-      elseif cur == "bottom-left" then
-        M.apply_snap(w, "left")
-      elseif cur == "bottom-right" then
-        M.apply_snap(w, "right")
-      else
-        M.apply_snap(w, "maximize")
-      end
-    else
-      hl.dispatch(hl.dsp.focus({ direction = "u" }))
-    end
-  end)
-
-  o.rebind("SUPER + DOWN", "Restore / snap window down (or focus down)", function()
-    local w = hl.get_active_window()
-    if w and w.floating then
-      local cur = snap_current_zone[w.address]
-      if (w.fullscreen or 0) ~= 0 or M.is_soft_maximized(w, work_area_for_window(w)) then
-        M.apply_snap(w, "restore")
-      elseif cur == "top-left" then
-        M.apply_snap(w, "left")
-      elseif cur == "top-right" then
-        M.apply_snap(w, "right")
-      elseif cur == "left" then
-        M.apply_snap(w, "bottom-left")
-      elseif cur == "right" then
-        M.apply_snap(w, "bottom-right")
-      elseif cur then
-        M.apply_snap(w, "restore")
-      else
-        hl.exec_cmd("omarchy-hyprland-window-minimize")
-      end
-    else
-      hl.dispatch(hl.dsp.focus({ direction = "d" }))
-    end
-  end)
-
-  o.rebind("SUPER + SHIFT + LEFT", "Move window to left monitor (or swap left)", function()
-    local w = hl.get_active_window()
-    if w and w.floating then
-      M.move_to_monitor(w, "l")
-    else
-      hl.dispatch(hl.dsp.window.swap({ direction = "l" }))
-    end
-  end)
-
-  o.rebind("SUPER + SHIFT + RIGHT", "Move window to right monitor (or swap right)", function()
-    local w = hl.get_active_window()
-    if w and w.floating then
-      M.move_to_monitor(w, "r")
-    else
-      hl.dispatch(hl.dsp.window.swap({ direction = "r" }))
-    end
-  end)
+  runtime.rebind_fn("SUPER + LEFT", "Snap window left (or focus left)", function() M.key_snap("left") end, 'key_snap("left")')
+  runtime.rebind_fn("SUPER + RIGHT", "Snap window right (or focus right)", function() M.key_snap("right") end, 'key_snap("right")')
+  runtime.rebind_fn("SUPER + UP", "Maximize / snap window up (or focus up)", function() M.key_snap("up") end, 'key_snap("up")')
+  runtime.rebind_fn("SUPER + DOWN", "Restore / snap window down (or focus down)", function() M.key_snap("down") end, 'key_snap("down")')
+  runtime.rebind_fn("SUPER + SHIFT + LEFT", "Move window to left monitor (or swap left)", function() M.key_move_to_monitor("l") end, 'key_move_to_monitor("l")')
+  runtime.rebind_fn("SUPER + SHIFT + RIGHT", "Move window to right monitor (or swap right)", function() M.key_move_to_monitor("r") end, 'key_move_to_monitor("r")')
 end
 
 return M

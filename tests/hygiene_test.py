@@ -350,8 +350,8 @@ class HygieneTests(unittest.TestCase):
         self.assertIsNotNone(lua_bin)
         lua_script = (
             "package.path = './?.lua;' .. package.path;"
-            "local g = require('hypr.windaase.geometry');"
-            "local cfg = g.resolve_layouts_config(nil, true);"
+            "local lc = require('hypr.windaase.layouts_config');"
+            "local cfg = lc.resolve_layouts_config(nil, true);"
             "print(cfg.cardW .. ',' .. cfg.cardH .. ',' .. cfg.cardGap .. ',' .. cfg.padX .. ',' .. cfg.padY .. ',' .. cfg.topMargin .. ',' .. #cfg.layouts);"
             "for _, card in ipairs(cfg.layouts) do "
             "  local parts = {};"

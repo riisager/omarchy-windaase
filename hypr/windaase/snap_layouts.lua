@@ -2,6 +2,8 @@
 -- edge-drag snapping, plus Super+Z click overlay toggle.
 
 local geometry = require("hypr.windaase.geometry")
+local layouts_config = require("hypr.windaase.layouts_config")
+local runtime = require("hypr.windaase.runtime")
 local snap = require("hypr.windaase.snap")
 local snap_resize = require("hypr.windaase.snap_resize")
 
@@ -57,6 +59,9 @@ local function read_snap_state_raw()
 end
 
 local function write_snap_state(tbl)
+  if not runtime.is_live_compositor() then
+    return
+  end
   local payload
   if not tbl or not tbl.open then
     payload = '{"open":false}\n'
@@ -65,15 +70,15 @@ local function write_snap_state(tbl)
     local assist_flag = (tbl.assist ~= nil) and tbl.assist or snap_assist_enabled
     payload = string.format(
       '{"open":true,"mode":"%s","monitor":"%s","card":%d,"zone":%d,"px":%d,"py":%d,"pw":%d,"ph":%d,"addr":"%s","border":%d,"titlebar":%d,"ws":%d,"uw":%s,"assist":%s,"go":%d,"gi":%d,"axis":"%s","p1":%d,"p2":%d}\n',
-      geometry.json_escape(tbl.mode or "drag"),
-      geometry.json_escape(tbl.monitor or ""),
+      layouts_config.json_escape(tbl.mode or "drag"),
+      layouts_config.json_escape(tbl.monitor or ""),
       tbl.card or -1,
       tbl.zone or -1,
       tbl.px or 0,
       tbl.py or 0,
       tbl.pw or 0,
       tbl.ph or 0,
-      geometry.json_escape(tbl.addr or ""),
+      layouts_config.json_escape(tbl.addr or ""),
       tbl.border or 2,
       tbl.titlebar or 30,
       tbl.ws or -1,
@@ -81,7 +86,7 @@ local function write_snap_state(tbl)
       assist_flag and "true" or "false",
       tbl.go or gap_out,
       tbl.gi or gap_in,
-      geometry.json_escape(tbl.axis or "x"),
+      layouts_config.json_escape(tbl.axis or "x"),
       tbl.p1 or 50,
       tbl.p2 or 50
     )
@@ -169,7 +174,7 @@ local function update_drag_overlay(st, cur, c)
   local lx = c.x - (m.x or 0)
   local ly = c.y - (m.y or 0)
   local win_top = cur.at.y - (m.y or 0)
-  local ci, zi, z, _, py, _, ph = geometry.hit_test_snap_layouts(lx, ly, mw, layouts_cfg)
+  local ci, zi, z, _, py, _, ph = layouts_config.hit_test_snap_layouts(lx, ly, mw, layouts_cfg)
 
   if not st.snap_open then
     if ly <= 48 or win_top <= 36 then
@@ -231,7 +236,7 @@ local function tick(expected_token)
   if snap_resize.is_active() then
     snap_resize.tick_active_resize(c)
     prev_sample = nil
-    hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 16 })
+    runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 16 })
     return
   end
 
@@ -241,7 +246,7 @@ local function tick(expected_token)
     if suppress_snap_ticks == 0 and cur and cur.floating and (cur.fullscreen or 0) == 0 then
       snap_resize.snapshot_workspace(cur)
     end
-    hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
+    runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
     return
   end
 
@@ -254,7 +259,7 @@ local function tick(expected_token)
       mouse_drag_state = nil
       prev_sample = nil
       if cur and c and cur.floating and (cur.fullscreen or 0) == 0 then
-        hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
+        runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
       else
         monitor_running = false
       end
@@ -300,17 +305,17 @@ local function tick(expected_token)
         st.last_cy = c.y
         if st.detached_ticks >= 2 then
           finish_active_drag(cur, { x = st.drop_cx or c.x, y = st.drop_cy or c.y })
-          hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
+          runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
           return
         end
       end
     elseif (st.detached_ticks or 0) > 0 then
       finish_active_drag(cur, { x = st.drop_cx or c.x, y = st.drop_cy or c.y })
-      hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
+      runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
       return
     end
 
-    hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 25 })
+    runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 25 })
     return
   end
 
@@ -323,7 +328,7 @@ local function tick(expected_token)
 
   if snap_resize.try_begin_mouse_resize(cur, c) then
     prev_sample = nil
-    hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 16 })
+    runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 16 })
     return
   end
 
@@ -359,7 +364,7 @@ local function tick(expected_token)
         snap_zone = nil,
       }
       update_drag_overlay(mouse_drag_state, cur, c)
-      hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 25 })
+      runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 25 })
       return
     end
   end
@@ -390,11 +395,11 @@ local function tick(expected_token)
     cy = c.y,
   }
 
-  hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
+  runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
 end
 
 local function ensure_monitor_running()
-  if not aero_snap_enabled and not snap_layouts_enabled then
+  if not runtime.is_live_compositor() or (not aero_snap_enabled and not snap_layouts_enabled) then
     return
   end
   local cur = hl.get_active_window()
@@ -407,7 +412,7 @@ local function ensure_monitor_running()
   monitor_running = true
   monitor_token = monitor_token + 1
   local token = monitor_token
-  hl.timer(function() tick(token) end, { type = "oneshot", timeout = 50 })
+  runtime.timer(function() tick(token) end, { type = "oneshot", timeout = 50 })
 end
 
 local function has_assist_candidate(ws_id, exclude_addr)
@@ -426,7 +431,7 @@ function M.schedule_assist(window, m, snapped_zone)
   if not snap_assist_enabled or not window or not m then
     return
   end
-  local comp = geometry.complementary_zone(snapped_zone)
+  local comp = layouts_config.complementary_zone(snapped_zone)
   if not comp then
     return
   end
@@ -457,7 +462,7 @@ function M.schedule_assist(window, m, snapped_zone)
   local ph = rect.h
   local border, titlebar = geometry.get_window_frame_insets(window)
 
-  hl.timer(function()
+  runtime.timer(function()
     if seq ~= assist_seq then
       return
     end
@@ -583,7 +588,7 @@ end
 
 function M.setup(opts)
   ultrawide_enabled = opts.ultrawide_layout == true
-  layouts_cfg = geometry.resolve_layouts_config(geometry.load_layouts_config(), ultrawide_enabled)
+  layouts_cfg = layouts_config.resolve_layouts_config(layouts_config.load_layouts_config(), ultrawide_enabled)
   gap_out = opts.gap_out or 8
   gap_in = opts.gap_in or 8
   aero_snap_enabled = opts.aero_snap ~= false
@@ -600,92 +605,94 @@ function M.setup(opts)
   snap_resize.clear_flash()
   write_snap_state({ open = false })
 
-  if not hooks_registered then
-    hooks_registered = true
-    local function wake_later()
-      hl.timer(ensure_monitor_running, { type = "oneshot", timeout = 10 })
-    end
-    local function cancel_assist_and_wake()
-      cancel_assist_only()
-      wake_later()
-    end
-
-    hl.on("window.active", function(window)
-      if mouse_drag_state and (not window or window.address ~= mouse_drag_state.addr) then
-        if mouse_drag_state.snap_open then
-          write_snap_state({ open = false })
-        end
-        mouse_drag_state = nil
-        prev_sample = nil
+  if runtime.is_live_compositor() then
+    if not hooks_registered then
+      hooks_registered = true
+      local function wake_later()
+        runtime.timer(ensure_monitor_running, { type = "oneshot", timeout = 10 })
       end
-      if pending_assist and (not window or window.address ~= pending_assist.snapped_addr) then
+      local function cancel_assist_and_wake()
         cancel_assist_only()
+        wake_later()
       end
-      ensure_monitor_running()
-    end)
-    hl.on("window.open", cancel_assist_and_wake)
-    hl.on("window.fullscreen", wake_later)
-    hl.on("workspace.active", cancel_assist_and_wake)
-    hl.on("monitor.focused", cancel_assist_and_wake)
-    hl.on("monitor.added", M.cancel_overlay)
-    hl.on("monitor.removed", M.cancel_overlay)
-    hl.on("monitor.layout_changed", M.cancel_overlay)
-  end
 
-  local release_opts = { release = true, transparent = true, ignore_mods = true, non_consuming = true }
-  local drag_watch = aero_snap_enabled or snap_layouts_enabled
-  if drag_watch and not bind_alive(mouse_binds["mouse:272"]) then
-    mouse_binds["mouse:272"] = hl.bind("mouse:272", function()
-      if snap_resize.is_active() then
-        snap_resize.finish_active_resize()
-        prev_sample = nil
-        return
-      end
-      if not mouse_drag_state then
-        if pending_assist then
-          local c = hl.get_cursor_pos()
-          local r = pending_assist.rect
-          if c and r and (c.x < r.x - 16 or c.x > r.x + r.w + 16 or c.y < r.y - 16 or c.y > r.y + r.h + 16) then
-            cancel_assist_only()
+      hl.on("window.active", function(window)
+        if mouse_drag_state and (not window or window.address ~= mouse_drag_state.addr) then
+          if mouse_drag_state.snap_open then
+            write_snap_state({ open = false })
           end
+          mouse_drag_state = nil
+          prev_sample = nil
         end
-        return
-      end
-      local cur = hl.get_active_window()
-      local c = hl.get_cursor_pos()
-      finish_active_drag(cur, c)
-    end, release_opts)
-  end
-  if bind_alive(mouse_binds["mouse:272"]) then
-    mouse_binds["mouse:272"]:set_enabled(drag_watch)
-  end
+        if pending_assist and (not window or window.address ~= pending_assist.snapped_addr) then
+          cancel_assist_only()
+        end
+        ensure_monitor_running()
+      end)
+      hl.on("window.open", cancel_assist_and_wake)
+      hl.on("window.fullscreen", wake_later)
+      hl.on("workspace.active", cancel_assist_and_wake)
+      hl.on("monitor.focused", cancel_assist_and_wake)
+      hl.on("monitor.added", M.cancel_overlay)
+      hl.on("monitor.removed", M.cancel_overlay)
+      hl.on("monitor.layout_changed", M.cancel_overlay)
+    end
 
-  local resize_watch = aero_snap_enabled and opts.snap_resize ~= false
-  if resize_watch and not bind_alive(mouse_binds["mouse:273"]) then
-    mouse_binds["mouse:273"] = hl.bind("mouse:273", function()
-      if snap_resize.is_active() then
-        snap_resize.finish_active_resize()
-        prev_sample = nil
-      end
-    end, release_opts)
-  end
-  if bind_alive(mouse_binds["mouse:273"]) then
-    mouse_binds["mouse:273"]:set_enabled(resize_watch)
-  end
+    local release_opts = { release = true, transparent = true, ignore_mods = true, non_consuming = true }
+    local drag_watch = aero_snap_enabled or snap_layouts_enabled
+    if drag_watch and not bind_alive(mouse_binds["mouse:272"]) then
+      mouse_binds["mouse:272"] = hl.bind("mouse:272", function()
+        if snap_resize.is_active() then
+          snap_resize.finish_active_resize()
+          prev_sample = nil
+          return
+        end
+        if not mouse_drag_state then
+          if pending_assist then
+            local c = hl.get_cursor_pos()
+            local r = pending_assist.rect
+            if c and r and (c.x < r.x - 16 or c.x > r.x + r.w + 16 or c.y < r.y - 16 or c.y > r.y + r.h + 16) then
+              cancel_assist_only()
+            end
+          end
+          return
+        end
+        local cur = hl.get_active_window()
+        local c = hl.get_cursor_pos()
+        finish_active_drag(cur, c)
+      end, release_opts)
+    end
+    if bind_alive(mouse_binds["mouse:272"]) then
+      mouse_binds["mouse:272"]:set_enabled(drag_watch)
+    end
 
-  if snap_assist_enabled and not bind_alive(assist_esc_bind) then
-    assist_esc_bind = hl.bind("Escape", function()
-      cancel_assist_only()
-    end, { transparent = true, non_consuming = true })
-  end
-  set_assist_esc_enabled(false)
+    local resize_watch = aero_snap_enabled and opts.snap_resize ~= false
+    if resize_watch and not bind_alive(mouse_binds["mouse:273"]) then
+      mouse_binds["mouse:273"] = hl.bind("mouse:273", function()
+        if snap_resize.is_active() then
+          snap_resize.finish_active_resize()
+          prev_sample = nil
+        end
+      end, release_opts)
+    end
+    if bind_alive(mouse_binds["mouse:273"]) then
+      mouse_binds["mouse:273"]:set_enabled(resize_watch)
+    end
 
-  if drag_watch then
-    ensure_monitor_running()
+    if snap_assist_enabled and not bind_alive(assist_esc_bind) then
+      assist_esc_bind = hl.bind("Escape", function()
+        cancel_assist_only()
+      end, { transparent = true, non_consuming = true })
+    end
+    set_assist_esc_enabled(false)
+
+    if drag_watch then
+      ensure_monitor_running()
+    end
   end
 
   if snap_layouts_enabled then
-    o.rebind("SUPER + Z", "Snap Layouts", M.toggle_click_overlay)
+    runtime.rebind_fn("SUPER + Z", "Snap Layouts", M.toggle_click_overlay, "toggle_snap_layouts()")
   end
 end
 

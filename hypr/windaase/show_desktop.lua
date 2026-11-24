@@ -43,11 +43,13 @@ function M.restore_windows(windows, target_ws)
     return
   end
 
-  hl.timer(function()
-    for _, addr in ipairs(addrs) do
-      pcall(hl.dispatch, hl.dsp.window.set_prop({ prop = "no_anim", value = "unset", window = "address:" .. addr }))
-    end
-  end, { type = "oneshot", timeout = 400 })
+  if hl and type(hl.timer) == "function" then
+    hl.timer(function()
+      for _, addr in ipairs(addrs) do
+        pcall(hl.dispatch, hl.dsp.window.set_prop({ prop = "no_anim", value = "unset", window = "address:" .. addr }))
+      end
+    end, { type = "oneshot", timeout = 400 })
+  end
 end
 
 function M.toggle()

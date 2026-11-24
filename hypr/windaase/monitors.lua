@@ -1,13 +1,11 @@
 -- Automatic dock-profile application for Hyprland monitor hotplug & reload.
 
+local runtime = require("hypr.windaase.runtime")
+
 local M = {}
 
 local hooks_registered = false
 local apply_seq = 0
-
-local function shell_quote(s)
-  return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
-end
 
 local function helper_script_path()
   local home = os.getenv("HOME") or ""
@@ -47,14 +45,14 @@ function M.apply_profile()
     return false
   end
   f:close()
-  hl.exec_cmd("python3 " .. shell_quote(helper) .. " monitors-apply")
+  hl.exec_cmd("python3 " .. runtime.shell_quote(helper) .. " monitors-apply")
   return true
 end
 
 local function schedule_apply(delay_ms)
   apply_seq = apply_seq + 1
   local seq = apply_seq
-  hl.timer(function()
+  runtime.timer(function()
     if seq == apply_seq then
       M.apply_profile()
     end
@@ -62,6 +60,9 @@ local function schedule_apply(delay_ms)
 end
 
 function M.setup(_opts)
+  if not runtime.is_live_compositor() then
+    return
+  end
   if not hooks_registered then
     hooks_registered = true
     hl.on("hyprland.start", function() schedule_apply(350) end)

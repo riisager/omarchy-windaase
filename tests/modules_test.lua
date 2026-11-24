@@ -143,6 +143,7 @@ local function make_harness()
 
   local o_mock = {
     workspace_mode = base_workspace_mode,
+    bind_commands = {},
     rebind = function(keys, desc, action, opts)
       state.rebinds[#state.rebinds + 1] = { keys = keys, desc = desc, action = action, opts = opts }
     end,
@@ -325,6 +326,177 @@ do
   local orig_exec_count = #state.exec_cmds
   flush_timers()
   assert(#state.exec_cmds <= orig_exec_count + 1, "debounced monitor hotplug must coalesce into at most 1 apply_profile call")
+end
+
+-- 6. runtime.bump_generation invalidates prior-generation timers after simulated hyprctl reload
+do
+  local state, flush_timers = make_harness()
+  local w_float = {
+    address = "0x9999",
+    floating = true,
+    fullscreen = 0,
+    at = { x = 100, y = 100 },
+    size = { x = 600, y = 400 },
+    workspace = { id = 1, name = "1" },
+    monitor = state.monitors[1],
+  }
+  state.windows = { w_float }
+  state.active_window = w_float
+  state.monitors = {} -- avoid calling monitors-apply during reload test
+
+  local windaase = require("hypr.windaase")
+  windaase.setup({ aero_snap = true, snap_layouts = true, monitors = true })
+  assert(#state.timers > 0, "live setup should schedule initial timers")
+  local pre_reload_timers = state.timers
+  state.timers = {}
+
+  -- Simulate Omarchy bootstrap.lua clearing package.loaded["hypr.*"] on hyprctl reload
+  for mod in pairs(package.loaded) do
+    if mod == "hypr" or mod:sub(1, 5) == "hypr." then
+      package.loaded[mod] = nil
+    end
+  end
+
+  local windaase_reloaded = require("hypr.windaase")
+  local rt = require("hypr.windaase.runtime")
+  local old_gen = rt.generation()
+  windaase_reloaded.setup({ aero_snap = false, snap_layouts = false, snap_resize = false, alt_tab = false })
+  assert(rt.generation() == old_gen + 1, "reload setup must bump generation counter")
+
+  -- Any lingering timers from the pre-reload module must exit without scheduling follow-up ticks
+  state.timers = {}
+  state.exec_cmds = {}
+  for _, t in ipairs(pre_reload_timers) do
+    t.fn()
+  end
+  assert(#state.timers == 0, "pre-reload tick timers must stop cleanly on generation mismatch")
+  assert(#state.exec_cmds == 0, "pre-reload timers must not spawn commands after reload")
+end
+
+-- 7. omarchy-menu-keybindings dry-run noop stub skips IPC/timers and populates o.bind_commands
+do
+  local rt_dir = os.getenv("XDG_RUNTIME_DIR") or "/tmp"
+  local snap_file = rt_dir .. "/omarchy-windaase-snap.json"
+  local alttab_file = rt_dir .. "/omarchy-windaase-alttab.json"
+  local sentinel = '{"sentinel":true}\n'
+  local f1 = assert(io.open(snap_file, "w"))
+  f1:write(sentinel)
+  f1:close()
+  local f2 = assert(io.open(alttab_file, "w"))
+  f2:write(sentinel)
+  f2:close()
+
+  for mod in pairs(package.loaded) do
+    if mod == "hypr" or mod:sub(1, 5) == "hypr." then
+      package.loaded[mod] = nil
+    end
+  end
+
+  local noop
+  noop = setmetatable({}, {
+    __index = function() return noop end,
+    __call = function() return noop end,
+  })
+  local recorded_cmds = {}
+  _G.hl = setmetatable({
+    dsp = setmetatable({}, {
+      __index = function(_, k)
+        return setmetatable({}, {
+          __index = function(_, k2)
+            return function() return { kind = k .. "." .. k2 } end
+          end,
+          __call = function() return { kind = k } end,
+        })
+      end,
+    }),
+    bind = function() return noop end,
+    unbind = function() end,
+    get_config = function() return nil end,
+  }, { __index = function() return noop end })
+  _G.o = {
+    bind_commands = recorded_cmds,
+    rebind = function() end,
+    workspace_mode = function() end,
+  }
+
+  local windaase = require("hypr.windaase")
+  windaase.setup({
+    aero_snap = true,
+    snap_layouts = true,
+    snap_resize = true,
+    alt_tab = true,
+    shortcuts = true,
+    floating_only = false,
+  })
+
+  local expected_evals = {
+    'show_desktop()',
+    'minimize_others_or_restore()',
+    'toggle_pin_active()',
+    'toggle_snap_layouts()',
+    'key_snap("left")',
+    'key_snap("right")',
+    'key_snap("up")',
+    'key_snap("down")',
+    'key_move_to_monitor("l")',
+    'key_move_to_monitor("r")',
+    'snap_resize(-1, "x")',
+    'snap_resize(1, "x")',
+    'snap_resize(-1, "y")',
+    'snap_resize(1, "y")',
+    'alt_tab_menu_switch(1)',
+    'alt_tab_menu_switch(-1)',
+  }
+  local seen_calls = {}
+  for _, cmd in pairs(recorded_cmds) do
+    for _, suffix in ipairs(expected_evals) do
+      if cmd:find(suffix, 1, true) then
+        seen_calls[suffix] = true
+      end
+    end
+  end
+  for _, suffix in ipairs(expected_evals) do
+    assert(seen_calls[suffix], "missing o.bind_commands entry for " .. suffix)
+  end
+
+  local r1 = assert(io.open(snap_file, "r"))
+  assert(r1:read("*a") == sentinel, "dry-run stub must not overwrite live snap IPC file")
+  r1:close()
+  local r2 = assert(io.open(alttab_file, "r"))
+  assert(r2:read("*a") == sentinel, "dry-run stub must not overwrite live alttab IPC file")
+  r2:close()
+  os.remove(snap_file)
+  os.remove(alttab_file)
+end
+
+-- 8. alt_tab.menu_switch focuses next/previous MRU window (including minimized restore) cleanly
+do
+  local state = make_harness()
+  local w1 = { address = "0x11", mapped = true, focus_history_id = 0, workspace = { id = 1, name = "1" }, monitor = state.monitors[1] }
+  local w2 = { address = "0x22", mapped = true, focus_history_id = 1, workspace = { id = -99, name = "special:minimized" }, monitor = state.monitors[1] }
+  state.windows = { w1, w2 }
+  state.active_window = w1
+
+  for mod in pairs(package.loaded) do
+    if mod == "hypr" or mod:sub(1, 5) == "hypr." then
+      package.loaded[mod] = nil
+    end
+  end
+  local alt_tab = require("hypr.windaase.alt_tab")
+  alt_tab.setup({ alt_tab = true })
+  state.dispatches = {}
+
+  assert(alt_tab.menu_switch(1) == true, "menu_switch should activate next window")
+  local restored_min, focused_next = false, false
+  for _, d in ipairs(state.dispatches) do
+    if d._kind == "window.move" and d.workspace == "1" and d.window == w2 then
+      restored_min = true
+    end
+    if d._kind == "focus" and d.window == "address:0x22" then
+      focused_next = true
+    end
+  end
+  assert(restored_min and focused_next, "menu_switch must restore minimized window and focus 0x22")
 end
 
 print("ALL LUA MODULE TESTS PASSED")

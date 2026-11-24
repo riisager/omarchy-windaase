@@ -3,16 +3,14 @@
 --   * Rebinds Super+L to lock screen (Win+L) and unbinds tiling/layout-switch keys
 -- Fully reversible on reload when floating_only = false.
 
+local runtime = require("hypr.windaase.runtime")
+
 local M = {}
 
 local enabled = false
 local orig_workspace_mode = nil
 local hooks_registered = false
 local sync_seq = 0
-
-local function shell_quote(s)
-  return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
-end
 
 local function helper_script_path()
   local home = os.getenv("HOME") or ""
@@ -32,7 +30,7 @@ local function schedule_sync_workspace_state(ws_id)
   sync_seq = sync_seq + 1
   local seq = sync_seq
   local target_ws = ws_id ~= nil and tostring(ws_id) or nil
-  hl.timer(function()
+  runtime.timer(function()
     if not enabled or seq ~= sync_seq then
       return
     end
@@ -40,9 +38,9 @@ local function schedule_sync_workspace_state(ws_id)
     if not helper then
       return
     end
-    local cmd = "python3 " .. shell_quote(helper) .. " enforce-floating-workspace"
+    local cmd = "python3 " .. runtime.shell_quote(helper) .. " enforce-floating-workspace"
     if target_ws and target_ws:match("^[1-9][0-9]*$") then
-      cmd = cmd .. " " .. shell_quote(target_ws)
+      cmd = cmd .. " " .. runtime.shell_quote(target_ws)
     end
     hl.exec_cmd(cmd)
   end, { type = "oneshot", timeout = 150 })
@@ -95,28 +93,30 @@ function M.setup(opts)
     return
   end
 
-  install_workspace_mode_guard()
+  if runtime.is_live_compositor() then
+    install_workspace_mode_guard()
 
-  if orig_workspace_mode ~= nil then
-    pcall(orig_workspace_mode, { default = "floating" })
-    for _, ws in ipairs(hl.get_workspaces() or {}) do
-      ensure_workspace_floating(ws and ws.id)
+    if orig_workspace_mode ~= nil then
+      pcall(orig_workspace_mode, { default = "floating" })
+      for _, ws in ipairs(hl.get_workspaces() or {}) do
+        ensure_workspace_floating(ws and ws.id)
+      end
     end
-  end
 
-  if not hooks_registered then
-    hooks_registered = true
-    hl.on("workspace.active", function(workspace)
-      if not enabled then
-        return
-      end
-      local ws_id = workspace and workspace.id
-      if ws_id == nil then
-        local active = hl.get_active_workspace()
-        ws_id = active and active.id
-      end
-      ensure_workspace_floating(ws_id)
-    end)
+    if not hooks_registered then
+      hooks_registered = true
+      hl.on("workspace.active", function(workspace)
+        if not enabled then
+          return
+        end
+        local ws_id = workspace and workspace.id
+        if ws_id == nil then
+          local active = hl.get_active_workspace()
+          ws_id = active and active.id
+        end
+        ensure_workspace_floating(ws_id)
+      end)
+    end
   end
 
   -- Windows-style Win+L locks screen; disable accidental tiling/layout-switch keys.

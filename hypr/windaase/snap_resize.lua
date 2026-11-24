@@ -3,6 +3,8 @@
 --   * Mouse:    Border/gap drag on any snapped edge resizes all coupled panes together
 
 local geometry = require("hypr.windaase.geometry")
+local runtime = require("hypr.windaase.runtime")
+local seam = require("hypr.windaase.seam")
 
 local M = {}
 
@@ -166,7 +168,7 @@ local function flash_resize_overlay(mon_name, mon_x, mon_y, axis, divider_rect, 
   flash_seq = flash_seq + 1
   local seq = flash_seq
   emit_resize_overlay(mon_name, mon_x, mon_y, axis, divider_rect, pct1, pct2)
-  hl.timer(function()
+  runtime.timer(function()
     if seq ~= flash_seq or active_resize ~= nil then
       return
     end
@@ -235,11 +237,11 @@ function M.try_begin_mouse_resize(cur, c)
       local prev = last_geom_by_addr[w.address]
       if prev and prev.ws_id == ws_id and prev.mon_name == w_mon_name and (cur_mon_name == "" or w_mon_name == cur_mon_name) then
         local cur_outer = geometry.window_outer_rect(w, prev.border, prev.titlebar)
-        local edge, axis = geometry.detect_resize_edge(prev, cur_outer)
+        local edge, axis = seam.detect_resize_edge(prev, cur_outer)
         if edge and axis then
           local descriptors, win_by_addr = collect_workspace_descriptors(ws_id, w_mon_name, true)
           local area = w_mon and geometry.get_work_area(w_mon, options.gap_out, options.gap_in) or nil
-          local group = geometry.find_seam_group(descriptors, w.address, edge, options.gap_in, area)
+          local group = seam.find_seam_group(descriptors, w.address, edge, options.gap_in, area)
           if group then
             local partner_addrs = {}
             for _, b in ipairs(group.before_list) do
@@ -258,7 +260,7 @@ function M.try_begin_mouse_resize(cur, c)
             set_window_no_anim(partner_addrs, true)
 
             local raw_seam = driver_raw_seam(cur_outer, edge, group.gap) or group.seam
-            local res = geometry.compute_seam_rects(group, raw_seam)
+            local res = seam.compute_seam_rects(group, raw_seam)
             if res then
               for _, p in ipairs(res.placements) do
                 if not p.is_driver then
@@ -340,7 +342,7 @@ function M.tick_active_resize(c)
     st.last_cy = c.y
   end
 
-  local res = geometry.compute_seam_rects(st.group, raw_seam)
+  local res = seam.compute_seam_rects(st.group, raw_seam)
   if not res then
     return
   end
@@ -359,7 +361,7 @@ end
 
 local function check_and_reconcile_minimums(st, target_seam)
   local group = st.group
-  local res = geometry.compute_seam_rects(group, target_seam)
+  local res = seam.compute_seam_rects(group, target_seam)
   if not res then
     return
   end
@@ -403,7 +405,7 @@ local function check_and_reconcile_minimums(st, target_seam)
   end
 
   if final_seam ~= target_seam then
-    local adj = geometry.compute_seam_rects(group, final_seam)
+    local adj = seam.compute_seam_rects(group, final_seam)
     if adj then
       for _, p in ipairs(adj.placements) do
         local pw = hl.get_window("address:" .. p.addr)
@@ -441,7 +443,7 @@ function M.finish_active_resize()
     end
   end
 
-  local res = geometry.compute_seam_rects(st.group, raw_seam)
+  local res = seam.compute_seam_rects(st.group, raw_seam)
   local no_anim_all = {}
   for _, a in ipairs(st.partner_addrs) do
     no_anim_all[#no_anim_all + 1] = a
@@ -470,18 +472,25 @@ function M.finish_active_resize()
 
   local settled_seam = res and res.seam or st.last_seam
   local seq = resize_seq
-  hl.timer(function()
-    if seq ~= resize_seq or active_resize ~= nil then
-      unset_inactive_no_anim(no_anim_all)
-      return
-    end
-    check_and_reconcile_minimums(st, settled_seam)
-    set_window_no_anim(no_anim_all, false)
-    local cur = hl.get_active_window()
-    if cur then
-      M.snapshot_workspace(cur)
-    end
-  end, { type = "oneshot", timeout = 60 })
+  local expected_gen = runtime.generation()
+  if runtime.is_live_compositor() then
+    hl.timer(function()
+      if expected_gen ~= runtime.generation() then
+        set_window_no_anim(no_anim_all, false)
+        return
+      end
+      if seq ~= resize_seq or active_resize ~= nil then
+        unset_inactive_no_anim(no_anim_all)
+        return
+      end
+      check_and_reconcile_minimums(st, settled_seam)
+      set_window_no_anim(no_anim_all, false)
+      local cur = hl.get_active_window()
+      if cur then
+        M.snapshot_workspace(cur)
+      end
+    end, { type = "oneshot", timeout = 60 })
+  end
 end
 
 function M.resize_by_keyboard(direction, axis)
@@ -517,7 +526,7 @@ function M.resize_by_keyboard(direction, axis)
   end
 
   local descriptors, win_by_addr = collect_workspace_descriptors(ws_id, mon_name, false)
-  local res = geometry.resolve_keyboard_snap_resize(descriptors, w.address, area, options.gap_in, direction, axis)
+  local res = seam.resolve_keyboard_snap_resize(descriptors, w.address, area, options.gap_in, direction, axis)
   if not res then
     return
   end
@@ -550,7 +559,7 @@ function M.setup(opts, write_state_cb, suppress_cb)
   flash_seq = flash_seq + 1
   resize_seq = resize_seq + 1
 
-  if not destroy_hook_registered then
+  if runtime.is_live_compositor() and not destroy_hook_registered then
     destroy_hook_registered = true
     hl.on("window.destroy", function(window)
       if not window or not window.address then
@@ -564,18 +573,30 @@ function M.setup(opts, write_state_cb, suppress_cb)
   end
 
   if options.aero_snap and options.snap_resize then
-    o.rebind("SUPER + ALT + LEFT", "Resize snap divider left (or move into group)", function()
-      M.resize_by_keyboard(-1, "x")
-    end)
-    o.rebind("SUPER + ALT + RIGHT", "Resize snap divider right (or move into group)", function()
-      M.resize_by_keyboard(1, "x")
-    end)
-    o.rebind("SUPER + ALT + UP", "Resize snap divider up (or move into group)", function()
-      M.resize_by_keyboard(-1, "y")
-    end)
-    o.rebind("SUPER + ALT + DOWN", "Resize snap divider down (or move into group)", function()
-      M.resize_by_keyboard(1, "y")
-    end)
+    runtime.rebind_fn(
+      "SUPER + ALT + LEFT",
+      "Resize snap divider left (or move into group)",
+      function() M.resize_by_keyboard(-1, "x") end,
+      'snap_resize(-1, "x")'
+    )
+    runtime.rebind_fn(
+      "SUPER + ALT + RIGHT",
+      "Resize snap divider right (or move into group)",
+      function() M.resize_by_keyboard(1, "x") end,
+      'snap_resize(1, "x")'
+    )
+    runtime.rebind_fn(
+      "SUPER + ALT + UP",
+      "Resize snap divider up (or move into group)",
+      function() M.resize_by_keyboard(-1, "y") end,
+      'snap_resize(-1, "y")'
+    )
+    runtime.rebind_fn(
+      "SUPER + ALT + DOWN",
+      "Resize snap divider down (or move into group)",
+      function() M.resize_by_keyboard(1, "y") end,
+      'snap_resize(1, "y")'
+    )
   end
 end
 

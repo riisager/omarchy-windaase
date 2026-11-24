@@ -1,10 +1,81 @@
 -- Windows-style MRU Alt+Tab window switcher backend for Hyprland + Quickshell.
 -- Holds focus order via Hyprland's window list and commits on Alt key release.
 
-local geometry = require("hypr.windaase.geometry")
+local layouts_config = require("hypr.windaase.layouts_config")
+local runtime = require("hypr.windaase.runtime")
 local show_desktop = require("hypr.windaase.show_desktop")
 
 local M = {}
+
+local function is_object(v)
+  local t = type(v)
+  return t == "table" or t == "userdata"
+end
+
+function M.order_windows(windows, active_addr)
+  if not is_object(windows) then
+    return {}
+  end
+
+  local open_list = {}
+  local min_list = {}
+  local active_low = type(active_addr) == "string" and active_addr:lower() or ""
+
+  for _, w in ipairs(windows) do
+    if is_object(w) and w.mapped ~= false and type(w.address) == "string" and w.address ~= "" then
+      local ws = w.workspace
+      local ws_id = (ws and tonumber(ws.id)) or -1
+      local ws_name = (ws and tostring(ws.name or "")) or ""
+      if ws_name == "special:minimized" then
+        min_list[#min_list + 1] = w
+      elseif ws_id >= 1 then
+        open_list[#open_list + 1] = w
+      end
+    end
+  end
+
+  table.sort(open_list, function(a, b)
+    local a_active = (active_low ~= "" and a.address:lower() == active_low) and 0 or 1
+    local b_active = (active_low ~= "" and b.address:lower() == active_low) and 0 or 1
+    if a_active ~= b_active then
+      return a_active < b_active
+    end
+    local af = tonumber(a.focus_history_id) or 999999
+    local bf = tonumber(b.focus_history_id) or 999999
+    if af ~= bf then
+      return af < bf
+    end
+    return a.address < b.address
+  end)
+
+  table.sort(min_list, function(a, b)
+    local af = tonumber(a.focus_history_id) or 999999
+    local bf = tonumber(b.focus_history_id) or 999999
+    if af ~= bf then
+      return af < bf
+    end
+    return a.address < b.address
+  end)
+
+  local ordered = {}
+  for _, w in ipairs(open_list) do
+    ordered[#ordered + 1] = w
+  end
+  for _, w in ipairs(min_list) do
+    ordered[#ordered + 1] = w
+  end
+  return ordered
+end
+
+function M.step_index(current, count, delta)
+  local n = tonumber(count) or 0
+  if n <= 0 then
+    return 0
+  end
+  local cur = tonumber(current) or 1
+  local step = tonumber(delta) or 0
+  return ((cur - 1 + step) % n) + 1
+end
 
 local state_path = (os.getenv("XDG_RUNTIME_DIR") or os.getenv("XDG_CACHE_HOME") or ((os.getenv("HOME") or ".") .. "/.cache"))
   .. "/omarchy-windaase-alttab.json"
@@ -21,18 +92,21 @@ local function bind_alive(kb)
 end
 
 local function write_state(tbl)
+  if not runtime.is_live_compositor() then
+    return
+  end
   local payload
   if not tbl or not tbl.open then
     payload = '{"open":false}\n'
   else
     local encoded_addrs = {}
     for _, addr in ipairs(tbl.addrs or {}) do
-      encoded_addrs[#encoded_addrs + 1] = '"' .. geometry.json_escape(addr) .. '"'
+      encoded_addrs[#encoded_addrs + 1] = '"' .. layouts_config.json_escape(addr) .. '"'
     end
     local sel0 = math.max(0, (tonumber(tbl.selected) or 1) - 1)
     payload = string.format(
       '{"open":true,"monitor":"%s","selected":%d,"addrs":[%s]}\n',
-      geometry.json_escape(tbl.monitor or ""),
+      layouts_config.json_escape(tbl.monitor or ""),
       sel0,
       table.concat(encoded_addrs, ",")
     )
@@ -104,7 +178,7 @@ function M.step(delta)
   if not session then
     local active = hl.get_active_window()
     local active_addr = active and active.address or ""
-    local ordered = geometry.order_alttab_windows(hl.get_windows(), active_addr)
+    local ordered = M.order_windows(hl.get_windows(), active_addr)
     if #ordered == 0 then
       return false
     end
@@ -144,7 +218,7 @@ function M.step(delta)
     return false
   end
 
-  session.selected = geometry.step_index(session.selected, #session.addrs, delta)
+  session.selected = M.step_index(session.selected, #session.addrs, delta)
   write_state({
     open = true,
     monitor = session.monitor,
@@ -213,7 +287,7 @@ function M.commit(defer_focus)
   if defer_focus then
     -- Defer focus past Alt key-release processing so the newly focused Wayland client does not receive a stuck Alt modifier.
     local seq = commit_seq
-    hl.timer(function()
+    runtime.timer(function()
       if seq ~= commit_seq or session ~= nil then
         return
       end
@@ -223,6 +297,24 @@ function M.commit(defer_focus)
   end
 
   return activate_addr(target_addr, target_mon)
+end
+
+-- Direct MRU window switch for non-held menu invocations (Super+K keybindings menu).
+function M.menu_switch(delta)
+  M.cancel()
+  local active = hl.get_active_window()
+  local active_addr = active and active.address or ""
+  local ordered = M.order_windows(hl.get_windows(), active_addr)
+  if #ordered == 0 then
+    return false
+  end
+  local mon = hl.get_active_monitor() or (active and active.monitor)
+  local mon_name = (mon and mon.name) or ""
+  local idx = 1
+  if #ordered >= 2 then
+    idx = (tonumber(delta) or 1) < 0 and #ordered or 2
+  end
+  return activate_addr(ordered[idx].address, mon_name)
 end
 
 function M.commit_addr(addr)
@@ -245,8 +337,24 @@ function M.setup(opts)
     return
   end
 
-  o.rebind("ALT + TAB", "Switch to next window", function() M.step(1) end, { repeating = true })
-  o.rebind("ALT + SHIFT + TAB", "Switch to previous window", function() M.step(-1) end, { repeating = true })
+  runtime.rebind_fn(
+    "ALT + TAB",
+    "Switch to next window",
+    function() M.step(1) end,
+    "alt_tab_menu_switch(1)",
+    { repeating = true }
+  )
+  runtime.rebind_fn(
+    "ALT + SHIFT + TAB",
+    "Switch to previous window",
+    function() M.step(-1) end,
+    "alt_tab_menu_switch(-1)",
+    { repeating = true }
+  )
+
+  if not runtime.is_live_compositor() then
+    return
+  end
 
   for _, sym in ipairs(RELEASE_KEYS) do
     if not bind_alive(release_binds[sym]) then
