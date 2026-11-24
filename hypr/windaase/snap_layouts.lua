@@ -21,6 +21,7 @@ local pending_assist = nil
 
 local mouse_drag_state = nil
 local prev_sample = nil
+local idle_snapshot_ticks = 0
 local suppress_snap_ticks = 0
 local monitor_running = false
 local monitor_token = 0
@@ -363,10 +364,24 @@ local function tick(expected_token)
     end
   end
 
-  snap_resize.snapshot_workspace(cur)
+  local cur_ws_id = (cur.workspace and tonumber(cur.workspace.id)) or -1
+  local geom_changed = not prev_sample
+    or prev_sample.addr ~= cur.address
+    or prev_sample.ws_id ~= cur_ws_id
+    or prev_sample.x ~= cur.at.x
+    or prev_sample.y ~= cur.at.y
+    or prev_sample.w ~= cur.size.x
+    or prev_sample.h ~= cur.size.y
+  if geom_changed or idle_snapshot_ticks >= 10 then
+    snap_resize.snapshot_workspace(cur)
+    idle_snapshot_ticks = 0
+  else
+    idle_snapshot_ticks = idle_snapshot_ticks + 1
+  end
 
   prev_sample = {
     addr = cur.address,
+    ws_id = cur_ws_id,
     x = cur.at.x,
     y = cur.at.y,
     w = cur.size.x,
@@ -579,6 +594,7 @@ function M.setup(opts)
   monitor_running = false
   mouse_drag_state = nil
   prev_sample = nil
+  idle_snapshot_ticks = 0
   clear_pending_assist()
   assist_seq = assist_seq + 1
   snap_resize.clear_flash()

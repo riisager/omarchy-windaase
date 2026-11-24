@@ -19,8 +19,9 @@ node --check TaskbarModel.js js/*.js
 echo "==> Checking Lua syntax ($LUAC_BIN)"
 "$LUAC_BIN" -p hypr/windaase.lua hypr/windaase/*.lua
 
-echo "==> Running Lua geometry tests ($LUA_BIN)"
+echo "==> Running Lua geometry & module tests ($LUA_BIN)"
 "$LUA_BIN" tests/geometry_test.lua
+"$LUA_BIN" tests/modules_test.lua
 
 echo "==> Running JS taskbar model & 50-locale i18n tests"
 node tests/taskbar_model.test.js

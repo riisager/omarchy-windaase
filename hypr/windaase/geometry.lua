@@ -466,19 +466,23 @@ function M.has_floating_workspace_tag(window)
   return hl ~= nil and hl.plugin ~= nil and hl.plugin.hyprbars ~= nil
 end
 
-function M.get_window_frame_insets(window)
-  local border = 2
-  if hl and hl.get_config then
-    local ok_b, b = pcall(hl.get_config, "general.border_size")
-    if ok_b and tonumber(b) then
-      border = tonumber(b)
-    end
-  end
+local cached_insets = nil
+local cached_insets_hl = nil
 
-  local titlebar = 0
-  if window and window.floating and M.has_floating_workspace_tag(window) then
+function M.invalidate_frame_insets_cache()
+  cached_insets = nil
+  cached_insets_hl = nil
+end
+
+function M.get_window_frame_insets(window)
+  if not cached_insets or cached_insets_hl ~= hl then
+    local border = 2
     local bar_h = 30
     if hl and hl.get_config then
+      local ok_b, b = pcall(hl.get_config, "general.border_size")
+      if ok_b and tonumber(b) then
+        border = tonumber(b)
+      end
       local ok_h, h = pcall(hl.get_config, "plugin.hyprbars.bar_height")
       if not ok_h or not tonumber(h) then
         ok_h, h = pcall(hl.get_config, "plugin:hyprbars:bar_height")
@@ -487,10 +491,15 @@ function M.get_window_frame_insets(window)
         bar_h = tonumber(h)
       end
     end
-    titlebar = bar_h
+    cached_insets = { border = border, bar_h = bar_h }
+    cached_insets_hl = hl
   end
 
-  return border, titlebar
+  local titlebar = (window and window.floating and M.has_floating_workspace_tag(window))
+    and cached_insets.bar_h
+    or 0
+
+  return cached_insets.border, titlebar
 end
 
 function M.place_window_in_outer_rect(window, tx, ty, tw, th)

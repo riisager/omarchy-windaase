@@ -70,6 +70,7 @@ local function merge_opts(user_opts)
 end
 
 function M.setup(user_opts)
+  geometry.invalidate_frame_insets_cache()
   local opts = merge_opts(user_opts)
 
   snap.setup(
