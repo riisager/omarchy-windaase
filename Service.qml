@@ -380,6 +380,9 @@ Item {
     target: "riisager.windaase"
 
     function apps(): void {
+      displayModal.close()
+      if (root.snapState.open) root.closeState()
+      if (root.altTabState.open) root.closeAltTab()
       appGrid.toggle()
     }
 
@@ -388,6 +391,9 @@ Item {
     }
 
     function displays(): void {
+      appGrid.close()
+      if (root.snapState.open) root.closeState()
+      if (root.altTabState.open) root.closeAltTab()
       displayModal.toggle()
     }
   }
@@ -412,15 +418,16 @@ Item {
           && !!screen
           && Math.abs(win.width - screen.width) <= 2
           && Math.abs(win.height - screen.height) <= 2
+        readonly property bool clickInteractive: win.isClick && win.surfaceReady
 
         onBackingWindowVisibleChanged: {
-          if (win.backingWindowVisible && win.isInteractive) {
-            Qt.callLater(function() { if (win.isInteractive) snapKeyCatcher.forceActiveFocus() })
+          if (win.backingWindowVisible && win.clickInteractive) {
+            Qt.callLater(function() { if (win.clickInteractive) snapKeyCatcher.forceActiveFocus() })
           }
         }
-        onIsInteractiveChanged: {
-          if (win.backingWindowVisible && win.isInteractive) {
-            Qt.callLater(function() { if (win.isInteractive) snapKeyCatcher.forceActiveFocus() })
+        onClickInteractiveChanged: {
+          if (win.backingWindowVisible && win.clickInteractive) {
+            Qt.callLater(function() { if (win.clickInteractive) snapKeyCatcher.forceActiveFocus() })
           }
         }
 
@@ -546,7 +553,7 @@ Item {
         color: "transparent"
         WlrLayershell.namespace: "omarchy-windaase-snap"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: win.isInteractive ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: win.clickInteractive ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore
         exclusiveZone: 0
 
@@ -558,22 +565,22 @@ Item {
         }
 
         mask: Region {
-          item: win.isAssist ? assistCard : (win.isClick ? pillContainer : null)
+          item: (win.isAssist && assistCard.shown) ? assistCard : ((win.isClick && pillContainer.shown) ? pillContainer : null)
         }
 
         HyprlandFocusGrab {
-          active: win.isInteractive && win.backingWindowVisible
+          active: win.clickInteractive && win.backingWindowVisible
           windows: [win]
-          onCleared: if (win.isInteractive) root.closeState()
+          onCleared: if (win.isClick) root.closeState()
         }
 
         Item {
           id: snapKeyCatcher
           anchors.fill: parent
-          focus: win.isInteractive
+          focus: win.clickInteractive
 
           Keys.onPressed: function(event) {
-            if (!win.isInteractive) return
+            if (!win.clickInteractive) return
             if (event.key === Qt.Key_Escape) {
               root.closeState()
               event.accepted = true
@@ -581,33 +588,6 @@ Item {
             }
 
             var rkey = Util.readingKey(event)
-
-            if (win.isAssist) {
-              var count = win.assistCandidates.length
-              if (count === 0) {
-                root.closeState()
-                event.accepted = true
-                return
-              }
-              var cols = assistCard.columns
-              if (rkey === Qt.Key_Left || event.key === Qt.Key_Backtab || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) {
-                win.assistSelectedIndex = (win.assistSelectedIndex - 1 + count) % count
-                event.accepted = true
-              } else if (rkey === Qt.Key_Right || event.key === Qt.Key_Tab) {
-                win.assistSelectedIndex = (win.assistSelectedIndex + 1) % count
-                event.accepted = true
-              } else if (event.key === Qt.Key_Up) {
-                if (win.assistSelectedIndex - cols >= 0) win.assistSelectedIndex -= cols
-                event.accepted = true
-              } else if (event.key === Qt.Key_Down) {
-                if (win.assistSelectedIndex + cols < count) win.assistSelectedIndex += cols
-                event.accepted = true
-              } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                win.applyAssistWindow(win.assistCandidates[win.assistSelectedIndex])
-                event.accepted = true
-              }
-              return
-            }
 
             if (win.isClick) {
               if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
@@ -643,6 +623,11 @@ Item {
                   win.applyZoneFromClick(root.layouts[cIdx][zIdx])
                 }
                 event.accepted = true
+                return
+              }
+
+              if (event.key === Qt.Key_Backspace || (event.text && event.text.length > 0 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127)) {
+                root.closeState()
               }
             }
           }

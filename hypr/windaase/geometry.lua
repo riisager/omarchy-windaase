@@ -1339,10 +1339,11 @@ function M.find_containing_monitor(outer, monitors, exclude_name)
   return best_m
 end
 
-function M.rect_needs_rescue(outer, dst_area)
+function M.rect_needs_rescue(outer, dst_area, check_oversize)
   if not is_object(outer) or not is_object(dst_area) then
     return false
   end
+  check_oversize = (check_oversize ~= false)
   local ow = tonumber(outer.w) or 0
   local oh = tonumber(outer.h) or 0
   if ow <= 0 or oh <= 0 then
@@ -1363,8 +1364,7 @@ function M.rect_needs_rescue(outer, dst_area)
   return vis_w < math.min(ow, 80)
     or vis_h < math.min(oh, 60)
     or grab_vis_h < math.min(oh, 24)
-    or ow > aw + 12
-    or oh > ah + 12
+    or (check_oversize and (ow > aw + 12 or oh > ah + 12))
 end
 
 function M.detect_drag_edge_zone(cx, cy, area, monitors, mon_name)

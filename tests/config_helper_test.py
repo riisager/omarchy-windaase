@@ -843,20 +843,26 @@ class ConfigHelperTests(unittest.TestCase):
 
     def test_install_sh_restores_previous_plugin_when_staged_swap_fails(self):
         res, plugin_dest, marker = self._run_install_with_mv_wrapper(fail_rollback=False)
+        install_tmp_root = os.path.join(self.omarchy_dir, ".windaase-install")
         self.assertNotEqual(res.returncode, 0)
         self.assertIn("restored previous plugin", res.stderr)
         self.assertTrue(os.path.exists(marker))
         self.assertEqual(self.read_text(marker), "keep-me\n")
         self.assertEqual(glob.glob(f"{plugin_dest}.staging.*"), [])
         self.assertEqual(glob.glob(f"{plugin_dest}.old.*"), [])
+        self.assertEqual(glob.glob(os.path.join(install_tmp_root, "riisager.windaase.staging.*")), [])
+        self.assertEqual(glob.glob(os.path.join(install_tmp_root, "riisager.windaase.old.*")), [])
 
     def test_install_sh_preserves_recovery_dir_when_rollback_also_fails(self):
         res, plugin_dest, marker = self._run_install_with_mv_wrapper(fail_rollback=True)
+        install_tmp_root = os.path.join(self.omarchy_dir, ".windaase-install")
         self.assertNotEqual(res.returncode, 0)
         self.assertIn("previous plugin preserved at", res.stderr)
         self.assertFalse(os.path.exists(marker))
         self.assertEqual(glob.glob(f"{plugin_dest}.staging.*"), [])
-        preserved_dirs = glob.glob(f"{plugin_dest}.old.*")
+        self.assertEqual(glob.glob(f"{plugin_dest}.old.*"), [])
+        self.assertEqual(glob.glob(os.path.join(install_tmp_root, "riisager.windaase.staging.*")), [])
+        preserved_dirs = glob.glob(os.path.join(install_tmp_root, "riisager.windaase.old.*"))
         self.assertEqual(len(preserved_dirs), 1)
         preserved_marker = os.path.join(preserved_dirs[0], "custom-local-note.txt")
         self.assertTrue(os.path.exists(preserved_marker))
@@ -1295,6 +1301,24 @@ class ConfigHelperTests(unittest.TestCase):
         saved_edp = [m for m in next(iter(db["profiles"].values()))["monitors"] if m["name"] == "eDP-1"][0]
         self.assertTrue(saved_edp["enabled"])
         self.assertTrue(any('output = "eDP-1", disabled = true' in c for c in commit_calls))
+
+        # Auto-apply updates live Hyprland monitors without rewriting monitors.lua (avoids auto-reload storms)
+        mon_lua_path = mod.monitors_lua_path(home_dir=self.home)
+        before_text = self.read_text(mon_lua_path)
+        before_mtime = os.stat(mon_lua_path).st_mtime_ns
+        raw_shifted = [dict(raw[0], x=120), dict(raw[1], x=1999)]
+        apply_calls = []
+        apply_res = mod.monitors_apply_action(
+            raw_shifted,
+            home_dir=self.home,
+            runtime_dir=runtime_dir,
+            lid_paths=[],
+            hypr_eval=apply_calls.append,
+        )
+        self.assertTrue(apply_res.get("applied"))
+        self.assertGreaterEqual(len(apply_calls), 1)
+        self.assertEqual(self.read_text(mon_lua_path), before_text)
+        self.assertEqual(os.stat(mon_lua_path).st_mtime_ns, before_mtime)
 
         # Apply recovery when unplugging dock leaves all connected displays disabled
         solo_disabled = [dict(raw[0], disabled=True)]

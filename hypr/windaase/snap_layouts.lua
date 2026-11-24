@@ -89,6 +89,14 @@ end
 
 M.write_state = write_snap_state
 
+local function cancel_assist_only()
+  if pending_assist ~= nil then
+    pending_assist = nil
+    assist_seq = assist_seq + 1
+    write_snap_state({ open = false })
+  end
+end
+
 function M.cancel_overlay()
   assist_seq = assist_seq + 1
   pending_assist = nil
@@ -312,6 +320,8 @@ local function tick(expected_token)
     local moved = math.abs(dwx) > 2 or math.abs(dwy) > 2
     local tracks_cursor = math.abs(dwx - dcx) <= 28 and math.abs(dwy - dcy) <= 28
     if same_size and moved and tracks_cursor then
+      pending_assist = nil
+      assist_seq = assist_seq + 1
       mouse_drag_state = {
         addr = cur.address,
         x = prev_sample.x,
@@ -426,6 +436,7 @@ function M.schedule_assist(window, m, snapped_zone)
       monitor = mon_name or "",
       zone = comp,
       snapped_addr = exclude_addr or "",
+      rect = { x = rect.x, y = rect.y, w = rect.w, h = rect.h },
     }
     write_snap_state({
       open = true,
@@ -560,12 +571,24 @@ function M.setup(opts)
     local function wake_later()
       hl.timer(ensure_monitor_running, { type = "oneshot", timeout = 10 })
     end
+    local function cancel_assist_and_wake()
+      cancel_assist_only()
+      wake_later()
+    end
 
-    hl.on("window.active", ensure_monitor_running)
-    hl.on("window.open", wake_later)
+    hl.on("window.active", function(window)
+      if pending_assist and (not window or window.address ~= pending_assist.snapped_addr) then
+        cancel_assist_only()
+      end
+      ensure_monitor_running()
+    end)
+    hl.on("window.open", cancel_assist_and_wake)
     hl.on("window.fullscreen", wake_later)
-    hl.on("workspace.active", wake_later)
-    hl.on("monitor.focused", wake_later)
+    hl.on("workspace.active", cancel_assist_and_wake)
+    hl.on("monitor.focused", cancel_assist_and_wake)
+    hl.on("monitor.added", M.cancel_overlay)
+    hl.on("monitor.removed", M.cancel_overlay)
+    hl.on("monitor.layout_changed", M.cancel_overlay)
   end
 
   local release_opts = { release = true, transparent = true, ignore_mods = true, non_consuming = true }
@@ -578,6 +601,13 @@ function M.setup(opts)
         return
       end
       if not mouse_drag_state then
+        if pending_assist then
+          local c = hl.get_cursor_pos()
+          local r = pending_assist.rect
+          if c and r and (c.x < r.x - 16 or c.x > r.x + r.w + 16 or c.y < r.y - 16 or c.y > r.y + r.h + 16) then
+            cancel_assist_only()
+          end
+        end
         return
       end
       local cur = hl.get_active_window()

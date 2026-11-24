@@ -39,6 +39,18 @@ Item {
   property int confirmSeconds: 15
   property var revertSnapshot: []
 
+  onConfirmPendingChanged: {
+    if (root.opened) {
+      Qt.callLater(function() { if (root.opened && !resolutionDropdown.popupOpen) keyCatcher.forceActiveFocus() })
+    }
+  }
+
+  Component.onDestruction: {
+    confirmTimer.stop()
+    monitorSyncTimer.stop()
+    root.opened = false
+  }
+
   signal identifyRequested(var items)
 
   readonly property string configScriptPath: String(Qt.resolvedUrl("windaase-config.py")).replace(/^file:\/\//, "")
@@ -345,6 +357,13 @@ Item {
     }
   }
 
+  Timer {
+    id: monitorSyncTimer
+    interval: 250
+    repeat: false
+    onTriggered: Hyprland.refreshMonitors()
+  }
+
   QtObject { id: statusOutput; property string text: "" }
   QtObject { id: previewOutput; property string text: "" }
   QtObject { id: commitOutput; property string text: "" }
@@ -363,6 +382,8 @@ Item {
     stdout: SplitParser { onRead: function(line) { previewOutput.text += line + "\n" } }
     onExited: function(code) {
       root.busy = false
+      Hyprland.refreshMonitors()
+      monitorSyncTimer.restart()
       if (code === 0) {
         try {
           var res = JSON.parse(previewOutput.text)
@@ -373,6 +394,7 @@ Item {
           return
         } catch (e) {}
       }
+      root.errorText = "Failed to apply display settings"
       root.confirmPending = false
       root.loadStatus()
     }
@@ -384,8 +406,13 @@ Item {
     onExited: function(code) {
       root.busy = false
       root.revertSnapshot = []
+      Hyprland.refreshMonitors()
+      monitorSyncTimer.restart()
       if (code === 0) root.applyStatusPayload(commitOutput.text)
-      else root.loadStatus()
+      else {
+        root.errorText = "Failed to apply display settings"
+        root.loadStatus()
+      }
     }
   }
 
@@ -395,8 +422,13 @@ Item {
     onExited: function(code) {
       root.busy = false
       root.revertSnapshot = []
+      Hyprland.refreshMonitors()
+      monitorSyncTimer.restart()
       if (code === 0) root.applyStatusPayload(revertOutput.text)
-      else root.loadStatus()
+      else {
+        root.errorText = "Failed to apply display settings"
+        root.loadStatus()
+      }
       if (root.closeOnRevert) {
         root.closeOnRevert = false
         root.opened = false
@@ -408,10 +440,17 @@ Item {
     id: overlay
     shown: root.opened
     WlrLayershell.namespace: "omarchy-windaase-displays"
+    // Avoid holding an exclusive compositor keyboard grab if hotplug/scale changes hide the window.
+    shownKeyboardFocus: (root.opened && overlay.contentRevealed) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     onContentReadyChanged: {
-      if (contentReady && root.opened) {
-        Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+      if (contentReady && root.opened && !resolutionDropdown.popupOpen) {
+        Qt.callLater(function() { if (root.opened && !resolutionDropdown.popupOpen) keyCatcher.forceActiveFocus() })
+      }
+    }
+    onContentRevealedChanged: {
+      if (contentRevealed && root.opened && !resolutionDropdown.popupOpen) {
+        Qt.callLater(function() { if (root.opened && !resolutionDropdown.popupOpen) keyCatcher.forceActiveFocus() })
       }
     }
 
@@ -1022,6 +1061,11 @@ Item {
                 accent: Commons.Color.accent
                 options: root.selectedModeOptions
                 value: root.selectedMonitor ? String(root.selectedMonitor.mode || "preferred") : "preferred"
+                onPopupOpenChanged: {
+                  if (!popupOpen && root.opened) {
+                    Qt.callLater(function() { if (root.opened && !resolutionDropdown.popupOpen) keyCatcher.forceActiveFocus() })
+                  }
+                }
                 onChanged: function(val) { root.setSelectedMode(val) }
               }
             }

@@ -409,7 +409,7 @@ function M.move_to_monitor(window, direction)
 end
 
 -- Reposition a floating window that is stranded off-screen (e.g. after dock/undock or sleep) onto its active monitor.
-function M.rescue_window(window, monitors_opt)
+function M.rescue_window(window, monitors_opt, rescue_opts)
   if not window or not window.address or not window.floating then
     return false
   end
@@ -440,7 +440,8 @@ function M.rescue_window(window, monitors_opt)
 
   local border, titlebar = geometry.get_window_frame_insets(window)
   local outer = geometry.window_outer_rect(window, border, titlebar)
-  if not outer or not geometry.rect_needs_rescue(outer, dst_area) then
+  local check_oversize = not (rescue_opts and rescue_opts.only_unreachable)
+  if not outer or not geometry.rect_needs_rescue(outer, dst_area, check_oversize) then
     return false
   end
 
@@ -457,16 +458,32 @@ function M.rescue_window(window, monitors_opt)
   end
 
   if on_before_snap then
-    on_before_snap(6)
+    local act = hl.get_active_window()
+    if act and act.address == addr then
+      on_before_snap(6)
+    end
   end
 
   remap_restore_geom(addr, border, titlebar, src_area, dst_area)
 
   local need_monitor_move = not window.monitor or window.monitor.name ~= dst_mon.name
+  local ws_id = ws and tonumber(ws.id) or -1
+  local ws_mon = (ws and ws.monitor and ws.monitor.name) or ""
+  local target_ws_id = (ws_id >= 1 and ws_mon == dst_mon.name) and ws_id
+    or (dst_mon.active_workspace and tonumber(dst_mon.active_workspace.id))
+    or -1
+  local function move_window_silent(w_target)
+    if target_ws_id >= 1 then
+      hl.dispatch(hl.dsp.window.move({ workspace = tostring(target_ws_id), follow = false, window = w_target }))
+    else
+      hl.dispatch(hl.dsp.window.move({ monitor = dst_mon.name, window = w_target }))
+    end
+  end
+
   if (window.fullscreen or 0) == 1 then
     if not options.soft_maximize then
       if need_monitor_move then
-        hl.dispatch(hl.dsp.window.move({ monitor = dst_mon.name, window = window }))
+        move_window_silent(window)
         return true
       end
       return false
@@ -475,7 +492,7 @@ function M.rescue_window(window, monitors_opt)
   end
 
   if need_monitor_move then
-    hl.dispatch(hl.dsp.window.move({ monitor = dst_mon.name, window = window }))
+    move_window_silent(window)
   end
 
   local target = hl.get_window("address:" .. addr) or window
@@ -488,11 +505,19 @@ function M.rescue_offscreen_windows()
   if is_dragging_fn and is_dragging_fn() then
     return 0
   end
+  local prev_active = hl.get_active_window()
+  local prev_addr = prev_active and prev_active.address or nil
   local monitors = hl.get_monitors()
   local rescued = 0
   for _, w in ipairs(hl.get_windows()) do
     if M.rescue_window(w, monitors) then
       rescued = rescued + 1
+    end
+  end
+  if rescued > 0 and prev_addr then
+    local cur_active = hl.get_active_window()
+    if (not cur_active or cur_active.address ~= prev_addr) and hl.get_window("address:" .. prev_addr) then
+      hl.dispatch(hl.dsp.focus({ window = "address:" .. prev_addr }))
     end
   end
   return rescued
@@ -505,12 +530,12 @@ local function schedule_rescue()
     if seq == rescue_seq then
       M.rescue_offscreen_windows()
     end
-  end, { type = "oneshot", timeout = 150 })
+  end, { type = "oneshot", timeout = 300 })
   hl.timer(function()
     if seq == rescue_seq then
       M.rescue_offscreen_windows()
     end
-  end, { type = "oneshot", timeout = 750 })
+  end, { type = "oneshot", timeout = 1100 })
 end
 
 function M.setup(opts, before_snap_cb, after_snap_cb, is_dragging_cb)
@@ -540,7 +565,7 @@ function M.setup(opts, before_snap_cb, after_snap_cb, is_dragging_cb)
       if not window or not window.floating then
         return
       end
-      if (window.fullscreen or 0) ~= 2 and M.rescue_window(window) then
+      if (window.fullscreen or 0) ~= 2 and M.rescue_window(window, nil, { only_unreachable = true }) then
         window = (window.address and hl.get_window("address:" .. window.address)) or window
       end
       if not options.auto_raise or window.pinned or (window.fullscreen or 0) ~= 0 then
@@ -565,7 +590,6 @@ function M.setup(opts, before_snap_cb, after_snap_cb, is_dragging_cb)
     hl.on("monitor.added", schedule_rescue)
     hl.on("monitor.removed", schedule_rescue)
     hl.on("monitor.layout_changed", schedule_rescue)
-    hl.on("config.reloaded", schedule_rescue)
     hl.on("workspace.move_to_monitor", schedule_rescue)
     hl.on("window.move_to_workspace", function(window)
       local addr = window and window.address

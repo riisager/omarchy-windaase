@@ -294,13 +294,16 @@ function M.setup(opts)
 
   if not active_hook_registered then
     active_hook_registered = true
-    hl.on("window.active", function()
-      if session and not read_state_open() then
-        session = nil
-        commit_seq = commit_seq + 1
-        set_session_binds_enabled(false)
+    local function cancel_if_open()
+      if session then
+        M.cancel()
       end
-    end)
+    end
+    hl.on("window.active", cancel_if_open)
+    hl.on("workspace.active", cancel_if_open)
+    hl.on("monitor.added", cancel_if_open)
+    hl.on("monitor.removed", cancel_if_open)
+    hl.on("monitor.layout_changed", cancel_if_open)
   end
 end
 

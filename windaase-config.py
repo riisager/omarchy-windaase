@@ -2027,9 +2027,7 @@ def monitors_apply_action(raw_monitors, home_dir=None, runtime_dir=None, lid_pat
     if to_apply:
         _eval_monitor_entries(to_apply, hypr_eval=hypr_eval, rescue=True)
 
-    with config_lock():
-        sync_monitors_lua(monitors_lua_path(home_dir=home_dir), desired, _compute_gdk_scale(desired))
-
+    # Apply live monitor rules only; writing monitors.lua here triggers Hyprland auto-reloads mid-hotplug.
     return {"ok": True, "applied": len(to_apply) > 0, "profileId": profile_id}
 
 

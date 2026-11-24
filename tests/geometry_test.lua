@@ -392,4 +392,11 @@ assert(geometry.detect_drag_edge_zone(5370, 400, edp_dock2_area, dual_mons, "eDP
 assert(geometry.detect_drag_edge_zone(1926, 400, dp2_area, dual_mons, "DP-2") == "left", "releasing within tight seam margin on DP-2 left should snap left")
 assert(geometry.detect_drag_edge_zone(1940, 400, dp2_area, dual_mons, "DP-2") == nil, "crossing seam onto DP-2 must not trigger false left snap")
 
+-- Oversize check gating in rect_needs_rescue (only_unreachable keeps visible oversized windows calm on click)
+local oversized_visible_rect = { x = 5400, y = 40, w = 800, h = 1185 }
+local offscreen_rect = { x = 100, y = 40, w = 800, h = 600 }
+assert(geometry.rect_needs_rescue(oversized_visible_rect, dp6_area, true) == true, "oversized visible rect should require rescue when check_oversize=true")
+assert(geometry.rect_needs_rescue(oversized_visible_rect, dp6_area, false) == false, "oversized visible rect must not trigger rescue when check_oversize=false")
+assert(geometry.rect_needs_rescue(offscreen_rect, dp6_area, false) == true, "offscreen rect must still trigger rescue when check_oversize=false")
+
 print("ALL GEOMETRY LUA TESTS PASSED")

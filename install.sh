@@ -47,6 +47,7 @@ if [[ -n "$BAR_HEIGHT" ]]; then
   fi
 fi
 
+INSTALL_TMP_ROOT="${HOME}/.config/omarchy/.windaase-install"
 STAGING_DIR=""
 OLD_DIR=""
 OLD_MOVED=0
@@ -66,6 +67,7 @@ cleanup_temp_dirs() {
   if [[ -n "${STAGING_DIR}" && ( -e "${STAGING_DIR}" || -L "${STAGING_DIR}" ) ]]; then
     rm -rf "${STAGING_DIR}"
   fi
+  rmdir "${INSTALL_TMP_ROOT}" 2>/dev/null || true
 }
 trap cleanup_temp_dirs EXIT
 
@@ -82,8 +84,9 @@ if [[ "${SCRIPT_REAL}" == "${DEST_REAL}" ]]; then
   echo "==> Validated plugin: ${PLUGIN_ID}"
 else
   echo "==> Staging and validating Omarchy-windåse shell plugin"
-  STAGING_DIR="${PLUGIN_DEST}.staging.$$"
-  OLD_DIR="${PLUGIN_DEST}.old.$$"
+  mkdir -p "${INSTALL_TMP_ROOT}"
+  STAGING_DIR="${INSTALL_TMP_ROOT}/${PLUGIN_ID}.staging.$$"
+  OLD_DIR="${INSTALL_TMP_ROOT}/${PLUGIN_ID}.old.$$"
 
   mkdir -p "${STAGING_DIR}/i18n" "${STAGING_DIR}/nautilus"
   cp "${SCRIPT_DIR}/manifest.json" \

@@ -56,6 +56,7 @@ BarWidget {
   property real dragOffset: 0
   readonly property bool draggingItem: dragIndex >= 0
   property bool animateShifts: true
+  property bool _destroyed: false
   onDraggingItemChanged: if (draggingItem) root.closePopouts()
 
   property string pickerKey: ""
@@ -357,6 +358,7 @@ BarWidget {
   }
 
   function syncUrgentAddresses() {
+    if (!root || root._destroyed) return
     var existing = root.urgentAddresses || {}
     var existingKeys = Object.keys(existing).sort()
     if (existingKeys.length === 0) return
@@ -379,11 +381,12 @@ BarWidget {
     }
   }
 
-  onBarChanged: Qt.callLater(root.syncBrowserProfiles)
+  onBarChanged: Qt.callLater(function() { if (root && !root._destroyed) root.syncBrowserProfiles() })
   onItemsChanged: {
+    if (!root || root._destroyed) return
     syncItemModel()
-    Qt.callLater(root.syncBrowserProfiles)
-    Qt.callLater(root.syncUrgentAddresses)
+    Qt.callLater(function() { if (root && !root._destroyed) root.syncBrowserProfiles() })
+    Qt.callLater(function() { if (root && !root._destroyed) root.syncUrgentAddresses() })
   }
   Component.onCompleted: {
     var userRaw = userShellFile.text()
@@ -397,8 +400,17 @@ BarWidget {
     syncItemModel()
     syncBrowserProfiles()
   }
+  Component.onDestruction: {
+    root._destroyed = true
+    profileProbeTimer.stop()
+    profileRetryTimer.stop()
+    hoverOpenTimer.stop()
+    hoverCloseTimer.stop()
+    root.closePopouts()
+  }
 
   function peerWidgets() {
+    if (!root || root._destroyed) return []
     if (root.bar && typeof root.bar.moduleWidgets === "function") {
       var list = root.bar.moduleWidgets(root.moduleName)
       if (Array.isArray(list) && list.length > 0) return list
@@ -434,6 +446,7 @@ BarWidget {
   }
 
   function syncBrowserProfiles() {
+    if (!root || root._destroyed) return
     var peers = root.peerWidgets()
     if (peers.length > 0 && peers[0] !== root) {
       profileProbeTimer.stop()
@@ -545,7 +558,7 @@ BarWidget {
   }
 
   function runProfileProbe() {
-    if (!root.isProfileLeader() || profileProbeProc.running || !root.configScriptPath) return
+    if (!root || root._destroyed || !root.isProfileLeader() || profileProbeProc.running || !root.configScriptPath) return
     var src = root.pendingProbeBatch || []
     var batch = []
     var nextRetries = Object.assign({}, root.profileProbeRetries || {})
@@ -567,7 +580,7 @@ BarWidget {
   }
 
   function applyProfileProbeOutput(rawText) {
-    if (!root.isProfileLeader()) return
+    if (!root || root._destroyed || !root.isProfileLeader()) return
     var parsed = null
     try {
       parsed = JSON.parse(String(rawText || "{}"))
@@ -951,7 +964,7 @@ BarWidget {
     root.dragIndex = -1
     root.dropIndex = -1
     root.dragOffset = 0
-    Qt.callLater(function() { root.animateShifts = true })
+    Qt.callLater(function() { if (root && !root._destroyed) root.animateShifts = true })
   }
 
   function moveTaskbarItem(fromIdx, toIdx) {
@@ -1051,6 +1064,16 @@ BarWidget {
     if (!res || !res.ran) {
       Util.execArgv(["omarchy-shell", "shell", "toggle", "omarchy.menu", "{\"menu\":\"apps\"}"])
     }
+  }
+
+  function openDisplaySettings() {
+    root.closePopouts()
+    Qt.callLater(function() {
+      var res = Commons.IpcRegistry.call("riisager.windaase", "displays", [])
+      if (!res || !res.ran) {
+        Util.execArgv(["omarchy-shell", "riisager.windaase", "displays"])
+      }
+    })
   }
 
   function openPicker(key, slot, mode) {
@@ -1163,7 +1186,7 @@ BarWidget {
       }
       Component.onCompleted: syncClickRegistration()
       Component.onDestruction: {
-        if (root.bar) root.bar.hideTooltip(appsSlot)
+        if (root && !root._destroyed && root.bar) root.bar.hideTooltip(appsSlot)
         if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(appsSlot)
       }
 
@@ -1295,15 +1318,17 @@ BarWidget {
         }
         Component.onCompleted: syncClickRegistration()
         Component.onDestruction: {
-          if (root.hoveredSlotKey === taskSlot.key) root.hoveredSlotKey = ""
-          if (root.hoverPreviewPendingAnchor === taskSlot) root.cancelHoverPreview()
-          if (root.pickerAnchor === taskSlot) {
-            root.pickerKey = ""
-            root.pickerAnchor = null
-            root.pickerTriggerMode = "click"
+          if (root && !root._destroyed) {
+            if (root.hoveredSlotKey === taskSlot.key) root.hoveredSlotKey = ""
+            if (root.hoverPreviewPendingAnchor === taskSlot) root.cancelHoverPreview()
+            if (root.pickerAnchor === taskSlot) {
+              root.pickerKey = ""
+              root.pickerAnchor = null
+              root.pickerTriggerMode = "click"
+            }
+            if (taskSlot.lifted) root.endItemDrag()
+            if (root.bar) root.bar.hideTooltip(taskSlot)
           }
-          if (taskSlot.lifted) root.endItemDrag()
-          if (root.bar) root.bar.hideTooltip(taskSlot)
           if (registeredBar && registeredBar.unregisterClickTarget) registeredBar.unregisterClickTarget(taskSlot)
         }
 
@@ -1650,7 +1675,7 @@ BarWidget {
     })
     onCloseRequested: root.quitItem(targetItem)
     onDisplaySettingsRequested: {
-      Util.execArgv(["omarchy-shell", "riisager.windaase", "displays"])
+      root.openDisplaySettings()
     }
     onSettingsRequested: {
       var anchor = root.menuAnchor || root
@@ -1724,8 +1749,7 @@ BarWidget {
       Util.execArgv(["nautilus", "-q"])
     }
     onDisplaySetupRequested: {
-      root.settingsOpen = false
-      Util.execArgv(["omarchy-shell", "riisager.windaase", "displays"])
+      root.openDisplaySettings()
     }
   }
 }

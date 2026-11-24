@@ -324,10 +324,16 @@ Item {
     id: panel
     shown: root.opened
     WlrLayershell.namespace: "omarchy-windaase-apps"
+    shownKeyboardFocus: (root.opened && panel.contentRevealed) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     onContentReadyChanged: {
       if (contentReady && root.opened) {
-        Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+        Qt.callLater(function() { if (root.opened) keyCatcher.forceActiveFocus() })
+      }
+    }
+    onContentRevealedChanged: {
+      if (contentRevealed && root.opened) {
+        Qt.callLater(function() { if (root.opened) keyCatcher.forceActiveFocus() })
       }
     }
 
