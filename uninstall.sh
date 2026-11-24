@@ -81,8 +81,20 @@ else
   fi
 fi
 
-rm -rf "${PLUGIN_DEST}" "${HYPR_DIR}/windaase.lua" "${HYPR_DIR}/windaase"
+rm -rf "${PLUGIN_DEST}" "${HYPR_DIR}/windaase.lua" "${HYPR_DIR}/windaase" "${HOME}/.config/omarchy/.windaase-install"
 rm -f "${HOME}/.config/omarchy/windaase.json" "${HOME}/.config/omarchy/.windaase.lock"
+
+if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+  rm -f \
+    "${XDG_RUNTIME_DIR}/omarchy-windaase-snap.json" \
+    "${XDG_RUNTIME_DIR}/omarchy-windaase-alttab.json" \
+    "${XDG_RUNTIME_DIR}/omarchy-windaase-monitor-preview.json"
+fi
+CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}"
+rm -f \
+  "${CACHE_DIR}/omarchy-windaase-snap.json" \
+  "${CACHE_DIR}/omarchy-windaase-alttab.json" \
+  "${CACHE_DIR}/omarchy-windaase-monitor-preview.json"
 
 if [[ "$RESTORE_STOCK" -eq 1 ]] && command -v omarchy >/dev/null 2>&1; then
   omarchy plugin enable omarchy.dock >/dev/null 2>&1 || true

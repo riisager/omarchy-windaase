@@ -92,5 +92,6 @@
   "display.confirmTitle": "לשמור על הגדרות תצוגה אלו?",
   "display.confirmCountdown": "חוזר להגדרות הקודמות בעוד %1 שנ׳.",
   "display.keepChanges": "שמור שינויים",
-  "display.revert": "שחזר"
+  "display.revert": "שחזר",
+  "display.applyError": "לא ניתן להחיל את הגדרות התצוגה."
 }

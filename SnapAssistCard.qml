@@ -10,7 +10,7 @@ BorderSurface {
 
   required property var strings
   property var candidates: []
-  property int selectedIndex: 0
+  property int selectedIndex: -1
   property real maxWidth: Style.space(520)
   property real maxHeight: Style.space(420)
 

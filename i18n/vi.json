@@ -92,5 +92,6 @@
   "display.confirmTitle": "Giữ lại các cài đặt hiển thị này?",
   "display.confirmCountdown": "Sẽ khôi phục cài đặt trước sau %1 giây.",
   "display.keepChanges": "Giữ thay đổi",
-  "display.revert": "Khôi phục"
+  "display.revert": "Khôi phục",
+  "display.applyError": "Không thể áp dụng cài đặt màn hình."
 }

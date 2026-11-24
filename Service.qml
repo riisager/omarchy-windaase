@@ -371,6 +371,13 @@ Item {
     onTriggered: root.identifyActive = false
   }
 
+  Component.onDestruction: {
+    identifyTimer.stop()
+    root.identifyActive = false
+    root.snapState = emptyState()
+    root.altTabState = emptyAltTabState()
+  }
+
   DisplaySettingsModal {
     id: displayModal
     onIdentifyRequested: function(items) { root.showMonitorIdentify(items) }
@@ -413,7 +420,6 @@ Item {
         readonly property bool isClick: activeOnScreen && root.snapState.mode === "click"
         readonly property bool isAssist: activeOnScreen && root.snapState.mode === "assist"
         readonly property bool isResize: activeOnScreen && root.snapState.mode === "resize"
-        readonly property bool isInteractive: isClick || isAssist
         readonly property bool surfaceReady: win.backingWindowVisible
           && !!screen
           && Math.abs(win.width - screen.width) <= 2
@@ -422,18 +428,18 @@ Item {
 
         onBackingWindowVisibleChanged: {
           if (win.backingWindowVisible && win.clickInteractive) {
-            Qt.callLater(function() { if (win.clickInteractive) snapKeyCatcher.forceActiveFocus() })
+            Qt.callLater(function() { if (win && win.clickInteractive && snapKeyCatcher) snapKeyCatcher.forceActiveFocus() })
           }
         }
         onClickInteractiveChanged: {
           if (win.backingWindowVisible && win.clickInteractive) {
-            Qt.callLater(function() { if (win.clickInteractive) snapKeyCatcher.forceActiveFocus() })
+            Qt.callLater(function() { if (win && win.clickInteractive && snapKeyCatcher) snapKeyCatcher.forceActiveFocus() })
           }
         }
 
         property int clickSelectedCard: -1
         property int clickSelectedZone: -1
-        property int assistSelectedIndex: 0
+        property int assistSelectedIndex: -1
 
         readonly property int activeAssistWsId: root.snapState.ws >= 1
           ? root.snapState.ws
@@ -460,15 +466,15 @@ Item {
 
         onIsAssistChanged: {
           if (win.isAssist) {
-            assistSelectedIndex = 0
-            Qt.callLater(win.closeAssistIfEmpty)
+            assistSelectedIndex = -1
+            Qt.callLater(function() { if (win) win.closeAssistIfEmpty() })
           }
         }
 
         onAssistCandidatesChanged: {
           if (win.isAssist) {
-            if (assistCandidates.length === 0) Qt.callLater(win.closeAssistIfEmpty)
-            else if (assistSelectedIndex >= assistCandidates.length) assistSelectedIndex = assistCandidates.length - 1
+            if (assistCandidates.length === 0) Qt.callLater(function() { if (win) win.closeAssistIfEmpty() })
+            else if (assistSelectedIndex >= 0 && assistSelectedIndex >= assistCandidates.length) assistSelectedIndex = assistCandidates.length - 1
           }
         }
 
@@ -757,7 +763,6 @@ Item {
             Behavior on opacity { NumberAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic } }
             Behavior on scale { NumberAnimation { duration: Style.duration(140); easing.type: Easing.OutCubic } }
 
-            onHoveredIndexChanged: function(idx) { win.assistSelectedIndex = idx }
             onWindowPicked: function(cand) { win.applyAssistWindow(cand) }
             onCloseRequested: root.closeState()
           }

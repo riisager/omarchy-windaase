@@ -752,7 +752,7 @@ function run() {
 
   const en = JSON.parse(fs.readFileSync(path.join(i18nDir, "en.json"), "utf8"));
   const enKeys = Object.keys(en).sort();
-  assert.strictEqual(enKeys.length, 94, "Expected 94 keys in en.json");
+  assert.strictEqual(enKeys.length, 95, "Expected 95 keys in en.json");
 
   const placeholders = (str) => [...(str.match(/%[12]/g) || [])].sort();
 

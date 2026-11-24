@@ -91,7 +91,7 @@ GENERIC_BROWSER_TITLES = frozenset({
 def atomic_write(path, content, mode=None):
     parent = os.path.dirname(os.path.abspath(path))
     os.makedirs(parent, exist_ok=True)
-    if mode is None and os.path.exists(path):
+    if mode is None and os.path.exists(path) and not os.path.islink(path):
         mode = os.stat(path).st_mode & 0o777
     fd, tmp_path = tempfile.mkstemp(prefix=".windaase-", suffix=".tmp", dir=parent)
     try:
@@ -106,14 +106,14 @@ def atomic_write(path, content, mode=None):
         raise
 
 
-def omarchy_dir():
-    home = os.path.expanduser("~")
+def omarchy_dir(home_dir=None):
+    home = os.path.abspath(os.path.expanduser(home_dir)) if home_dir else os.path.expanduser("~")
     return os.path.join(home, ".config", "omarchy")
 
 
 @contextlib.contextmanager
-def config_lock():
-    cfg_dir = omarchy_dir()
+def config_lock(home_dir=None):
+    cfg_dir = omarchy_dir(home_dir=home_dir)
     os.makedirs(cfg_dir, exist_ok=True)
     lock_path = os.path.join(cfg_dir, ".windaase.lock")
     fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
@@ -301,7 +301,16 @@ def cmd_hypr_set(args):
         atomic_write(path, json.dumps(data, indent=2) + "\n")
 
     if not no_reload:
-        subprocess.run(["hyprctl", "reload"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            subprocess.run(
+                ["hyprctl", "reload"],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
 
 
 _LUA_KEYWORDS = frozenset({
@@ -601,7 +610,10 @@ def _luac_validates(text):
     luac = shutil.which("luac")
     if not luac:
         return True
-    res = subprocess.run([luac, "-p", "-"], input=text, text=True, capture_output=True, check=False)
+    try:
+        res = subprocess.run([luac, "-p", "-"], input=text, text=True, capture_output=True, check=False, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
     return res.returncode == 0
 
 
@@ -1694,13 +1706,28 @@ def strip_monitors_lua_block(path):
     return False
 
 
+RESCUE_OFFSCREEN_LUA = (
+    'local ok, w = pcall(require, "hypr.windaase"); '
+    'if ok and w and w.rescue_offscreen_windows then w.rescue_offscreen_windows() end'
+)
+
+
 def _default_hyprctl_monitors():
-    res = subprocess.run(["hyprctl", "-j", "monitors", "all"], capture_output=True, text=True, check=True)
+    res = subprocess.run(["hyprctl", "-j", "monitors", "all"], capture_output=True, text=True, check=True, timeout=5)
     return json.loads(res.stdout)
 
 
-def _default_hyprctl_eval(expr):
-    subprocess.run(["hyprctl", "eval", expr], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def _default_hyprctl_eval(expr, ignore_errors=False):
+    res = subprocess.run(
+        ["hyprctl", "eval", expr],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    if not ignore_errors and res.returncode != 0:
+        detail = (res.stderr or res.stdout or "").strip() or f"exit {res.returncode}"
+        raise RuntimeError(f"hyprctl eval failed: {detail}")
 
 
 def _eval_monitor_entries(entries, hypr_eval=_default_hyprctl_eval, rescue=True):
@@ -1719,7 +1746,10 @@ def _eval_monitor_entries(entries, hypr_eval=_default_hyprctl_eval, rescue=True)
         )
         hypr_eval(expr)
     if rescue:
-        hypr_eval('require("hypr.windaase").rescue_offscreen_windows()')
+        if hypr_eval is _default_hyprctl_eval:
+            _default_hyprctl_eval(RESCUE_OFFSCREEN_LUA, ignore_errors=True)
+        else:
+            hypr_eval(RESCUE_OFFSCREEN_LUA)
 
 
 def _compute_gdk_scale(entries):
@@ -1851,7 +1881,7 @@ def monitors_commit_action(raw_monitors, payload, home_dir=None, runtime_dir=Non
     if os.path.exists(lock_path) and not os.path.islink(lock_path):
         os.unlink(lock_path)
 
-    with config_lock():
+    with config_lock(home_dir=home_dir):
         db = _load_monitors_db(home_dir=home_dir)
         prev_profile = db["profiles"].get(profile_id)
         prev_by_key = {}

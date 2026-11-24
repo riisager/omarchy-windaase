@@ -92,5 +92,6 @@
   "display.confirmTitle": "เก็บการตั้งค่าจอภาพเหล่านี้ไว้หรือไม่",
   "display.confirmCountdown": "กำลังย้อนกลับไปใช้ค่าเดิมใน %1 วินาที",
   "display.keepChanges": "เก็บการเปลี่ยนแปลง",
-  "display.revert": "ย้อนกลับ"
+  "display.revert": "ย้อนกลับ",
+  "display.applyError": "ไม่สามารถใช้การตั้งค่าจอภาพได้"
 }

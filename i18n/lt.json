@@ -92,5 +92,6 @@
   "display.confirmTitle": "Palikti šiuos ekrano nustatymus?",
   "display.confirmCountdown": "Ankstesni nustatymai bus grąžinti po %1 s.",
   "display.keepChanges": "Išsaugoti pakeitimus",
-  "display.revert": "Atšaukti"
+  "display.revert": "Atšaukti",
+  "display.applyError": "Nepavyko pritaikyti ekrano nustatymų."
 }

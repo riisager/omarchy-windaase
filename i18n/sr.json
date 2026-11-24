@@ -92,5 +92,6 @@
   "display.confirmTitle": "Задржати ова подешавања екрана?",
   "display.confirmCountdown": "Враћање на претходна подешавања за %1 с.",
   "display.keepChanges": "Задржи промене",
-  "display.revert": "Врати"
+  "display.revert": "Врати",
+  "display.applyError": "Није могуће применити подешавања екрана."
 }

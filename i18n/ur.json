@@ -92,5 +92,6 @@
   "display.confirmTitle": "کیا یہ ڈسپلے ترتیبات برقرار رکھیں؟",
   "display.confirmCountdown": "%1 سیکنڈ میں پچھلی ترتیبات پر واپس لوٹ جائے گا۔",
   "display.keepChanges": "تبدیلیاں رکھیں",
-  "display.revert": "واپس لیں"
+  "display.revert": "واپس لیں",
+  "display.applyError": "ڈسپلے کی ترتیبات لاگو نہیں ہو سکیں۔"
 }

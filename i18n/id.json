@@ -92,5 +92,6 @@
   "display.confirmTitle": "Simpan pengaturan tampilan ini?",
   "display.confirmCountdown": "Mengembalikan pengaturan sebelumnya dalam %1 d.",
   "display.keepChanges": "Simpan perubahan",
-  "display.revert": "Kembalikan"
+  "display.revert": "Kembalikan",
+  "display.applyError": "Tidak dapat menerapkan pengaturan layar."
 }

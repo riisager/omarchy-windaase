@@ -92,5 +92,6 @@
   "display.confirmTitle": "මෙම දර්ශන සැකසීම් තබා ගන්නද?",
   "display.confirmCountdown": "තත්පර %1 කින් පෙර සැකසීම් වෙත ආපසු යයි.",
   "display.keepChanges": "වෙනස්කම් තබා ගන්න",
-  "display.revert": "ආපසු හරවන්න"
+  "display.revert": "ආපසු හරවන්න",
+  "display.applyError": "තිර සැකසුම් යෙදීමට නොහැකි විය."
 }

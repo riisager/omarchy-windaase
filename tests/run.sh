@@ -12,6 +12,10 @@ if [[ -z "$LUA_BIN" || -z "$LUAC_BIN" ]]; then
   exit 1
 fi
 
+echo "==> Checking Python and JS syntax"
+python3 -m py_compile windaase-config.py nautilus/windaase_context_menu.py
+node --check TaskbarModel.js
+
 echo "==> Checking Lua syntax ($LUAC_BIN)"
 "$LUAC_BIN" -p hypr/windaase.lua hypr/windaase/*.lua
 

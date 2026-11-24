@@ -26,9 +26,23 @@ local monitor_running = false
 local monitor_token = 0
 local hooks_registered = false
 local mouse_binds = {}
+local assist_esc_bind = nil
 
 local function bind_alive(kb)
   return kb ~= nil and tostring(kb) ~= "HL.Keybind(expired)"
+end
+
+local function set_assist_esc_enabled(enabled)
+  if bind_alive(assist_esc_bind) then
+    assist_esc_bind:set_enabled(enabled == true)
+  end
+end
+
+local function clear_pending_assist()
+  local had = pending_assist ~= nil
+  pending_assist = nil
+  set_assist_esc_enabled(false)
+  return had
 end
 
 local function read_snap_state_raw()
@@ -90,8 +104,7 @@ end
 M.write_state = write_snap_state
 
 local function cancel_assist_only()
-  if pending_assist ~= nil then
-    pending_assist = nil
+  if clear_pending_assist() then
     assist_seq = assist_seq + 1
     write_snap_state({ open = false })
   end
@@ -99,7 +112,7 @@ end
 
 function M.cancel_overlay()
   assist_seq = assist_seq + 1
-  pending_assist = nil
+  clear_pending_assist()
   snap_resize.clear_flash()
   write_snap_state({ open = false })
 end
@@ -110,7 +123,7 @@ function M.suppress(ticks)
     suppress_snap_ticks = n
   end
   assist_seq = assist_seq + 1
-  pending_assist = nil
+  clear_pending_assist()
   snap_resize.clear_flash()
   local raw = read_snap_state_raw()
   if raw:find('"open":true') and (raw:find('"mode":"assist"') or raw:find('"mode":"click"') or raw:find('"mode":"resize"')) then
@@ -233,13 +246,17 @@ local function tick(expected_token)
 
   if mouse_drag_state then
     local st = mouse_drag_state
-    if not cur or not c or cur.address ~= st.addr or not cur.floating then
+    if not cur or not c or cur.address ~= st.addr or not cur.floating or (cur.fullscreen or 0) ~= 0 then
       if st.snap_open then
         write_snap_state({ open = false })
       end
       mouse_drag_state = nil
       prev_sample = nil
-      monitor_running = false
+      if cur and c and cur.floating and (cur.fullscreen or 0) == 0 then
+        hl.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
+      else
+        monitor_running = false
+      end
       return
     end
 
@@ -320,7 +337,7 @@ local function tick(expected_token)
     local moved = math.abs(dwx) > 2 or math.abs(dwy) > 2
     local tracks_cursor = math.abs(dwx - dcx) <= 28 and math.abs(dwy - dcy) <= 28
     if same_size and moved and tracks_cursor then
-      pending_assist = nil
+      clear_pending_assist()
       assist_seq = assist_seq + 1
       mouse_drag_state = {
         addr = cur.address,
@@ -438,6 +455,7 @@ function M.schedule_assist(window, m, snapped_zone)
       snapped_addr = exclude_addr or "",
       rect = { x = rect.x, y = rect.y, w = rect.w, h = rect.h },
     }
+    set_assist_esc_enabled(true)
     write_snap_state({
       open = true,
       mode = "assist",
@@ -458,7 +476,7 @@ end
 
 function M.toggle_click_overlay()
   assist_seq = assist_seq + 1
-  pending_assist = nil
+  clear_pending_assist()
   snap_resize.clear_flash()
   local raw = read_snap_state_raw()
   if raw:find('"open":true') and (raw:find('"mode":"click"') or raw:find('"mode":"assist"')) then
@@ -561,7 +579,7 @@ function M.setup(opts)
   monitor_running = false
   mouse_drag_state = nil
   prev_sample = nil
-  pending_assist = nil
+  clear_pending_assist()
   assist_seq = assist_seq + 1
   snap_resize.clear_flash()
   write_snap_state({ open = false })
@@ -577,6 +595,13 @@ function M.setup(opts)
     end
 
     hl.on("window.active", function(window)
+      if mouse_drag_state and (not window or window.address ~= mouse_drag_state.addr) then
+        if mouse_drag_state.snap_open then
+          write_snap_state({ open = false })
+        end
+        mouse_drag_state = nil
+        prev_sample = nil
+      end
       if pending_assist and (not window or window.address ~= pending_assist.snapped_addr) then
         cancel_assist_only()
       end
@@ -631,6 +656,13 @@ function M.setup(opts)
   if bind_alive(mouse_binds["mouse:273"]) then
     mouse_binds["mouse:273"]:set_enabled(resize_watch)
   end
+
+  if snap_assist_enabled and not bind_alive(assist_esc_bind) then
+    assist_esc_bind = hl.bind("Escape", function()
+      cancel_assist_only()
+    end, { transparent = true, non_consuming = true })
+  end
+  set_assist_esc_enabled(false)
 
   if drag_watch then
     ensure_monitor_running()

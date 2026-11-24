@@ -92,5 +92,6 @@
   "display.confirmTitle": "Manter estas definições de ecrã?",
   "display.confirmCountdown": "A reverter para as definições anteriores em %1 s.",
   "display.keepChanges": "Manter alterações",
-  "display.revert": "Reverter"
+  "display.revert": "Reverter",
+  "display.applyError": "Não foi possível aplicar as definições de ecrã."
 }

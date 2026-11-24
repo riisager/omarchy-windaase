@@ -92,5 +92,6 @@
   "display.confirmTitle": "Conserver ces paramètres d'affichage ?",
   "display.confirmCountdown": "Rétablissement des paramètres précédents dans %1 s.",
   "display.keepChanges": "Conserver",
-  "display.revert": "Rétablir"
+  "display.revert": "Rétablir",
+  "display.applyError": "Impossible d'appliquer les paramètres d'affichage."
 }

@@ -92,5 +92,6 @@
   "display.confirmTitle": "Kas säilitada need ekraaniseaded?",
   "display.confirmCountdown": "Eelmised seaded taastatakse %1 s pärast.",
   "display.keepChanges": "Säilita muudatused",
-  "display.revert": "Taasta"
+  "display.revert": "Taasta",
+  "display.applyError": "Kuvasätteid ei saanud rakendada."
 }

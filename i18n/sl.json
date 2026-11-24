@@ -92,5 +92,6 @@
   "display.confirmTitle": "Ohranim te nastavitve zaslona?",
   "display.confirmCountdown": "Povrnitev prejšnjih nastavitev čez %1 s.",
   "display.keepChanges": "Ohrani spremembe",
-  "display.revert": "Povrni"
+  "display.revert": "Povrni",
+  "display.applyError": "Nastavitev zaslona ni bilo mogoče uveljaviti."
 }

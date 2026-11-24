@@ -92,5 +92,6 @@
   "display.confirmTitle": "Behåll de här bildskärmsinställningarna?",
   "display.confirmCountdown": "Återgår till föregående inställningar om %1 s.",
   "display.keepChanges": "Behåll ändringar",
-  "display.revert": "Återställ"
+  "display.revert": "Återställ",
+  "display.applyError": "Kunde inte tillämpa skärminställningarna."
 }

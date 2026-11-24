@@ -23,9 +23,15 @@ class ConfigHelperTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.home = self.tmp.name
         self.omarchy_dir = os.path.join(self.home, ".config", "omarchy")
+        self.runtime_dir = os.path.join(self.home, ".runtime")
+        self.cache_dir = os.path.join(self.home, ".cache")
         os.makedirs(self.omarchy_dir, exist_ok=True)
+        os.makedirs(self.runtime_dir, exist_ok=True)
+        os.makedirs(self.cache_dir, exist_ok=True)
         self.env = os.environ.copy()
         self.env["HOME"] = self.home
+        self.env["XDG_RUNTIME_DIR"] = self.runtime_dir
+        self.env["XDG_CACHE_HOME"] = self.cache_dir
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -1264,6 +1270,7 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertTrue(os.path.exists(mod.monitors_preview_lock_path(runtime_dir=runtime_dir, home_dir=self.home)))
         self.assertIn('output = "DP-1", disabled = false', eval_calls[0])
         self.assertIn('output = "eDP-1", disabled = true', eval_calls[1])
+        self.assertIn('pcall(require, "hypr.windaase")', eval_calls[-1])
         self.assertIn("rescue_offscreen_windows", eval_calls[-1])
 
         skip_calls = []
@@ -1301,6 +1308,7 @@ class ConfigHelperTests(unittest.TestCase):
         saved_edp = [m for m in next(iter(db["profiles"].values()))["monitors"] if m["name"] == "eDP-1"][0]
         self.assertTrue(saved_edp["enabled"])
         self.assertTrue(any('output = "eDP-1", disabled = true' in c for c in commit_calls))
+        self.assertTrue(os.path.exists(os.path.join(self.omarchy_dir, ".windaase.lock")))
 
         # Auto-apply updates live Hyprland monitors without rewriting monitors.lua (avoids auto-reload storms)
         mon_lua_path = mod.monitors_lua_path(home_dir=self.home)
@@ -1333,6 +1341,28 @@ class ConfigHelperTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             mod.validate_monitor_mode('1920x1080";bad')
         self.assertEqual(mod.safe_desc_selector('Dell"; os.execute("pwn")'), "")
+
+    def test_uninstall_sh_removes_staging_dir_and_runtime_state_files(self):
+        st = self._setup_fake_install_state('o.bind("SUPER + Return", "Term", { term = "foot" })\n')
+        install_tmp_dir = os.path.join(self.omarchy_dir, ".windaase-install")
+        os.makedirs(os.path.join(install_tmp_dir, "riisager.windaase.staging.123"), exist_ok=True)
+        runtime_files = [
+            os.path.join(self.runtime_dir, "omarchy-windaase-snap.json"),
+            os.path.join(self.runtime_dir, "omarchy-windaase-alttab.json"),
+            os.path.join(self.runtime_dir, "omarchy-windaase-monitor-preview.json"),
+            os.path.join(self.cache_dir, "omarchy-windaase-snap.json"),
+            os.path.join(self.cache_dir, "omarchy-windaase-alttab.json"),
+            os.path.join(self.cache_dir, "omarchy-windaase-monitor-preview.json"),
+        ]
+        for path in runtime_files:
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write('{"open":false}\n')
+
+        res = subprocess.run(["bash", UNINSTALL_SH], env=st["env"], capture_output=True, text=True, check=False)
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+        self.assertFalse(os.path.exists(install_tmp_dir))
+        for path in runtime_files:
+            self.assertFalse(os.path.exists(path), f"Expected {path} to be removed")
 
 
 if __name__ == "__main__":

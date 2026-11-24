@@ -305,6 +305,7 @@ BarWidget {
     id: hoverOpenTimer
     interval: (root.pickerKey.length > 0 && root.pickerTriggerMode === "hover") ? 70 : 300
     onTriggered: {
+      if (!root || root._destroyed) return
       if (!root.hoverPreview || root.draggingItem || root.menuKey.length > 0 || root.settingsOpen) return
       if (root.pickerKey.length > 0 && root.pickerTriggerMode !== "hover") return
       if (root.bar && root.bar.activePopout && root.bar.activePopout !== pickerOwner) return
@@ -321,6 +322,7 @@ BarWidget {
     id: hoverCloseTimer
     interval: 260
     onTriggered: {
+      if (!root || root._destroyed) return
       if (root.pickerKey.length > 0 && root.pickerTriggerMode === "hover" && !pickerCard.containsMouse && root.hoveredSlotKey !== root.pickerKey) {
         root.pickerKey = ""
         root.pickerTriggerMode = "click"
@@ -1575,7 +1577,7 @@ BarWidget {
             var from = root.dragIndex
             var to = root.dropIndex
             slotMouse.didDrag = true
-            Qt.callLater(function() { slotMouse.didDrag = false })
+            Qt.callLater(function() { if (slotMouse) slotMouse.didDrag = false })
             root.endItemDrag()
             root.moveTaskbarItem(from, to)
           }
@@ -1679,7 +1681,7 @@ BarWidget {
     }
     onSettingsRequested: {
       var anchor = root.menuAnchor || root
-      Qt.callLater(function() { root.openSettings(anchor) })
+      Qt.callLater(function() { if (root && !root._destroyed) root.openSettings(anchor) })
     }
   }
 

@@ -92,5 +92,6 @@
   "display.confirmTitle": "¿Conservar esta configuración de pantalla?",
   "display.confirmCountdown": "Se revertirá en %1 s.",
   "display.keepChanges": "Conservar cambios",
-  "display.revert": "Revertir"
+  "display.revert": "Revertir",
+  "display.applyError": "No se pudieron aplicar los ajustes de pantalla."
 }

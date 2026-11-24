@@ -92,5 +92,6 @@
   "display.confirmTitle": "Сохранить эти параметры экрана?",
   "display.confirmCountdown": "Возврат к прежним настройкам через %1 с.",
   "display.keepChanges": "Сохранить изменения",
-  "display.revert": "Отменить"
+  "display.revert": "Отменить",
+  "display.applyError": "Не удалось применить настройки дисплея."
 }

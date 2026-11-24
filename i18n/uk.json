@@ -92,5 +92,6 @@
   "display.confirmTitle": "Зберегти ці налаштування дисплея?",
   "display.confirmCountdown": "Повернення до попередніх налаштувань за %1 с.",
   "display.keepChanges": "Зберегти зміни",
-  "display.revert": "Скасувати"
+  "display.revert": "Скасувати",
+  "display.applyError": "Не вдалося застосувати налаштування дисплея."
 }

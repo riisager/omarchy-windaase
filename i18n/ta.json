@@ -92,5 +92,6 @@
   "display.confirmTitle": "இந்தத் திரை அமைப்புகளை வைத்திருக்கவா?",
   "display.confirmCountdown": "%1 வினாடியில் முந்தைய அமைப்புகளுக்குத் திரும்பும்.",
   "display.keepChanges": "மாற்றங்களை வைத்திரு",
-  "display.revert": "மீளப்பெறு"
+  "display.revert": "மீளப்பெறு",
+  "display.applyError": "திரை அமைப்புகளைப் பயன்படுத்த முடியவில்லை."
 }

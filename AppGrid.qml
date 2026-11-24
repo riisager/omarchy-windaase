@@ -159,7 +159,7 @@ Item {
       grid.positionViewAtBeginning()
     }
     root.opened = true
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    Qt.callLater(function() { if (root && root.opened && keyCatcher) keyCatcher.forceActiveFocus() })
   }
 
   function close() {
@@ -219,7 +219,7 @@ Item {
 
   function cancelUninstall() {
     root.uninstallEntry = null
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    Qt.callLater(function() { if (root && root.opened && keyCatcher) keyCatcher.forceActiveFocus() })
   }
 
   function confirmUninstall() {
@@ -318,6 +318,11 @@ Item {
   Component.onCompleted: {
     hiddenEntryScan.running = true
     iconIndexScan.running = true
+  }
+
+  Component.onDestruction: {
+    iconIndexDebounce.stop()
+    root.opened = false
   }
 
   OverlayWindow {

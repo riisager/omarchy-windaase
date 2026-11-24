@@ -20,6 +20,7 @@ Item {
   property bool clamshellClosed: false
   property string profileId: ""
   property string errorText: ""
+  property bool preserveErrorOnLoad: false
 
   property var liveMonitors: []
   property var draftMonitors: []
@@ -41,13 +42,14 @@ Item {
 
   onConfirmPendingChanged: {
     if (root.opened) {
-      Qt.callLater(function() { if (root.opened && !resolutionDropdown.popupOpen) keyCatcher.forceActiveFocus() })
+      Qt.callLater(function() { if (root && root.opened && !resolutionDropdown.popupOpen && keyCatcher) keyCatcher.forceActiveFocus() })
     }
   }
 
   Component.onDestruction: {
     confirmTimer.stop()
     monitorSyncTimer.stop()
+    monitorHotplugRefreshTimer.stop()
     root.opened = false
   }
 
@@ -145,10 +147,11 @@ Item {
   function open() {
     if (root.opened) return
     root.errorText = ""
+    root.preserveErrorOnLoad = false
     root.confirmPending = false
     root.draggingKey = ""
     root.opened = true
-    root.loadStatus()
+    root.loadStatus(false)
   }
 
   function close() {
@@ -157,6 +160,7 @@ Item {
       root.revertChanges(true)
       return
     }
+    monitorHotplugRefreshTimer.stop()
     root.draggingKey = ""
     root.opened = false
   }
@@ -209,12 +213,16 @@ Item {
         }
         root.selectedKey = String((focused || root.draftMonitors[0]).matchKey || "")
       }
-      root.errorText = ""
+      if (!root.preserveErrorOnLoad) {
+        root.errorText = ""
+      }
+      root.preserveErrorOnLoad = false
     } catch (e) {}
   }
 
-  function loadStatus() {
+  function loadStatus(preserveError) {
     if (statusProc.running) return
+    root.preserveErrorOnLoad = !!preserveError
     statusOutput.text = ""
     statusProc.command = ["python3", root.configScriptPath, "monitors-status"]
     statusProc.running = true
@@ -223,6 +231,7 @@ Item {
   function resetDraft() {
     if (root.confirmPending || root.busy) return
     root.draggingKey = ""
+    root.errorText = ""
     root.draftMonitors = root.cloneMonitorsList(root.liveMonitors)
   }
 
@@ -364,6 +373,26 @@ Item {
     onTriggered: Hyprland.refreshMonitors()
   }
 
+  Timer {
+    id: monitorHotplugRefreshTimer
+    interval: 350
+    repeat: false
+    onTriggered: {
+      if (root.opened && !root.confirmPending && !root.busy && root.draggingKey === "") {
+        root.loadStatus(false)
+      }
+    }
+  }
+
+  Connections {
+    target: Quickshell
+    function onScreensChanged() {
+      if (root.opened && !root.confirmPending && !root.busy && root.draggingKey === "") {
+        monitorHotplugRefreshTimer.restart()
+      }
+    }
+  }
+
   QtObject { id: statusOutput; property string text: "" }
   QtObject { id: previewOutput; property string text: "" }
   QtObject { id: commitOutput; property string text: "" }
@@ -374,6 +403,7 @@ Item {
     stdout: SplitParser { onRead: function(line) { statusOutput.text += line + "\n" } }
     onExited: function(code) {
       if (code === 0) root.applyStatusPayload(statusOutput.text)
+      else root.preserveErrorOnLoad = false
     }
   }
 
@@ -388,15 +418,19 @@ Item {
         try {
           var res = JSON.parse(previewOutput.text)
           root.revertSnapshot = (res && Array.isArray(res.revert)) ? res.revert : []
+          if (!root.opened) {
+            root.revertChanges(false)
+            return
+          }
           root.confirmSeconds = 15
           root.confirmPending = true
           confirmTimer.restart()
           return
         } catch (e) {}
       }
-      root.errorText = "Failed to apply display settings"
+      root.errorText = strings.t("display.applyError")
       root.confirmPending = false
-      root.loadStatus()
+      root.loadStatus(true)
     }
   }
 
@@ -408,10 +442,12 @@ Item {
       root.revertSnapshot = []
       Hyprland.refreshMonitors()
       monitorSyncTimer.restart()
-      if (code === 0) root.applyStatusPayload(commitOutput.text)
-      else {
-        root.errorText = "Failed to apply display settings"
-        root.loadStatus()
+      if (code === 0) {
+        root.preserveErrorOnLoad = false
+        root.applyStatusPayload(commitOutput.text)
+      } else {
+        root.errorText = strings.t("display.applyError")
+        root.loadStatus(true)
       }
     }
   }
@@ -424,10 +460,12 @@ Item {
       root.revertSnapshot = []
       Hyprland.refreshMonitors()
       monitorSyncTimer.restart()
-      if (code === 0) root.applyStatusPayload(revertOutput.text)
-      else {
-        root.errorText = "Failed to apply display settings"
-        root.loadStatus()
+      if (code === 0) {
+        root.preserveErrorOnLoad = false
+        root.applyStatusPayload(revertOutput.text)
+      } else {
+        root.errorText = strings.t("display.applyError")
+        root.loadStatus(true)
       }
       if (root.closeOnRevert) {
         root.closeOnRevert = false
@@ -445,12 +483,12 @@ Item {
 
     onContentReadyChanged: {
       if (contentReady && root.opened && !resolutionDropdown.popupOpen) {
-        Qt.callLater(function() { if (root.opened && !resolutionDropdown.popupOpen) keyCatcher.forceActiveFocus() })
+        Qt.callLater(function() { if (root && root.opened && !resolutionDropdown.popupOpen && keyCatcher) keyCatcher.forceActiveFocus() })
       }
     }
     onContentRevealedChanged: {
       if (contentRevealed && root.opened && !resolutionDropdown.popupOpen) {
-        Qt.callLater(function() { if (root.opened && !resolutionDropdown.popupOpen) keyCatcher.forceActiveFocus() })
+        Qt.callLater(function() { if (root && root.opened && !resolutionDropdown.popupOpen && keyCatcher) keyCatcher.forceActiveFocus() })
       }
     }
 
@@ -592,7 +630,7 @@ Item {
             fontSize: Style.font.caption
             horizontalPadding: Style.spacing.sm
             verticalPadding: Style.space(4)
-            onClicked: root.loadStatus()
+            onClicked: root.loadStatus(false)
           }
 
           Button {
@@ -1063,12 +1101,38 @@ Item {
                 value: root.selectedMonitor ? String(root.selectedMonitor.mode || "preferred") : "preferred"
                 onPopupOpenChanged: {
                   if (!popupOpen && root.opened) {
-                    Qt.callLater(function() { if (root.opened && !resolutionDropdown.popupOpen) keyCatcher.forceActiveFocus() })
+                    Qt.callLater(function() { if (root && root.opened && !resolutionDropdown.popupOpen && keyCatcher) keyCatcher.forceActiveFocus() })
                   }
                 }
                 onChanged: function(val) { root.setSelectedMode(val) }
               }
             }
+          }
+        }
+
+        // Inline error banner when applying or reverting display rules fails
+        Rectangle {
+          visible: root.errorText !== ""
+          width: parent.width
+          implicitHeight: errorBannerText.implicitHeight + Style.spacing.sm * 2
+          height: implicitHeight
+          radius: Style.cornerRadius
+          color: Util.alpha(Commons.Color.urgent, 0.14)
+          border.width: 1
+          border.color: Util.alpha(Commons.Color.urgent, 0.55)
+
+          Text {
+            id: errorBannerText
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.margins: Style.spacing.sm
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            text: root.errorText
+            color: Commons.Color.urgent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
           }
         }
 

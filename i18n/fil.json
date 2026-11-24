@@ -92,5 +92,6 @@
   "display.confirmTitle": "Panatilihin ang mga setting ng display na ito?",
   "display.confirmCountdown": "Babalik sa dating setting sa loob ng %1 s.",
   "display.keepChanges": "Panatilihin",
-  "display.revert": "Ibalik"
+  "display.revert": "Ibalik",
+  "display.applyError": "Hindi mailapat ang mga setting ng display."
 }

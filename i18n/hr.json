@@ -92,5 +92,6 @@
   "display.confirmTitle": "Zadržati ove postavke zaslona?",
   "display.confirmCountdown": "Povratak na prethodne postavke za %1 s.",
   "display.keepChanges": "Zadrži promjene",
-  "display.revert": "Vrati"
+  "display.revert": "Vrati",
+  "display.applyError": "Nije moguće primijeniti postavke zaslona."
 }

@@ -92,5 +92,6 @@
   "display.confirmTitle": "این تنظیمات نمایشگر حفظ شوند؟",
   "display.confirmCountdown": "بازگشت به تنظیمات قبلی تا %1 ثانیه.",
   "display.keepChanges": "حفظ تغییرات",
-  "display.revert": "بازگردانی"
+  "display.revert": "بازگردانی",
+  "display.applyError": "اعمال تنظیمات نمایشگر ممکن نشد."
 }

@@ -92,5 +92,6 @@
   "display.confirmTitle": "Diese Anzeigeeinstellungen beibehalten?",
   "display.confirmCountdown": "Zurücksetzen in %1 Sek.",
   "display.keepChanges": "Änderungen behalten",
-  "display.revert": "Rückgängig"
+  "display.revert": "Rückgängig",
+  "display.applyError": "Anzeigeeinstellungen konnten nicht angewendet werden."
 }

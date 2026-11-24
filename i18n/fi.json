@@ -92,5 +92,6 @@
   "display.confirmTitle": "Säilytetäänkö nämä näyttöasetukset?",
   "display.confirmCountdown": "Palautetaan aiemmat asetukset %1 s kuluttua.",
   "display.keepChanges": "Säilytä muutokset",
-  "display.revert": "Kumoa"
+  "display.revert": "Kumoa",
+  "display.applyError": "Näyttöasetuksia ei voitu ottaa käyttöön."
 }

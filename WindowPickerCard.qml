@@ -39,7 +39,7 @@ PopupCard {
   function refreshAnchor() {
     if (root.open && root.anchor && typeof root.anchor.updateAnchor === "function") {
       Qt.callLater(function() {
-        if (root.open && root.anchor) root.anchor.updateAnchor()
+        if (root && root.open && root.anchor) root.anchor.updateAnchor()
       })
     }
   }
@@ -59,7 +59,7 @@ PopupCard {
   onAnchorItemChanged: refreshAnchor()
   onContentWidthChanged: refreshAnchor()
   onContentHeightChanged: refreshAnchor()
-  onWindowsChanged: if (root.open && windows.length === 0) Qt.callLater(root.close)
+  onWindowsChanged: if (root.open && windows.length === 0) Qt.callLater(function() { if (root && root.open) root.close() })
 
   padding: Style.spacing.sm
   contentWidth: root.fittedContentWidth(desiredContentW + horizontalInset)

@@ -92,5 +92,6 @@
   "display.confirmTitle": "Behold disse skærmindstillinger?",
   "display.confirmCountdown": "Gendanner tidligere indstillinger om %1 sek.",
   "display.keepChanges": "Behold ændringer",
-  "display.revert": "Gendan"
+  "display.revert": "Gendan",
+  "display.applyError": "Kunne ikke anvende skærmindstillinger."
 }

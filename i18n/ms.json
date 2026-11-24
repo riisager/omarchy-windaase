@@ -92,5 +92,6 @@
   "display.confirmTitle": "Kekalkan tetapan paparan ini?",
   "display.confirmCountdown": "Mengembalikan tetapan terdahulu dalam %1 s.",
   "display.keepChanges": "Kekalkan perubahan",
-  "display.revert": "Kembalikan"
+  "display.revert": "Kembalikan",
+  "display.applyError": "Tidak dapat menggunakan tetapan paparan."
 }

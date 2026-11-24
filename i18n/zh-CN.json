@@ -92,5 +92,6 @@
   "display.confirmTitle": "保留这些显示设置吗？",
   "display.confirmCountdown": "将在 %1 秒后恢复之前的设置。",
   "display.keepChanges": "保留更改",
-  "display.revert": "还原"
+  "display.revert": "还原",
+  "display.applyError": "无法应用显示设置。"
 }

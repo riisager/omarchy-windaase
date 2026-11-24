@@ -92,5 +92,6 @@
   "display.confirmTitle": "Megtartja ezeket a kijelzőbeállításokat?",
   "display.confirmCountdown": "Visszaáll az előző beállításokra %1 mp múlva.",
   "display.keepChanges": "Módosítások megtartása",
-  "display.revert": "Visszavonás"
+  "display.revert": "Visszavonás",
+  "display.applyError": "Nem sikerült alkalmazni a kijelzőbeállításokat."
 }

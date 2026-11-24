@@ -92,5 +92,6 @@
   "display.confirmTitle": "Deze beeldscherminstellingen behouden?",
   "display.confirmCountdown": "Vorige instellingen worden hersteld over %1 s.",
   "display.keepChanges": "Wijzigingen behouden",
-  "display.revert": "Herstellen"
+  "display.revert": "Herstellen",
+  "display.applyError": "Kan beeldscherminstellingen niet toepassen."
 }

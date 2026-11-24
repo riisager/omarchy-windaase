@@ -92,5 +92,6 @@
   "display.confirmTitle": "الاحتفاظ بإعدادات العرض هذه؟",
   "display.confirmCountdown": "العودة إلى الإعدادات السابقة خلال %1 ث.",
   "display.keepChanges": "الاحتفاظ بالتغييرات",
-  "display.revert": "تراجع"
+  "display.revert": "تراجع",
+  "display.applyError": "تعذر تطبيق إعدادات الشاشة."
 }

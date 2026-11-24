@@ -92,5 +92,6 @@
   "display.confirmTitle": "Ponechať tieto nastavenia zobrazenia?",
   "display.confirmCountdown": "Návrat k predchádzajúcim nastaveniam o %1 s.",
   "display.keepChanges": "Ponechať zmeny",
-  "display.revert": "Vrátiť"
+  "display.revert": "Vrátiť",
+  "display.applyError": "Nepodarilo sa použiť nastavenia obrazovky."
 }

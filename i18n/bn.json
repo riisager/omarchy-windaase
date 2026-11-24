@@ -92,5 +92,6 @@
   "display.confirmTitle": "এই ডিসপ্লে সেটিংস রাখবেন?",
   "display.confirmCountdown": "%1 সেকেন্ড পর আগের সেটিংসে ফিরে যাবে।",
   "display.keepChanges": "পরিবর্তন রাখুন",
-  "display.revert": "পূর্বাবস্থায় ফেরান"
+  "display.revert": "পূর্বাবস্থায় ফেরান",
+  "display.applyError": "ডিসপ্লে সেটিংস প্রয়োগ করা যায়নি।"
 }

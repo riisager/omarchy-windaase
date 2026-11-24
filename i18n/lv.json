@@ -92,5 +92,6 @@
   "display.confirmTitle": "Vai paturēt šos displeja iestatījumus?",
   "display.confirmCountdown": "Atgriezīsies iepriekšējie iestatījumi pēc %1 s.",
   "display.keepChanges": "Paturēt izmaiņas",
-  "display.revert": "Atgriezt"
+  "display.revert": "Atgriezt",
+  "display.applyError": "Neizdevās lietot displeja iestatījumus."
 }

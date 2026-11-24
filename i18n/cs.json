@@ -92,5 +92,6 @@
   "display.confirmTitle": "Ponechat toto nastavení zobrazení?",
   "display.confirmCountdown": "Návrat k předchozímu nastavení za %1 s.",
   "display.keepChanges": "Ponechat změny",
-  "display.revert": "Vrátit"
+  "display.revert": "Vrátit",
+  "display.applyError": "Nepodařilo se použít nastavení displeje."
 }

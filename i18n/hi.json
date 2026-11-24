@@ -92,5 +92,6 @@
   "display.confirmTitle": "क्या ये डिस्प्ले सेटिंग्स सहेज कर रखें?",
   "display.confirmCountdown": "%1 सेकंड में पिछली सेटिंग्स पर वापस लौटेगा।",
   "display.keepChanges": "बदलाव रखें",
-  "display.revert": "वापस लौटाएं"
+  "display.revert": "वापस लौटाएं",
+  "display.applyError": "डिस्प्ले सेटिंग्स लागू नहीं की जा सकीं।"
 }

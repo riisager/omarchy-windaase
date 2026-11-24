@@ -92,5 +92,6 @@
   "display.confirmTitle": "Διατήρηση αυτών των ρυθμίσεων οθόνης;",
   "display.confirmCountdown": "Επαναφορά στις προηγούμενες ρυθμίσεις σε %1 δευτ.",
   "display.keepChanges": "Διατήρηση αλλαγών",
-  "display.revert": "Επαναφορά"
+  "display.revert": "Επαναφορά",
+  "display.applyError": "Δεν ήταν δυνατή η εφαρμογή των ρυθμίσεων οθόνης."
 }
