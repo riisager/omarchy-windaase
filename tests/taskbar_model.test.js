@@ -452,18 +452,6 @@ function run() {
   assert.deepStrictEqual(TaskbarModel.filterWindowsByScope(scopeWins, "workspace", 1, "DP-1").map(w => w.key), ["foot", "obsidian"]);
   assert.deepStrictEqual(TaskbarModel.filterWindowsByScope(scopeWins, "monitor", 1, "DP-1").map(w => w.key), ["foot", "obsidian"]);
 
-  assert.deepStrictEqual(
-    TaskbarModel.complementaryZone({ rx: 0, ry: 0, rw: 0.5, rh: 1.0, max: false }),
-    { rx: 0.5, ry: 0, rw: 0.5, rh: 1.0, max: false }
-  );
-  assert.deepStrictEqual(
-    TaskbarModel.complementaryZone({ rx: 0.65, ry: 0, rw: 0.35, rh: 1.0, max: false }),
-    { rx: 0, ry: 0, rw: 0.65, rh: 1.0, max: false }
-  );
-  assert.strictEqual(TaskbarModel.complementaryZone({ rx: 0, ry: 0, rw: 0.5, rh: 0.5, max: false }), null);
-  assert.strictEqual(TaskbarModel.complementaryZone({ rx: 0.3333333, ry: 0, rw: 0.3333333, rh: 1.0, max: false }), null);
-  assert.strictEqual(TaskbarModel.complementaryZone({ rx: 0, ry: 0, rw: 1.0, rh: 1.0, max: true }), null);
-
   const layoutsJson = JSON.parse(fs.readFileSync(path.join(__dirname, "../layouts.json"), "utf8"));
   const snapCards = layoutsJson.layouts.concat([layoutsJson.ultrawideLayout]);
   assert.strictEqual(snapCards.length, 7);

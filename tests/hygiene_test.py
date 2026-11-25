@@ -422,6 +422,24 @@ class HygieneTests(unittest.TestCase):
                     f"{rel} has {line_count} lines (limit {max_lines}); keep production modules focused",
                 )
 
+    def test_qml_has_no_unused_aliased_imports(self):
+        alias_re = re.compile(r'^\s*import\s+(?:"[^"]+"|[A-Za-z0-9_.]+)\s+as\s+([A-Za-z0-9_]+)\s*$')
+        for path in qml_files():
+            with open(path, "r", encoding="utf-8") as handle:
+                lines = handle.read().splitlines()
+            body_lines = [line for line in lines if not line.lstrip().startswith("import ")]
+            cleaned_body = strip_qml_comments_and_strings("\n".join(body_lines))
+            rel = os.path.relpath(path, REPO_ROOT)
+            for idx, line in enumerate(lines, start=1):
+                match = alias_re.match(line)
+                if match:
+                    alias = match.group(1)
+                    self.assertRegex(
+                        cleaned_body,
+                        re.compile(r"\b" + re.escape(alias) + r"\b"),
+                        f"{rel}:{idx}: unused aliased QML import `{alias}`",
+                    )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

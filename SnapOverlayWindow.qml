@@ -5,7 +5,6 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
-import "TaskbarModel.js" as TaskbarModel
 import "js/SnapLayoutMath.js" as SnapLayoutMath
 
 // Per-screen overlay for Snap Layouts pill bar, preview rect, Snap Assist, and Snap Resize divider.

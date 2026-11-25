@@ -94,24 +94,6 @@ function computeZoneRect(z, screenW, screenH, reserved, gapOut, gapIn) {
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1, max: !!z.max }
 }
 
-function complementaryZone(zone) {
-  if (!zone || zone.max === true) return null
-  var rx = Number(zone.rx) || 0
-  var ry = Number(zone.ry) || 0
-  var rw = Number(zone.rw) || 0
-  var rh = Number(zone.rh) || 0
-  if (Math.abs(ry) > 0.02 || rh < 0.98) return null
-  if (rw <= 0.15 || rw >= 0.85) return null
-  var round6 = function(n) { return Math.round(n * 1000000) / 1000000 }
-  if (Math.abs(rx) <= 0.02) {
-    return { rx: round6(rw), ry: 0, rw: round6(1 - rw), rh: 1.0, max: false }
-  }
-  if (Math.abs((rx + rw) - 1.0) <= 0.02) {
-    return { rx: 0, ry: 0, rw: round6(rx), rh: 1.0, max: false }
-  }
-  return null
-}
-
 function _zoneCenter(z) {
   var rx = Number(z && z.rx) || 0
   var ry = Number(z && z.ry) || 0
@@ -399,7 +381,6 @@ if (typeof module !== "undefined") {
     isArrayLike: isArrayLike,
     parseLayoutsConfig: parseLayoutsConfig,
     computeZoneRect: computeZoneRect,
-    complementaryZone: complementaryZone,
     nextSnapZone: nextSnapZone,
     jumpToSnapCard: jumpToSnapCard,
     filterSnapAssistCandidates: filterSnapAssistCandidates,
