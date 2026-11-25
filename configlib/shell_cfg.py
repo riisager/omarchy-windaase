@@ -320,3 +320,82 @@ def cmd_reset_floating_default(args):
         raise ValueError("reset-floating-default takes no arguments")
     with config_lock():
         reset_floating_default_layout()
+
+
+def _entry_is_plugin(entry, plugin_id):
+    return entry == plugin_id or (isinstance(entry, dict) and entry.get("id") == plugin_id)
+
+
+def cleanup_shell_json_on_uninstall(restore_stock=False, home_dir=None, plugin_id="riisager.windaase"):
+    with config_lock(home_dir=home_dir):
+        path = os.path.join(omarchy_dir(home_dir=home_dir), "shell.json")
+        if os.path.islink(path):
+            raise ValueError(f"Refusing to follow symlink at {path}")
+        if not os.path.isfile(path):
+            return False
+
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+        except (OSError, ValueError):
+            return False
+
+        if not isinstance(data, dict):
+            return False
+
+        changed = False
+        bar = data.get("bar")
+        layout = bar.get("layout") if isinstance(bar, dict) else None
+        if isinstance(layout, dict):
+            for section, items in list(layout.items()):
+                if not isinstance(items, list):
+                    continue
+                filtered = [e for e in items if not _entry_is_plugin(e, plugin_id)]
+                if len(filtered) != len(items):
+                    layout[section] = filtered
+                    changed = True
+                if restore_stock:
+                    for entry in layout[section]:
+                        if (
+                            isinstance(entry, dict)
+                            and entry.get("id") == "omarchy.clock"
+                            and entry.get("format") == TWO_LINE_CLOCK_FORMAT
+                        ):
+                            entry["format"] = DEFAULT_CLOCK_FORMAT
+                            changed = True
+
+        plugins = data.get("plugins")
+        if isinstance(plugins, list):
+            filtered_plugins = [e for e in plugins if not _entry_is_plugin(e, plugin_id)]
+            if len(filtered_plugins) != len(plugins):
+                data["plugins"] = filtered_plugins
+                changed = True
+
+        disabled = data.get("disabledPlugins")
+        if isinstance(disabled, list):
+            drop_ids = {plugin_id}
+            if restore_stock:
+                drop_ids.add("omarchy.dock")
+            filtered_disabled = [e for e in disabled if e not in drop_ids]
+            if len(filtered_disabled) != len(disabled):
+                data["disabledPlugins"] = filtered_disabled
+                changed = True
+
+        if restore_stock and isinstance(bar, dict) and bar.get("position") != "top":
+            bar["position"] = "top"
+            changed = True
+
+        if changed:
+            atomic_write(path, json.dumps(data, indent=2) + "\n")
+        return changed
+
+
+def cmd_uninstall_shell_cleanup(args):
+    restore_stock = False
+    for arg in args:
+        if arg == "--restore-stock":
+            restore_stock = True
+        else:
+            raise ValueError(f"Unexpected argument for uninstall-shell-cleanup: {arg}")
+    changed = cleanup_shell_json_on_uninstall(restore_stock=restore_stock)
+    sys.stdout.write("updated\n" if changed else "unchanged\n")

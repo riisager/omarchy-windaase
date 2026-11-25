@@ -1477,6 +1477,133 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
         self.assertEqual(self.read_text(default_lua), 'o.workspace_mode({ default = "dwindle" })\n')
 
+    def test_offline_uninstall_restore_stock_cleans_shell_json_and_resets_clock(self):
+        st = self._setup_fake_install_state('o.bind("SUPER + Return", "Term", { term = "foot" })\n')
+        shell_json_path = os.path.join(self.omarchy_dir, "shell.json")
+        with open(shell_json_path, "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "bar": {
+                        "position": "bottom",
+                        "layout": {
+                            "left": [
+                                {"id": "omarchy.workspaces"},
+                                {"id": "riisager.windaase", "uncombine": ["google-chrome"]},
+                            ],
+                            "right": [
+                                {"id": "omarchy.clock", "format": "HH:mm\ndd-MM-yyyy"},
+                            ],
+                        },
+                    },
+                    "disabledPlugins": ["omarchy.dock", "riisager.windaase"],
+                    "plugins": [{"id": "riisager.windaase"}],
+                },
+                handle,
+            )
+
+        # Offline uninstall (no omarchy / omarchy-shell on isolated PATH)
+        isolated_bin = os.path.join(self.home, "empty-bin")
+        os.makedirs(isolated_bin, exist_ok=True)
+        env = self.env.copy()
+        env["PATH"] = f"{isolated_bin}:/usr/bin:/bin"
+
+        res = subprocess.run(
+            ["bash", UNINSTALL_SH, "--restore-stock"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 0, res.stderr + res.stdout)
+
+        cfg = self.read_json(shell_json_path)
+        self.assertEqual(cfg["bar"]["position"], "top")
+        self.assertEqual([e["id"] for e in cfg["bar"]["layout"]["left"]], ["omarchy.workspaces"])
+        self.assertEqual(cfg["bar"]["layout"]["right"][0]["format"], "dddd HH:mm")
+        self.assertEqual(cfg["disabledPlugins"], [])
+        self.assertEqual(cfg["plugins"], [])
+
+        # Custom user clock format must not be overwritten by --restore-stock
+        with open(shell_json_path, "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "bar": {
+                        "position": "bottom",
+                        "layout": {"right": [{"id": "omarchy.clock", "format": "HH:mm:ss"}]},
+                    },
+                    "disabledPlugins": ["omarchy.dock"],
+                },
+                handle,
+            )
+        res2 = self.run_helper("uninstall-shell-cleanup", "--restore-stock")
+        self.assertEqual(res2.returncode, 0, res2.stderr)
+        cfg2 = self.read_json(shell_json_path)
+        self.assertEqual(cfg2["bar"]["layout"]["right"][0]["format"], "HH:mm:ss")
+        self.assertEqual(cfg2["bar"]["position"], "top")
+
+    def test_shell_only_then_in_place_companion_then_self_uninstall_and_no_dup_baks(self):
+        stub_dir = self._make_stub_bin()
+        hypr_dir = os.path.join(self.home, ".config", "hypr")
+        os.makedirs(hypr_dir, exist_ok=True)
+        hyprland_lua = os.path.join(hypr_dir, "hyprland.lua")
+        with open(hyprland_lua, "w", encoding="utf-8") as handle:
+            handle.write("-- Start\n")
+
+        env = self.env.copy()
+        env["PATH"] = f"{stub_dir}:{env['PATH']}"
+        env["XDG_STATE_HOME"] = os.path.join(self.home, ".local", "state")
+
+        # 1. --shell-only + repeat --bar-height 40 must not create duplicate unchanged TOML backups
+        res1 = subprocess.run(
+            ["bash", INSTALL_SH, "--shell-only", "--bar-height", "40"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res1.returncode, 0, res1.stderr + res1.stdout)
+        res2 = subprocess.run(
+            ["bash", INSTALL_SH, "--shell-only", "--bar-height", "40"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res2.returncode, 0, res2.stderr + res2.stdout)
+        self.assertEqual(glob.glob(os.path.join(self.omarchy_dir, "shell.toml.bak-*")), [])
+
+        plugin_dest = os.path.join(self.omarchy_dir, "plugins", "riisager.windaase")
+        self.assertTrue(os.path.isfile(os.path.join(plugin_dest, "install.sh")))
+        self.assertTrue(os.path.isfile(os.path.join(plugin_dest, "uninstall.sh")))
+        self.assertTrue(os.path.isfile(os.path.join(plugin_dest, "hypr", "windaase.lua")))
+
+        # 2. Add Hyprland companion directly from PLUGIN_DEST (as after deleting git clone)
+        res_comp = subprocess.run(
+            ["bash", os.path.join(plugin_dest, "install.sh")],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res_comp.returncode, 0, res_comp.stderr + res_comp.stdout)
+        self.assertTrue(os.path.exists(os.path.join(hypr_dir, "windaase.lua")))
+        self.assertIn('require("hypr.windaase").setup()', self.read_text(hyprland_lua))
+
+        # 3. Uninstall directly via ${PLUGIN_DEST}/uninstall.sh (self-deletion test)
+        res_un = subprocess.run(
+            ["bash", os.path.join(plugin_dest, "uninstall.sh"), "--restore-stock"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(res_un.returncode, 0, res_un.stderr + res_un.stdout)
+        self.assertFalse(os.path.exists(plugin_dest))
+        self.assertFalse(os.path.exists(os.path.join(hypr_dir, "windaase.lua")))
+        self.assertFalse(os.path.exists(os.path.join(hypr_dir, "windaase")))
+        self.assertFalse(os.path.exists(os.path.join(self.omarchy_dir, ".windaase.lock")))
+        self.assertFalse(os.path.exists(os.path.join(self.omarchy_dir, "shell.toml")))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

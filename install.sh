@@ -79,7 +79,8 @@ DEST_REAL="${DEST_PARENT_REAL}/$(basename "${PLUGIN_DEST}")"
 if [[ "${SCRIPT_REAL}" == "${DEST_REAL}" ]]; then
   WAS_INSTALLED=1
   echo "==> Validating in-place Omarchy-windåse shell plugin at ${PLUGIN_DEST}"
-  chmod +x "${PLUGIN_DEST}/windaase-config.py"
+  chmod +x "${PLUGIN_DEST}/windaase-config.py" "${PLUGIN_DEST}/install.sh"
+  [[ -f "${PLUGIN_DEST}/uninstall.sh" ]] && chmod +x "${PLUGIN_DEST}/uninstall.sh"
   omarchy plugin validate "${PLUGIN_DEST}"
   echo "==> Validated plugin: ${PLUGIN_ID}"
 else
@@ -88,7 +89,7 @@ else
   STAGING_DIR="${INSTALL_TMP_ROOT}/${PLUGIN_ID}.staging.$$"
   OLD_DIR="${INSTALL_TMP_ROOT}/${PLUGIN_ID}.old.$$"
 
-  mkdir -p "${STAGING_DIR}/i18n" "${STAGING_DIR}/nautilus" "${STAGING_DIR}/configlib" "${STAGING_DIR}/js"
+  mkdir -p "${STAGING_DIR}/i18n" "${STAGING_DIR}/nautilus" "${STAGING_DIR}/configlib" "${STAGING_DIR}/js" "${STAGING_DIR}/hypr/windaase"
   cp "${SCRIPT_DIR}/manifest.json" \
      "${SCRIPT_DIR}/layouts.json" \
      "${SCRIPT_DIR}/TaskbarModel.js" \
@@ -111,14 +112,18 @@ else
      "${SCRIPT_DIR}/Service.qml" \
      "${SCRIPT_DIR}/AppGrid.qml" \
      "${SCRIPT_DIR}/windaase-config.py" \
+     "${SCRIPT_DIR}/install.sh" \
+     "${SCRIPT_DIR}/uninstall.sh" \
      "${SCRIPT_DIR}/LICENSE" \
      "${SCRIPT_DIR}/README.md" \
      "${STAGING_DIR}/"
-  chmod +x "${STAGING_DIR}/windaase-config.py"
+  chmod +x "${STAGING_DIR}/windaase-config.py" "${STAGING_DIR}/install.sh" "${STAGING_DIR}/uninstall.sh"
   cp "${SCRIPT_DIR}/i18n/"*.json "${STAGING_DIR}/i18n/"
   cp "${SCRIPT_DIR}/js/"*.js "${STAGING_DIR}/js/"
   cp "${SCRIPT_DIR}/configlib/"*.py "${STAGING_DIR}/configlib/"
   cp "${SCRIPT_DIR}/nautilus/windaase_context_menu.py" "${STAGING_DIR}/nautilus/"
+  cp "${SCRIPT_DIR}/hypr/windaase.lua" "${STAGING_DIR}/hypr/windaase.lua"
+  cp "${SCRIPT_DIR}/hypr/windaase/"*.lua "${STAGING_DIR}/hypr/windaase/"
 
   omarchy plugin validate "${STAGING_DIR}"
   echo "==> Validated plugin: ${PLUGIN_ID}"
@@ -182,9 +187,19 @@ if [[ "$MODE" == "full" ]]; then
 
   SHELL_JSON="${HOME}/.config/omarchy/shell.json"
   if [[ -f "${SHELL_JSON}" ]]; then
-    SHELL_JSON_BAK="${SHELL_JSON}.bak-$(date +%Y%m%d-%H%M%S)-$$"
-    cp "${SHELL_JSON}" "${SHELL_JSON_BAK}"
-    echo "==> Backed up ${SHELL_JSON} to ${SHELL_JSON_BAK}"
+    NEED_SHELL_JSON_BAK=1
+    for existing_bak in "${SHELL_JSON}.bak-"*; do
+      [[ -f "${existing_bak}" ]] || continue
+      if cmp -s "${SHELL_JSON}" "${existing_bak}"; then
+        NEED_SHELL_JSON_BAK=0
+        break
+      fi
+    done
+    if [[ "${NEED_SHELL_JSON_BAK}" -eq 1 ]]; then
+      SHELL_JSON_BAK="${SHELL_JSON}.bak-$(date +%Y%m%d-%H%M%S)-$$"
+      cp "${SHELL_JSON}" "${SHELL_JSON_BAK}"
+      echo "==> Backed up ${SHELL_JSON} to ${SHELL_JSON_BAK}"
+    fi
   fi
 
   omarchy-hyprland-workspace-layout-default floating || true
@@ -214,12 +229,19 @@ fi
 
 if [[ -n "$BAR_HEIGHT" ]]; then
   SHELL_TOML="${HOME}/.config/omarchy/shell.toml"
+  TOML_BAK=""
   if [[ -f "${SHELL_TOML}" ]]; then
-    TOML_BAK="${SHELL_TOML}.bak-$(date +%Y%m%d-%H%M%S)"
+    TOML_BAK="${SHELL_TOML}.bak-$(date +%Y%m%d-%H%M%S)-$$"
     cp "${SHELL_TOML}" "${TOML_BAK}"
-    echo "==> Backed up ${SHELL_TOML} to ${TOML_BAK}"
   fi
   python3 "${PLUGIN_DEST}/windaase-config.py" bar-height "${BAR_HEIGHT}"
+  if [[ -n "${TOML_BAK}" ]]; then
+    if cmp -s "${SHELL_TOML}" "${TOML_BAK}"; then
+      rm -f "${TOML_BAK}"
+    else
+      echo "==> Backed up ${SHELL_TOML} to ${TOML_BAK}"
+    fi
+  fi
   echo "==> Set [bar] size-horizontal = ${BAR_HEIGHT} in ${SHELL_TOML}"
 fi
 

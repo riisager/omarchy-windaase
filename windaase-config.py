@@ -50,12 +50,14 @@ from configlib.monitors import (  # noqa: E402
 )
 from configlib.nautilus_cfg import cmd_nautilus_menu  # noqa: E402
 from configlib.shell_cfg import (  # noqa: E402
+    cleanup_shell_json_on_uninstall,
     cmd_bar_height,
     cmd_bar_height_reset,
     cmd_enforce_floating_workspace,
     cmd_hypr_set,
     cmd_reset_floating_default,
     cmd_two_line_clock,
+    cmd_uninstall_shell_cleanup,
     reset_floating_default_layout,
     sync_floating_workspace_layouts,
 )
@@ -69,6 +71,7 @@ def main(argv):
         "hypr-set": cmd_hypr_set,
         "enforce-floating-workspace": cmd_enforce_floating_workspace,
         "reset-floating-default": cmd_reset_floating_default,
+        "uninstall-shell-cleanup": cmd_uninstall_shell_cleanup,
         "strip-hyprland-loader": cmd_strip_hyprland_loader,
         "browser-window-profiles": cmd_browser_window_profiles,
         "nautilus-menu": cmd_nautilus_menu,

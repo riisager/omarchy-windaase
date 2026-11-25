@@ -240,9 +240,12 @@ class HygieneTests(unittest.TestCase):
             "manifest.json",
             "layouts.json",
             "windaase-config.py",
+            "install.sh",
+            "uninstall.sh",
             "LICENSE",
             "README.md",
             "nautilus/windaase_context_menu.py",
+            "hypr/windaase.lua",
         ]
         for rel_file in expected_files:
             self.assertIn(
@@ -253,8 +256,10 @@ class HygieneTests(unittest.TestCase):
 
         self.assertIn("${SCRIPT_DIR}/js/\"*.js", staging_block, "install.sh must stage js/*.js")
         self.assertIn("${SCRIPT_DIR}/configlib/\"*.py", staging_block, "install.sh must stage configlib/*.py")
+        self.assertIn("${SCRIPT_DIR}/hypr/windaase/\"*.lua", staging_block, "install.sh must stage hypr/windaase/*.lua")
         self.assertGreater(len(glob.glob(os.path.join(REPO_ROOT, "js", "*.js"))), 0)
         self.assertGreater(len(glob.glob(os.path.join(REPO_ROOT, "configlib", "*.py"))), 0)
+        self.assertGreater(len(glob.glob(os.path.join(REPO_ROOT, "hypr", "windaase", "*.lua"))), 0)
 
     def test_qml_avoids_raw_array_isarray(self):
         pattern = re.compile(r"\bArray\.isArray\s*\(")
