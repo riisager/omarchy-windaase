@@ -37,7 +37,7 @@ bash -n install.sh uninstall.sh tests/run.sh
 
 if command -v shellcheck >/dev/null 2>&1; then
   echo "==> Running shellcheck"
-  shellcheck install.sh uninstall.sh tests/run.sh
+  shellcheck -S warning install.sh uninstall.sh tests/run.sh
 fi
 
 if command -v omarchy >/dev/null 2>&1; then

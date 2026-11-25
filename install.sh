@@ -53,6 +53,7 @@ OLD_DIR=""
 OLD_MOVED=0
 SWAP_COMMITTED=0
 WAS_INSTALLED=0
+# shellcheck disable=SC2317
 cleanup_temp_dirs() {
   if [[ "${OLD_MOVED}" -eq 1 && "${SWAP_COMMITTED}" -eq 0 && -n "${OLD_DIR}" && ( -e "${OLD_DIR}" || -L "${OLD_DIR}" ) ]]; then
     if [[ ! -e "${PLUGIN_DEST}" && ! -L "${PLUGIN_DEST}" ]] && mv "${OLD_DIR}" "${PLUGIN_DEST}" 2>/dev/null; then

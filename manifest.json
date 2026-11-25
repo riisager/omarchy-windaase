@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "riisager.windaase",
   "name": "Omarchy-windåse",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": "riisager",
   "license": "MIT",
-  "description": "Windows 11-style in-bar taskbar with live window previews, multi-browser profiles, Snap Layouts, Snap Assist, and Snap Resize.",
+  "description": "Windows 11-style in-bar taskbar with live window previews, multi-browser profiles, Snap Layouts, Snap Assist, Snap Resize, Alt+Tab, and multi-monitor Display Setup.",
   "kinds": [
     "service",
     "bar-widget"
