@@ -10,6 +10,10 @@ local snap_restore_geom = {}
 local snap_current_zone = {}
 local snap_custom_zone = {}
 local last_normal_geom = {}
+local open_guard = {}
+local open_seq = 0
+local title_seq = {}
+local contain_guard = {}
 
 local options = {
   aero_snap = true,
@@ -47,7 +51,13 @@ function M.record_normal_geom(window)
   if not window or not window.floating or (window.fullscreen or 0) ~= 0 then
     return
   end
-  if not M.is_soft_maximized(window, work_area_for_window(window)) then
+  local area = work_area_for_window(window)
+  local border, titlebar = geometry.get_window_frame_insets(window)
+  local outer = geometry.window_outer_rect(window, border, titlebar)
+  if outer and area and (geometry.rect_overflows_area(outer, area, 8) or geometry.rect_needs_rescue(outer, area, true)) then
+    return
+  end
+  if not M.is_soft_maximized(window, area) then
     last_normal_geom[window.address] = {
       x = window.at.x,
       y = window.at.y,
@@ -62,6 +72,8 @@ function M.clear_restore_state(addr)
     snap_current_zone[addr] = nil
     snap_custom_zone[addr] = nil
     snap_restore_geom[addr] = nil
+    open_guard[addr] = nil
+    contain_guard[addr] = nil
   end
 end
 
@@ -93,6 +105,8 @@ function M.apply_snap(window, zone, target_mon)
   end
 
   local addr = window.address
+  open_guard[addr] = nil
+  contain_guard[addr] = nil
   if zone ~= "restore" then
     window = ensure_window_on_monitor(window, m)
   end
@@ -202,6 +216,8 @@ function M.apply_snap_zone(window, m, z, orig_geom, skip_after_snap)
   end
 
   local addr = window.address
+  open_guard[addr] = nil
+  contain_guard[addr] = nil
   if orig_geom and not snap_restore_geom[addr] then
     snap_restore_geom[addr] = orig_geom
   elseif not snap_restore_geom[addr] and (window.fullscreen or 0) == 0 then
@@ -256,6 +272,8 @@ function M.apply_edge_snap_for_drag(w, start, c)
     or nil
 
   if zone then
+    open_guard[w.address] = nil
+    contain_guard[w.address] = nil
     if not snap_restore_geom[w.address] then
       snap_restore_geom[w.address] = {
         x = start.x,
@@ -339,11 +357,11 @@ local function remap_restore_geom(addr, border, titlebar, src_area, dst_area)
   end
 end
 
-local function apply_relocated_state(addr, dst_rect, border, titlebar)
+local function apply_relocated_state(addr, dst_rect, border, titlebar, preserve_normal)
   if dst_rect.mode == "maximize" then
     snap_current_zone[addr] = "maximize"
     snap_custom_zone[addr] = nil
-  elseif dst_rect.mode == "float" then
+  elseif dst_rect.mode == "float" and (preserve_normal ~= true or last_normal_geom[addr] == nil) then
     last_normal_geom[addr] = {
       x = dst_rect.x + border,
       y = dst_rect.y + border + titlebar,
@@ -351,6 +369,60 @@ local function apply_relocated_state(addr, dst_rect, border, titlebar)
       h = math.max(120, dst_rect.h - border * 2 - titlebar),
     }
   end
+end
+
+local function geom_sig(w)
+  if not w or not w.at or not w.size then
+    return ""
+  end
+  return string.format("%d:%d:%d:%d", w.at.x, w.at.y, w.size.x, w.size.y)
+end
+
+local function place_relocated_window(window, dst_mon, dst_area, src_area, dst_rect, border, titlebar, preserve_normal)
+  local addr = window.address
+  local ws = window.workspace
+  if on_before_snap then
+    local act = hl.get_active_window()
+    if act and act.address == addr then
+      on_before_snap(6)
+    end
+  end
+
+  remap_restore_geom(addr, border, titlebar, src_area, dst_area)
+
+  local need_monitor_move = not window.monitor or window.monitor.name ~= dst_mon.name
+  local ws_id = ws and tonumber(ws.id) or -1
+  local ws_mon = (ws and ws.monitor and ws.monitor.name) or ""
+  local target_ws_id = (ws_id >= 1 and ws_mon == dst_mon.name) and ws_id
+    or (dst_mon.active_workspace and tonumber(dst_mon.active_workspace.id))
+    or -1
+  local function move_window_silent(w_target)
+    if target_ws_id >= 1 then
+      hl.dispatch(hl.dsp.window.move({ workspace = tostring(target_ws_id), follow = false, window = w_target }))
+    else
+      hl.dispatch(hl.dsp.window.move({ monitor = dst_mon.name, window = w_target }))
+    end
+  end
+
+  if (window.fullscreen or 0) == 1 then
+    if not options.soft_maximize then
+      if need_monitor_move then
+        move_window_silent(window)
+        return true
+      end
+      return false
+    end
+    hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "unset", window = window }))
+  end
+
+  if need_monitor_move then
+    move_window_silent(window)
+  end
+
+  local target = hl.get_window("address:" .. addr) or window
+  geometry.place_window_in_outer_rect(target, dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h)
+  apply_relocated_state(addr, dst_rect, border, titlebar, preserve_normal)
+  return true
 end
 
 function M.move_to_monitor(window, direction)
@@ -458,48 +530,74 @@ function M.rescue_window(window, monitors_opt, rescue_opts)
     return false
   end
 
-  if on_before_snap then
-    local act = hl.get_active_window()
-    if act and act.address == addr then
-      on_before_snap(6)
-    end
+  return place_relocated_window(window, dst_mon, dst_area, src_area, dst_rect, border, titlebar, false)
+end
+
+function M.contain_window(window, prev_sample_opt)
+  if not geometry.is_manageable_floating_window(window) or not window.address then
+    return false
+  end
+  if is_dragging_fn and is_dragging_fn() then
+    return false
   end
 
-  remap_restore_geom(addr, border, titlebar, src_area, dst_area)
-
-  local need_monitor_move = not window.monitor or window.monitor.name ~= dst_mon.name
-  local ws_id = ws and tonumber(ws.id) or -1
-  local ws_mon = (ws and ws.monitor and ws.monitor.name) or ""
-  local target_ws_id = (ws_id >= 1 and ws_mon == dst_mon.name) and ws_id
-    or (dst_mon.active_workspace and tonumber(dst_mon.active_workspace.id))
-    or -1
-  local function move_window_silent(w_target)
-    if target_ws_id >= 1 then
-      hl.dispatch(hl.dsp.window.move({ workspace = tostring(target_ws_id), follow = false, window = w_target }))
-    else
-      hl.dispatch(hl.dsp.window.move({ monitor = dst_mon.name, window = w_target }))
-    end
+  local monitors = hl.get_monitors()
+  local dst_mon = geometry.resolve_active_monitor_for_window(window, monitors, hl.get_active_monitor())
+  if not dst_mon then
+    return false
+  end
+  local dst_area = geometry.get_work_area(dst_mon, options.gap_out, options.gap_in)
+  if not dst_area then
+    return false
   end
 
-  if (window.fullscreen or 0) == 1 then
-    if not options.soft_maximize then
-      if need_monitor_move then
-        move_window_silent(window)
-        return true
-      end
+  local border, titlebar = geometry.get_window_frame_insets(window)
+  local outer = geometry.window_outer_rect(window, border, titlebar)
+  if not outer then
+    return false
+  end
+
+  if prev_sample_opt then
+    local prev_outer = geometry.window_outer_rect(
+      { at = { x = prev_sample_opt.x, y = prev_sample_opt.y }, size = { x = prev_sample_opt.w, y = prev_sample_opt.h } },
+      border,
+      titlebar
+    )
+    if prev_outer
+      and geometry.rect_overflows_area(prev_outer, dst_area, 4)
+      and not geometry.rect_needs_rescue(outer, dst_area, true)
+      and outer.y >= (dst_area.max_y or dst_area.y or 0) - 4 then
       return false
     end
-    hl.dispatch(hl.dsp.window.fullscreen({ mode = "maximized", action = "unset", window = window }))
   end
 
-  if need_monitor_move then
-    move_window_silent(window)
+  local addr = window.address
+  local dst_rect = geometry.contain_rect_in_area(outer, dst_area, snap_current_zone[addr])
+  if not dst_rect then
+    contain_guard[addr] = nil
+    return false
   end
 
-  local target = hl.get_window("address:" .. addr) or window
-  geometry.place_window_in_outer_rect(target, dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h)
-  apply_relocated_state(addr, dst_rect, border, titlebar)
-  return true
+  local cur_sig = geom_sig(window)
+  local target_sig = string.format("%d:%d:%d:%d", dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h)
+  local guard = contain_guard[addr]
+  if guard and guard.target_sig == target_sig and (cur_sig == guard.pre_sig or cur_sig == guard.post_sig) and guard.count >= 2 then
+    return false
+  end
+
+  local ok = place_relocated_window(window, dst_mon, dst_area, nil, dst_rect, border, titlebar, true)
+  if ok then
+    local after = hl.get_window("address:" .. addr)
+    local post_sig = geom_sig(after)
+    local next_count = (guard and guard.target_sig == target_sig) and (guard.count + 1) or 1
+    contain_guard[addr] = {
+      target_sig = target_sig,
+      pre_sig = cur_sig,
+      post_sig = post_sig,
+      count = next_count,
+    }
+  end
+  return ok
 end
 
 function M.rescue_offscreen_windows()
@@ -632,6 +730,56 @@ function M.setup(opts, before_snap_cb, after_snap_cb, is_dragging_cb)
         snap_current_zone[window.address] = nil
         snap_custom_zone[window.address] = nil
         last_normal_geom[window.address] = nil
+        open_guard[window.address] = nil
+        title_seq[window.address] = nil
+        contain_guard[window.address] = nil
+      end)
+
+      hl.on("window.open", function(window)
+        local addr = window and window.address
+        if not addr then
+          return
+        end
+        open_seq = open_seq + 1
+        local seq = open_seq
+        open_guard[addr] = seq
+        for _, delay in ipairs({ 40, 220, 650 }) do
+          runtime.timer(function()
+            if open_guard[addr] ~= seq then
+              return
+            end
+            local cur = hl.get_window("address:" .. addr)
+            if cur then
+              M.contain_window(cur, nil)
+            end
+            if delay == 650 and open_guard[addr] == seq then
+              open_guard[addr] = nil
+            end
+          end, { type = "oneshot", timeout = delay })
+        end
+      end)
+
+      hl.on("window.title", function(window)
+        local addr = window and window.address
+        if not addr then
+          return
+        end
+        local seq = (title_seq[addr] or 0) + 1
+        title_seq[addr] = seq
+        runtime.timer(function()
+          if title_seq[addr] ~= seq then
+            return
+          end
+          local cur = hl.get_window("address:" .. addr)
+          if not cur then
+            return
+          end
+          if open_guard[addr] ~= nil then
+            M.contain_window(cur, nil)
+          else
+            M.rescue_window(cur)
+          end
+        end, { type = "oneshot", timeout = 120 })
       end)
 
       hl.on("window.active", function(window)
@@ -671,8 +819,17 @@ function M.setup(opts, before_snap_cb, after_snap_cb, is_dragging_cb)
         end
         runtime.timer(function()
           local cur = hl.get_window("address:" .. addr)
-          if cur then
-            M.rescue_window(cur)
+          if cur and not M.rescue_window(cur) and geometry.is_manageable_floating_window(cur) then
+            local mons = hl.get_monitors()
+            local dst_mon = geometry.resolve_active_monitor_for_window(cur, mons, hl.get_active_monitor())
+            local dst_area = dst_mon and geometry.get_work_area(dst_mon, options.gap_out, options.gap_in)
+            local border, titlebar = geometry.get_window_frame_insets(cur)
+            local outer = geometry.window_outer_rect(cur, border, titlebar)
+            if dst_mon and dst_area and outer and geometry.rect_overflows_area(outer, dst_area, 4) then
+              if not geometry.find_containing_monitor(outer, mons, dst_mon.name) then
+                M.contain_window(cur, nil)
+              end
+            end
           end
         end, { type = "oneshot", timeout = 30 })
       end)

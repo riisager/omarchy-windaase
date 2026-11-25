@@ -402,4 +402,53 @@ assert(geometry.rect_needs_rescue(oversized_visible_rect, dp6_area, true) == tru
 assert(geometry.rect_needs_rescue(oversized_visible_rect, dp6_area, false) == false, "oversized visible rect must not trigger rescue when check_oversize=false")
 assert(geometry.rect_needs_rescue(offscreen_rect, dp6_area, false) == true, "offscreen rect must still trigger rescue when check_oversize=false")
 
+-- 15. Off-screen containment & interactive edge resize detection (Chromium Wayland / mixed-scale jumps)
+local dvi1_area = geometry.get_work_area({
+  id = 1, name = "DVI-I-1", x = 0, y = 0, width = 1920, height = 1080, scale = 1, transform = 0, reserved = { 0, 0, 0, 40 },
+}, 8, 8)
+local chrom_outer = { x = -384, y = -120, w = 1950, h = 1048 }
+assert(geometry.rect_overflows_area(chrom_outer, dvi1_area, 4) == true, "off-screen Chromium rect must overflow DVI-I-1")
+local chrom_contained = geometry.contain_rect_in_area(chrom_outer, dvi1_area, nil)
+assert(
+  chrom_contained and chrom_contained.x == 8 and chrom_contained.y == 8
+    and chrom_contained.w == 1904 and chrom_contained.h == 1024 and chrom_contained.mode == "float",
+  "Chromium reproduction must clamp cleanly into DVI-I-1 work area"
+)
+
+-- Partially overflowing window preserves valid size and non-overflowing axis
+local half_left = geometry.contain_rect_in_area({ x = -400, y = 120, w = 1104, h = 768 }, dvi1_area, nil)
+assert(
+  half_left and half_left.x == 8 and half_left.y == 120 and half_left.w == 1104 and half_left.h == 768,
+  "half-left overflowing window must shift inside x=8 while preserving size and valid Y"
+)
+local half_right = geometry.contain_rect_in_area({ x = 1500, y = 200, w = 800, h = 600 }, dvi1_area, nil)
+assert(
+  half_right and half_right.x == 1112 and half_right.y == 200 and half_right.w == 800 and half_right.h == 600,
+  "half-right overflowing window must clamp right edge inside work area"
+)
+
+-- Soft-maximized, snapped zones, and centered cascade windows remain untouched
+assert(geometry.contain_rect_in_area({ x = 0, y = 0, w = 1920, h = 1040 }, dvi1_area, nil) == nil, "soft-max window must not overflow")
+local dvi1_left = geometry.zone_rect_in_area(dvi1_area, cfg.layouts[1][1])
+assert(geometry.contain_rect_in_area(dvi1_left, dvi1_area, "left") == nil, "snapped left zone must not overflow")
+assert(geometry.contain_rect_in_area({ x = 360, y = 93, w = 1104, h = 768 }, dvi1_area, nil) == nil, "centered cascade window must not overflow")
+
+-- Interactive border resize vs spontaneous client popup jump
+assert(
+  geometry.is_interactive_edge_resize(
+    { addr = "0x1", x = 362, y = 125, w = 1100, h = 734, cx = 1462, cy = 400 },
+    { address = "0x1", at = { x = 362, y = 125 }, size = { x = 1120, y = 734 } },
+    { x = 1481, y = 401 }
+  ) == true,
+  "right-border mouse drag must count as interactive edge resize"
+)
+assert(
+  geometry.is_interactive_edge_resize(
+    { addr = "0x1", x = 362, y = 125, w = 1100, h = 734, cx = 800, cy = 400 },
+    { address = "0x1", at = { x = -382, y = -88 }, size = { x = 1946, y = 1014 } },
+    { x = 800, y = 400 }
+  ) == false,
+  "stationary-cursor Chromium jump must not count as interactive edge resize"
+)
+
 print("ALL GEOMETRY LUA TESTS PASSED")

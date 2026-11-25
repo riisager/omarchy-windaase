@@ -332,8 +332,6 @@ local function tick(expected_token)
     return
   end
 
-  snap.record_normal_geom(cur)
-
   if prev_sample and prev_sample.addr == cur.address then
     local same_size = math.abs(cur.size.x - prev_sample.w) <= 2 and math.abs(cur.size.y - prev_sample.h) <= 2
     local dwx = cur.at.x - prev_sample.x
@@ -367,7 +365,20 @@ local function tick(expected_token)
       runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 25 })
       return
     end
+
+    local geom_changed = cur.at.x ~= prev_sample.x
+      or cur.at.y ~= prev_sample.y
+      or cur.size.x ~= prev_sample.w
+      or cur.size.y ~= prev_sample.h
+    if geom_changed and not geometry.is_interactive_edge_resize(prev_sample, cur, c) then
+      if snap.contain_window(cur, prev_sample) then
+        runtime.timer(function() tick(expected_token) end, { type = "oneshot", timeout = 80 })
+        return
+      end
+    end
   end
+
+  snap.record_normal_geom(cur)
 
   local cur_ws_id = (cur.workspace and tonumber(cur.workspace.id)) or -1
   local geom_changed = not prev_sample

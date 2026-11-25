@@ -611,4 +611,146 @@ function M.rescue_rect_to_area(outer, dst_area, zone_name, custom_zone, src_area
   }
 end
 
+function M.is_manageable_floating_window(w)
+  if not is_object(w) or not w.floating then
+    return false
+  end
+  if w.mapped == false or w.hidden == true or (w.fullscreen or 0) == 2 then
+    return false
+  end
+  if w.size and ((tonumber(w.size.x) or 0) < 40 or (tonumber(w.size.y) or 0) < 40) then
+    return false
+  end
+  if w.xwayland == true and (w.class == nil or w.class == "") and (w.title == nil or w.title == "") then
+    return false
+  end
+  local ws = w.workspace
+  if ws then
+    local ws_name = type(ws.name) == "string" and ws.name or ""
+    local ws_id = tonumber(ws.id)
+    if ws_name:match("^special:") or (ws_id and ws_id < 1) then
+      return false
+    end
+  end
+  return true
+end
+
+function M.rect_overflows_area(outer, area, tol)
+  if not is_object(outer) or not is_object(area) then
+    return false
+  end
+  local ow = tonumber(outer.w) or 0
+  local oh = tonumber(outer.h) or 0
+  if ow <= 0 or oh <= 0 then
+    return false
+  end
+  local ax = area.max_x or area.x or 0
+  local ay = area.max_y or area.y or 0
+  local aw = area.max_w or area.w or 0
+  local ah = area.max_h or area.h or 0
+  if aw <= 0 or ah <= 0 then
+    return false
+  end
+  local t = tonumber(tol) or 4
+  return outer.x < ax - t
+    or outer.y < ay - t
+    or (outer.x + ow) > (ax + aw + t)
+    or (outer.y + oh) > (ay + ah + t)
+end
+
+function M.contain_rect_in_area(outer, area, zone_name)
+  if not M.rect_overflows_area(outer, area, 4) then
+    return nil
+  end
+  local ax = area.max_x or area.x or 0
+  local ay = area.max_y or area.y or 0
+  local aw = area.max_w or area.w or 0
+  local ah = area.max_h or area.h or 0
+  if zone_name == "maximize" then
+    return {
+      x = ax,
+      y = ay,
+      w = aw,
+      h = ah,
+      mode = "maximize",
+    }
+  end
+
+  local ow = tonumber(outer.w) or 0
+  local oh = tonumber(outer.h) or 0
+  local work_x = area.x or ax
+  local work_y = area.y or ay
+  local work_w = area.w or aw
+  local work_h = area.h or ah
+
+  local nw = (ow > aw + 4)
+    and clamp_num(math.floor(ow + 0.5), 120, math.max(120, work_w))
+    or math.floor(ow + 0.5)
+  local nh = (oh > ah + 4)
+    and clamp_num(math.floor(oh + 0.5), 120, math.max(120, work_h))
+    or math.floor(oh + 0.5)
+
+  local x_overflows = outer.x < ax - 4 or (outer.x + ow) > (ax + aw + 4) or nw ~= math.floor(ow + 0.5)
+  local y_overflows = outer.y < ay - 4 or (outer.y + oh) > (ay + ah + 4) or nh ~= math.floor(oh + 0.5)
+
+  local nx = math.floor(outer.x + 0.5)
+  if x_overflows then
+    if nw <= work_w then
+      nx = clamp_num(nx, work_x, work_x + math.max(0, work_w - nw))
+    else
+      nx = clamp_num(nx, ax, ax + math.max(0, aw - nw))
+    end
+  end
+
+  local ny = math.floor(outer.y + 0.5)
+  if y_overflows then
+    if nh <= work_h then
+      ny = clamp_num(ny, work_y, work_y + math.max(0, work_h - nh))
+    else
+      ny = clamp_num(ny, ay, ay + math.max(0, ah - nh))
+    end
+  end
+
+  return {
+    x = nx,
+    y = ny,
+    w = nw,
+    h = nh,
+    mode = "float",
+  }
+end
+
+function M.is_interactive_edge_resize(prev_sample, cur_w, cur_c)
+  if not is_object(prev_sample) or not is_object(cur_w) or not is_object(cur_c) then
+    return false
+  end
+  if prev_sample.addr ~= cur_w.address or not cur_w.at or not cur_w.size then
+    return false
+  end
+  if prev_sample.x == nil or prev_sample.y == nil or prev_sample.w == nil or prev_sample.h == nil or prev_sample.cx == nil or prev_sample.cy == nil then
+    return false
+  end
+  if math.abs(cur_w.size.x - prev_sample.w) == 0 and math.abs(cur_w.size.y - prev_sample.h) == 0 then
+    return false
+  end
+  local dcx = cur_c.x - prev_sample.cx
+  local dcy = cur_c.y - prev_sample.cy
+  if math.abs(dcx) < 1 and math.abs(dcy) < 1 then
+    return false
+  end
+
+  local d_left = cur_w.at.x - prev_sample.x
+  local d_right = (cur_w.at.x + cur_w.size.x) - (prev_sample.x + prev_sample.w)
+  local d_top = cur_w.at.y - prev_sample.y
+  local d_bottom = (cur_w.at.y + cur_w.size.y) - (prev_sample.y + prev_sample.h)
+
+  local x_ok = (d_left == 0 and d_right == 0)
+    or (math.abs(d_left - dcx) <= 32 and math.abs(d_right) <= 4)
+    or (math.abs(d_right - dcx) <= 32 and math.abs(d_left) <= 4)
+  local y_ok = (d_top == 0 and d_bottom == 0)
+    or (math.abs(d_top - dcy) <= 32 and math.abs(d_bottom) <= 4)
+    or (math.abs(d_bottom - dcy) <= 32 and math.abs(d_top) <= 4)
+  return x_ok and y_ok
+end
+
 return M

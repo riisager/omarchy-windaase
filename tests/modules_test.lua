@@ -64,6 +64,13 @@ local function make_harness()
     end,
     dispatch = function(cmd)
       state.dispatches[#state.dispatches + 1] = cmd
+      if type(cmd) == "table" and type(cmd.window) == "table" and cmd.relative == false then
+        if cmd._kind == "window.resize" then
+          cmd.window.size = { x = cmd.x, y = cmd.y }
+        elseif cmd._kind == "window.move" then
+          cmd.window.at = { x = cmd.x, y = cmd.y }
+        end
+      end
     end,
     exec_cmd = function(cmd)
       state.exec_cmds[#state.exec_cmds + 1] = cmd
@@ -497,6 +504,142 @@ do
     end
   end
   assert(restored_min and focused_next, "menu_switch must restore minimized window and focus 0x22")
+end
+
+-- 9. window.open post-open asynchronous jump & XWayland 1x1 helper filtering
+do
+  local state, flush_timers, emit = make_harness()
+  local dvi1 = {
+    id = 1, name = "DVI-I-1", x = 0, y = 0, width = 1920, height = 1080, scale = 1, transform = 0,
+    reserved = { 0, 0, 0, 40 }, active_workspace = { id = 81 },
+  }
+  state.monitors = { dvi1 }
+  state.active_monitor = dvi1
+  state.workspaces = { { id = 81, name = "81", monitor = dvi1 } }
+  state.active_workspace = state.workspaces[1]
+
+  for mod in pairs(package.loaded) do
+    if mod == "hypr" or mod:sub(1, 5) == "hypr." then
+      package.loaded[mod] = nil
+    end
+  end
+
+  local snap = require("hypr.windaase.snap")
+  snap.setup({ aero_snap = false, soft_maximize = true, auto_raise = false })
+
+  local w_chrom = {
+    address = "0x5593a8bbfcc0",
+    floating = true,
+    mapped = true,
+    hidden = false,
+    fullscreen = 0,
+    tags = { "omarchy-floating-workspace" },
+    workspace = state.workspaces[1],
+    monitor = dvi1,
+    at = { x = 362, y = 125 },
+    size = { x = 1100, y = 734 },
+  }
+  local w_tiny_xw = {
+    address = "0x111",
+    floating = true,
+    mapped = true,
+    hidden = false,
+    fullscreen = 0,
+    xwayland = true,
+    class = "",
+    title = "",
+    workspace = state.workspaces[1],
+    monitor = dvi1,
+    at = { x = -10, y = -10 },
+    size = { x = 1, y = 1 },
+  }
+  state.windows = { w_chrom, w_tiny_xw }
+  state.active_window = w_chrom
+  state.timers = {}
+  state.dispatches = {}
+
+  emit("window.open", w_chrom)
+  -- Simulate delayed SafeLinks / Chromium bounds jump before settle timers fire
+  w_chrom.at = { x = -382, y = -88 }
+  w_chrom.size = { x = 1946, y = 1014 }
+  flush_timers()
+
+  assert(
+    w_chrom.at.x == 10 and w_chrom.at.y == 40 and w_chrom.size.x == 1900 and w_chrom.size.y == 990,
+    string.format(
+      "delayed post-open Chromium jump must clamp to (10,40) 1900x990, got (%d,%d) %dx%d",
+      w_chrom.at.x, w_chrom.at.y, w_chrom.size.x, w_chrom.size.y
+    )
+  )
+
+  state.dispatches = {}
+  assert(snap.contain_window(w_tiny_xw, nil) == false, "1x1 nameless XWayland helper must be ignored")
+  assert(#state.dispatches == 0, "ignored helper must not trigger window dispatches")
+end
+
+-- 10. Mid-session spontaneous Wayland popup jump via snap_layouts tick preserves last_normal_geom
+do
+  local state, flush_timers = make_harness()
+  local dvi1 = {
+    id = 1, name = "DVI-I-1", x = 0, y = 0, width = 1920, height = 1080, scale = 1, transform = 0,
+    reserved = { 0, 0, 0, 40 }, active_workspace = { id = 81 },
+  }
+  state.monitors = { dvi1 }
+  state.active_monitor = dvi1
+  state.workspaces = { { id = 81, name = "81", monitor = dvi1 } }
+  state.active_workspace = state.workspaces[1]
+
+  local w_chrom = {
+    address = "0x5593a8bbfcc0",
+    floating = true,
+    mapped = true,
+    hidden = false,
+    fullscreen = 0,
+    tags = { "omarchy-floating-workspace" },
+    workspace = state.workspaces[1],
+    monitor = dvi1,
+    at = { x = 362, y = 125 },
+    size = { x = 1100, y = 734 },
+  }
+  state.windows = { w_chrom }
+  state.active_window = w_chrom
+
+  for mod in pairs(package.loaded) do
+    if mod == "hypr" or mod:sub(1, 5) == "hypr." then
+      package.loaded[mod] = nil
+    end
+  end
+
+  local windaase = require("hypr.windaase")
+  local snap = require("hypr.windaase.snap")
+  windaase.setup({ aero_snap = true, snap_layouts = true, snap_resize = true, alt_tab = false, floating_only = false })
+  -- Run initial setup timers + first 50 ms tick so prev_sample and last_normal_geom record (362, 125, 1100, 734)
+  flush_timers()
+  flush_timers()
+
+  -- Simulate Google Translate popup jumping Chromium off-screen while cursor is stationary
+  w_chrom.at = { x = -382, y = -88 }
+  w_chrom.size = { x = 1946, y = 1014 }
+  flush_timers()
+
+  assert(
+    w_chrom.at.x == 10 and w_chrom.at.y == 40 and w_chrom.size.x == 1900 and w_chrom.size.y == 990,
+    string.format(
+      "mid-session Chromium jump must clamp to (10,40) 1900x990, got (%d,%d) %dx%d",
+      w_chrom.at.x, w_chrom.at.y, w_chrom.size.x, w_chrom.size.y
+    )
+  )
+
+  -- Maximizing then restoring must restore the genuine pre-jump (362, 125, 1100, 734) geometry
+  assert(snap.apply_snap(w_chrom, "maximize") == true)
+  assert(snap.apply_snap(w_chrom, "restore") == true)
+  assert(
+    w_chrom.at.x == 362 and w_chrom.at.y == 125 and w_chrom.size.x == 1100 and w_chrom.size.y == 734,
+    string.format(
+      "last_normal_geom must preserve (362,125) 1100x734 across jump containment, got (%d,%d) %dx%d",
+      w_chrom.at.x, w_chrom.at.y, w_chrom.size.x, w_chrom.size.y
+    )
+  )
 end
 
 print("ALL LUA MODULE TESTS PASSED")
